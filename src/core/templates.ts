@@ -22,7 +22,7 @@ export function makeField(type: FieldType, label: string, config: FieldConfig = 
 const severity = (label: string) =>
   makeField('scale', label, { min: 0, max: 3, scaleLabels: ['keine', 'leicht', 'mittel', 'stark'] });
 
-const ALL_VIEWS: ViewType[] = ['history', 'chart', 'calendar', 'stats', 'daily', 'compare', 'report'];
+const ALL_VIEWS: ViewType[] = ['history', 'chart', 'calendar', 'stats', 'daily', 'compare', 'report', 'table'];
 
 const GRADES = 'Stärkegrade: 0 = keine · 1 = leicht (normale Tätigkeit nicht beeinträchtigt) · 2 = mittel (normale Tätigkeit beeinträchtigt) · 3 = schwer (normaler Tagesablauf nicht mehr möglich)';
 const graded = (label: string) => ({
@@ -68,7 +68,7 @@ export const TEMPLATES: TrackerTemplate[] = [
         makeField('text', 'Besonderheiten', { multiline: true }),
       ],
       schedule: sched({ mode: 'times', times: ['20:00'], repeatMinutes: 30, maxRepeats: 2 }),
-      views: ['history', 'report', 'calendar', 'stats', 'chart', 'compare'],
+      views: ['history', 'report', 'calendar', 'stats', 'chart', 'compare', 'table'],
     }),
   },
   {
@@ -85,7 +85,7 @@ export const TEMPLATES: TrackerTemplate[] = [
         makeField('text', 'Anmerkungen', { multiline: true }),
       ],
       schedule: sched({ mode: 'manual' }),
-      views: ['history', 'chart', 'calendar', 'stats'],
+      views: ['history', 'chart', 'calendar', 'stats', 'table'],
     }),
   },
   {
@@ -129,7 +129,7 @@ export const TEMPLATES: TrackerTemplate[] = [
         makeField('scale', 'Energielevel nach dem Essen', { min: 1, max: 5, scaleLabels: ['sehr niedrig', 'niedrig', 'normal', 'hoch', 'sehr hoch'], polarity: 'higher-better' }),
       ],
       schedule: sched({ mode: 'manual' }),
-      views: ['history', 'stats', 'daily', 'calendar', 'compare'],
+      views: ['history', 'stats', 'daily', 'calendar', 'compare', 'table'],
     }),
   },
   {
@@ -149,7 +149,7 @@ export const TEMPLATES: TrackerTemplate[] = [
         makeField('measurement', 'Taillenumfang', { unit: 'cm', min: 0, step: 0.5, aggregation: 'last' }),
       ],
       schedule: sched({ mode: 'times', times: ['18:00'], weekdays: [1, 3, 5] }),
-      views: ['history', 'chart', 'stats', 'compare'],
+      views: ['history', 'chart', 'stats', 'compare', 'table'],
     }),
   },
   {
@@ -167,7 +167,7 @@ export const TEMPLATES: TrackerTemplate[] = [
         makeField('checkbox', 'Nachts aufgewacht'),
       ],
       schedule: sched({ mode: 'times', times: ['07:30'] }),
-      views: ['history', 'chart', 'calendar', 'stats', 'compare'],
+      views: ['history', 'chart', 'calendar', 'stats', 'compare', 'table'],
     }),
   },
   {
@@ -184,7 +184,7 @@ export const TEMPLATES: TrackerTemplate[] = [
         makeField('measurement', 'Raumtemperatur', { unit: '°C', step: 0.5, aggregation: 'avg' }),
       ],
       schedule: sched({ mode: 'interval', intervalMinutes: 180, intervalStart: '09:00', intervalEnd: '21:00' }),
-      views: ['history', 'chart', 'daily', 'stats', 'compare'],
+      views: ['history', 'chart', 'daily', 'stats', 'compare', 'table'],
     }),
   },
   {
@@ -201,7 +201,7 @@ export const TEMPLATES: TrackerTemplate[] = [
         makeField('text', 'Buch'),
       ],
       schedule: sched({ mode: 'times', times: ['21:00'] }),
-      views: ['history', 'calendar', 'stats', 'chart'],
+      views: ['history', 'calendar', 'stats', 'chart', 'table'],
     }),
   },
 ];
@@ -229,7 +229,7 @@ export function emptyTracker(): Tracker {
     category: '',
     fields: [],
     schedule: defaultSchedule(),
-    views: ['history', 'chart', 'calendar', 'stats'],
+    views: ['history', 'chart', 'calendar', 'stats', 'table'],
     createdAt: new Date().toISOString(),
   };
 }

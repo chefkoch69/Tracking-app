@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "build:artifact": "tsc --noEmit && VITE_TARGET=artifact vite build --outDir dist-artifact/build && node scripts/build-artifact.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

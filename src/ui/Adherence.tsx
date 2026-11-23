@@ -57,7 +57,7 @@ export function WeekStrip({ state, now }: { state: (d: Date) => DayState; now: D
   );
 }
 
-export function MonthRings({ state, now, title }: { state: (d: Date) => DayState; now: Date; title?: string }) {
+export function MonthRings({ state, now, title, selected, onSelect }: { state: (d: Date) => DayState; now: Date; title?: string; selected?: string; onSelect?: (key: string) => void }) {
   const [offset, setOffset] = useState(0);
   const first = new Date(now.getFullYear(), now.getMonth() + offset, 1);
   const days = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
@@ -80,7 +80,15 @@ export function MonthRings({ state, now, title }: { state: (d: Date) => DayState
         ))}
         {Array.from({ length: lead }, (_, i) => <span key={`l${i}`} />)}
         {cells.map((d, i) => (
-          <span key={i} className={`ring ${states[i]} ${dayKey(d) === dayKey(now) ? 'today' : ''}`}>{d.getDate()}</span>
+          <button
+            key={i}
+            type="button"
+            disabled={!onSelect || states[i] === 'future'}
+            className={`ring ${states[i]} ${dayKey(d) === dayKey(now) ? 'today' : ''} ${selected === dayKey(d) ? 'selected' : ''}`}
+            onClick={() => onSelect?.(dayKey(d))}
+          >
+            {d.getDate()}
+          </button>
         ))}
       </div>
       <div className="mr-legend">

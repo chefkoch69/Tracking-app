@@ -8,6 +8,7 @@ import { MonthRings, trackerDayState } from '../Adherence';
 import { CalendarHeatmap } from '../charts/Charts';
 import { useNow } from '../reminders';
 import { EntryCard, NoData } from './shared';
+import { navigate } from '../router';
 
 export function CalendarView({ tracker }: { tracker: Tracker }) {
   const { data } = useStore();
@@ -29,7 +30,7 @@ export function CalendarView({ tracker }: { tracker: Tracker }) {
       <div className="two-col">
         <div className="card">
           <h3>{tracker.schedule.mode === 'manual' ? 'Tage mit Einträgen' : 'Erfüllung'}</h3>
-          <MonthRings now={now} state={(d) => trackerDayState(tracker, data.entries, d, now)} />
+          <MonthRings now={now} selected={selected} onSelect={setSelected} state={(d) => trackerDayState(tracker, data.entries, d, now)} />
         </div>
         <div className="card">
           <h3>Verteilung</h3>
@@ -50,7 +51,10 @@ export function CalendarView({ tracker }: { tracker: Tracker }) {
           <p className="muted small">{values.size} Tage mit Einträgen · Tag antippen für Details</p>
         </div>
       </div>
-      <h3 className="day-head">{formatDay(parseDayKey(selected))}</h3>
+      <div className="section-head">
+        <h3 className="day-head">{formatDay(parseDayKey(selected))}</h3>
+        <button className="btn small" onClick={() => navigate(`/t/${tracker.id}/entry?d=${selected}`)}>＋ Eintrag für diesen Tag</button>
+      </div>
       <div className="timeline-rail">
         {dayEntries.length ? dayEntries.map((e) => <EntryCard key={e.id} tracker={tracker} entry={e} />) : <p className="muted">Keine Einträge an diesem Tag.</p>}
       </div>

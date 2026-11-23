@@ -5,16 +5,20 @@ export type Route =
   | { name: 'new' }
   | { name: 'edit'; id: string }
   | { name: 'tracker'; id: string; view?: string }
-  | { name: 'entry'; id: string; entryId?: string }
+  | { name: 'entry'; id: string; entryId?: string; date?: string }
+  | { name: 'data' }
   | { name: 'settings' };
 
 export function parseRoute(hash: string): Route {
-  const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  const [path, query = ''] = hash.replace(/^#\/?/, '').split('?');
+  const params = new URLSearchParams(query);
+  const parts = path.split('/').filter(Boolean);
   if (parts[0] === 'new') return { name: 'new' };
+  if (parts[0] === 'data') return { name: 'data' };
   if (parts[0] === 'settings') return { name: 'settings' };
   if (parts[0] === 't' && parts[1]) {
     if (parts[2] === 'edit') return { name: 'edit', id: parts[1] };
-    if (parts[2] === 'entry') return { name: 'entry', id: parts[1], entryId: parts[3] };
+    if (parts[2] === 'entry') return { name: 'entry', id: parts[1], entryId: parts[3], date: params.get('d') ?? undefined };
     return { name: 'tracker', id: parts[1], view: parts[2] };
   }
   return { name: 'dashboard' };

@@ -1,4 +1,6 @@
 import { entriesOf } from '../core/analytics';
+import { askConfirm } from './confirm';
+import { CAN_DOWNLOAD } from './env';
 import { describeSchedule } from '../core/schedule';
 import { download, exportCsv } from '../core/storage';
 import type { Tracker, ViewType } from '../core/types';
@@ -12,6 +14,7 @@ import { DailyView } from './views/DailyView';
 import { HistoryView } from './views/HistoryView';
 import { ReportView } from './views/ReportView';
 import { StatsView } from './views/StatsView';
+import { DataTable } from './DataTable';
 
 const VIEW_COMPONENTS: Record<ViewType, (p: { tracker: Tracker }) => React.ReactNode> = {
   history: HistoryView,
@@ -21,17 +24,20 @@ const VIEW_COMPONENTS: Record<ViewType, (p: { tracker: Tracker }) => React.React
   daily: DailyView,
   compare: CompareView,
   report: ReportView,
+  table: ({ tracker }) => <DataTable key={tracker.id} fixedTracker={tracker} />,
 };
 
 export function TrackerDetail({ tracker, view }: { tracker: Tracker; view?: string }) {
   const { data, dispatch } = useStore();
   const entries = entriesOf(tracker, data.entries);
-  const views = tracker.views.length ? tracker.views : (['history'] as ViewType[]);
+  // "Tabelle" ist immer verfügbar – auch für Tracker, die vor dieser Ansicht angelegt wurden.
+  const base = tracker.views.length ? tracker.views : (['history'] as ViewType[]);
+  const views = base.includes('table') ? base : [...base, 'table' as ViewType];
   const active = (views.includes(view as ViewType) ? view : views[0]) as ViewType;
   const View = VIEW_COMPONENTS[active];
 
-  const remove = () => {
-    if (confirm(`Tracker „${tracker.name}“ und alle ${entries.length} Einträge endgültig löschen?`)) {
+  const remove = async () => {
+    if (await askConfirm(`Tracker „${tracker.name}“ und alle ${entries.length} Einträge endgültig löschen?`, { okLabel: 'Tracker löschen' })) {
       dispatch({ type: 'tracker/delete', id: tracker.id });
       navigate('/');
     }
@@ -68,9 +74,11 @@ export function TrackerDetail({ tracker, view }: { tracker: Tracker; view?: stri
 
       <div className="actions tracker-actions no-print">
         <button className="btn ghost" onClick={() => navigate(`/t/${tracker.id}/edit`)}>Tracker bearbeiten</button>
-        <button className="btn ghost" onClick={() => download(`${tracker.name}.csv`, exportCsv(tracker, entries), 'text/csv;charset=utf-8')}>
-          CSV exportieren
-        </button>
+        {CAN_DOWNLOAD && (
+          <button className="btn ghost" onClick={() => download(`${tracker.name}.csv`, exportCsv(tracker, entries), 'text/csv;charset=utf-8')}>
+            CSV exportieren
+          </button>
+        )}
         <button className="btn ghost" onClick={() => dispatch({ type: 'tracker/archive', id: tracker.id, archived: !tracker.archived })}>
           {tracker.archived ? 'Wiederherstellen' : 'Archivieren'}
         </button>

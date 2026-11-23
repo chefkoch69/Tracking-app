@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
-import { bucketize, currentStreak, entriesOf, numericFields, series } from '../core/analytics';
+import { askConfirm } from './confirm';
+import { bucketize, consistencyScore, currentStreak, entriesOf, numericFields, series } from '../core/analytics';
+import { ConsistencyRing } from './ConsistencyRing';
 import { addDays, dayKey, formatClock, startOfDay } from '../core/dates';
 import { aggregationOf } from '../core/fieldTypes';
 import { computeInsights } from '../core/insights';
@@ -78,6 +80,17 @@ export function Dashboard() {
         </div>
       </section>
 
+      {data.trackers.some((t) => t.demo) && (
+        <div className="demo-banner">
+          <span>
+            <b>Beispieldaten</b> · Die mit „(Demo)“ markierten Tracker sind erfundene Beispiele zum Ausprobieren.
+          </span>
+          <button className="btn small" onClick={async () => (await askConfirm('Alle Beispiel-Tracker und ihre Einträge entfernen? Deine eigenen Tracker bleiben erhalten.', { okLabel: 'Beispiele entfernen' })) && dispatch({ type: 'demo/remove' })}>
+            Beispiele entfernen
+          </button>
+        </div>
+      )}
+
       {due.length > 0 && (
         <section className="reminders">
           {due.map(({ tracker, slot, snoozedUntil }) => (
@@ -116,11 +129,7 @@ export function Dashboard() {
         <h2>Meine Tracker</h2>
         <button className="btn primary" onClick={() => navigate('/new')}>＋ Neuer Tracker</button>
       </div>
-      <div className="tracker-grid">
-        {active.map((t) => (
-          <TrackerCard key={t.id} tracker={t} now={now} />
-        ))}
-      </div>
+      <TrackerGroups trackers={active} now={now} />
 
       {insights.length > 0 && (
         <section className="card">
@@ -163,6 +172,7 @@ function TrackerCard({ tracker, now }: { tracker: Tracker; now: Date }) {
     : [];
   const slots = daySlotStatus(tracker, data.entries, now);
   const next = nextSlot(tracker, now);
+  const score = consistencyScore(tracker, data.entries, now);
 
   return (
     <article className="tracker-card" style={{ '--accent': tracker.color } as React.CSSProperties}>
@@ -173,6 +183,11 @@ function TrackerCard({ tracker, now }: { tracker: Tracker; now: Date }) {
             <strong>{tracker.name}</strong>
             <small className="muted">{tracker.category || describeSchedule(tracker.schedule)}</small>
           </span>
+          {score !== null && (
+            <span className="tc-ring" title="Regelmäßigkeit">
+              <ConsistencyRing value={score} color={tracker.color} size={38} />
+            </span>
+          )}
         </div>
         <div className="tc-chips">
           {slots.length > 0 && (
@@ -232,5 +247,35 @@ function TodayTimeline({ trackers, now }: { trackers: Tracker[]; now: Date }) {
         ))}
       </ul>
     </section>
+  );
+}
+
+/** Tracker nach Kategorie gruppiert (nur wenn es mehrere Kategorien gibt). */
+function TrackerGroups({ trackers, now }: { trackers: Tracker[]; now: Date }) {
+  const groups = new Map<string, Tracker[]>();
+  for (const t of trackers) {
+    const k = t.category.trim() || 'Ohne Kategorie';
+    groups.set(k, [...(groups.get(k) ?? []), t]);
+  }
+  if (groups.size <= 1 || trackers.length < 4) {
+    return (
+      <div className="tracker-grid">
+        {trackers.map((t) => <TrackerCard key={t.id} tracker={t} now={now} />)}
+      </div>
+    );
+  }
+  return (
+    <>
+      {[...groups].map(([name, ts]) => (
+        <details key={name} className="tracker-group" open>
+          <summary>
+            {name} <small className="muted">{ts.length}</small>
+          </summary>
+          <div className="tracker-grid">
+            {ts.map((t) => <TrackerCard key={t.id} tracker={t} now={now} />)}
+          </div>
+        </details>
+      ))}
+    </>
   );
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { CAN_PRINT } from '../env';
 import { entriesOf, frequencies } from '../../core/analytics';
 import { BODY_MAPS } from '../../core/bodyMaps';
 import { addDays, dayKey, formatClock, parseDayKey, startOfDay } from '../../core/dates';
@@ -69,7 +70,11 @@ export function ReportView({ tracker }: { tracker: Tracker }) {
               <button key={d} className="chip small" onClick={() => preset(d)}>{d} Tage</button>
             ))}
           </span>
-          <button className="btn primary" onClick={() => window.print()}>🖨 Drucken / als PDF speichern</button>
+          {CAN_PRINT ? (
+            <button className="btn primary" onClick={() => window.print()}>🖨 Drucken / als PDF speichern</button>
+          ) : (
+            <span className="muted small">Drucken ist in dieser Vorschau nicht möglich – in der installierten App gibt es „Drucken / als PDF“.</span>
+          )}
         </div>
       </div>
 

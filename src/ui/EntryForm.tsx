@@ -8,14 +8,19 @@ import { FieldInput } from './fieldInputs';
 import { navigate } from './router';
 
 /** Generisches Eingabeformular – vollständig aus der Feldkonfiguration erzeugt. */
-export function EntryForm({ tracker, entry }: { tracker: Tracker; entry?: Entry }) {
+export function EntryForm({ tracker, entry, date }: { tracker: Tracker; entry?: Entry; date?: string }) {
   const { dispatch } = useStore();
   const [values, setValues] = useState<Record<string, FieldValue>>(() =>
     Object.fromEntries(
       tracker.fields.map((f) => [f.id, entry && f.id in entry.values ? entry.values[f.id] : FIELD_TYPES[f.type].emptyValue(f)]),
     ),
   );
-  const [when, setWhen] = useState(() => toLocalInput(entry ? new Date(entry.timestamp) : new Date()));
+  const [when, setWhen] = useState(() => {
+    if (entry) return toLocalInput(new Date(entry.timestamp));
+    // Nachtragen für einen bestimmten Tag (aus dem Kalender): aktuelle Uhrzeit an diesem Tag.
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) return `${date}T${toLocalInput(new Date()).slice(11)}`;
+    return toLocalInput(new Date());
+  });
   const [tried, setTried] = useState(false);
   const errors = validateValues(tracker.fields, values);
   const hasErrors = Object.keys(errors).length > 0;

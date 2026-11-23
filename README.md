@@ -46,6 +46,24 @@ als PDF speicherbar für Ärztin/Arzt.
 Einflussfaktoren (z. B. „nach der Mahlzeit → Bauchschmerz schlechter“, „Buscopan → Dauer kürzer“) und
 Zusammenhänge zwischen Messgrößen, auch über Tracker hinweg und mit Folgetag-Versatz.
 
+**Daten:** Seite „Daten“ mit allen Einträgen aller Tracker als Tabelle (Suche, Zeitraum, Sortieren nach jeder Spalte,
+CSV-Export der gefilterten Daten) und Tab „Tabelle“ in jedem Tracker.
+
+### Ideen aus Open-Source-Projekten (eigene Umsetzung, kein übernommener Code)
+
+| Idee | Vorbild | Umsetzung hier |
+|---|---|---|
+| Regelmäßigkeits-/Stärke-Score | Loop Habit Tracker, Table Habit (mhabit) | exponentiell geglätteter Erfüllungsgrad (Halbwertszeit 14 Tage), Ring auf jeder Karte, Verlauf in der Statistik |
+| Zeit-Histogramm, Ø Abstand | Track & Graph | „Wann tritt es auf?“ nach Uhrzeit/Wochentag, optional gewichtet (z. B. nach Schmerzstärke) |
+| Im Kalender nachtragen | Table Habit (mhabit) | Tag im Erfüllungskalender antippen → „Eintrag für diesen Tag“ |
+| Gruppen | Table Habit (mhabit) | Dashboard gruppiert Tracker nach Kategorie |
+
+## Vorschau als claude.ai-Artifact
+
+`npm run build:artifact` erzeugt `dist-artifact/tracker.html` – die ganze App als eine Seite. Dort sind Drucken,
+Downloads und Systembenachrichtigungen blockiert; die App blendet diese Funktionen dann aus und startet mit
+gekennzeichneten Beispieldaten.
+
 ## Architektur
 
 ```

@@ -79,7 +79,7 @@ export interface Schedule {
   maxRepeats: number;
 }
 
-export type ViewType = 'history' | 'chart' | 'calendar' | 'stats' | 'daily' | 'compare' | 'report';
+export type ViewType = 'history' | 'chart' | 'calendar' | 'stats' | 'daily' | 'compare' | 'report' | 'table';
 
 export interface Tracker {
   id: string;
@@ -93,6 +93,8 @@ export interface Tracker {
   views: ViewType[];
   createdAt: string;
   archived?: boolean;
+  /** Beispieldaten – lassen sich gesammelt entfernen. */
+  demo?: boolean;
 }
 
 export interface Entry {

@@ -1,9 +1,11 @@
 import { useStore } from '../state/store';
+import { ConfirmHost } from './confirm';
 import { Dashboard } from './Dashboard';
 import { EntryForm } from './EntryForm';
 import { useReminderEngine } from './reminders';
 import { navigate, useRoute } from './router';
 import { Settings } from './Settings';
+import { DataTable } from './DataTable';
 import { TrackerBuilder } from './TrackerBuilder';
 import { TrackerDetail } from './TrackerDetail';
 
@@ -37,9 +39,22 @@ export function App() {
         break;
       case 'entry': {
         const entry = route.entryId ? data.entries.find((e) => e.id === route.entryId) : undefined;
-        page = <EntryForm key={route.entryId ?? 'new'} tracker={tracker!} entry={entry} />;
+        page = <EntryForm key={route.entryId ?? `new-${route.date ?? ''}`} tracker={tracker!} entry={entry} date={route.date} />;
         break;
       }
+      case 'data':
+        page = (
+          <div className="page">
+            <section className="hero-band compact">
+              <div className="hero-inner">
+                <h1>Meine Daten</h1>
+                <p className="hero-lead">Alle Einträge auf einen Blick – durchsuchen, sortieren, exportieren. Zeile antippen zum Bearbeiten.</p>
+              </div>
+            </section>
+            <DataTable />
+          </div>
+        );
+        break;
       case 'settings':
         page = <Settings />;
         break;
@@ -57,11 +72,13 @@ export function App() {
         </a>
         <nav>
           <a href="#/" className={route.name === 'dashboard' ? 'active' : ''}>Übersicht</a>
+          <a href="#/data" className={route.name === 'data' ? 'active' : ''}>Daten</a>
           <a href="#/new" className={route.name === 'new' ? 'active' : ''}>Neu</a>
           <a href="#/settings" className={route.name === 'settings' ? 'active' : ''} aria-label="Einstellungen">⚙</a>
         </nav>
       </header>
       <main>{page}</main>
+      <ConfirmHost />
     </>
   );
 }

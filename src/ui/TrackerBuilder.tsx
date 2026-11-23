@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { askConfirm } from './confirm';
 import { FIELD_TYPE_LIST, FIELD_TYPES, validateValues } from '../core/fieldTypes';
 import { WEEKDAY_SHORT } from '../core/dates';
 import { describeSchedule, slotMinutesForDay } from '../core/schedule';
@@ -19,6 +20,7 @@ export const VIEW_INFO: Record<ViewType, { label: string; hint: string }> = {
   daily: { label: 'Tagesübersicht', hint: 'Alle Werte eines bestimmten Tages' },
   compare: { label: 'Vergleich', hint: 'Zusammenhänge zwischen Messgrößen finden' },
   report: { label: 'Bericht', hint: 'Druckbare Tabelle für Ärztin/Arzt – wie ein Papiertagebuch' },
+  table: { label: 'Tabelle', hint: 'Alle Rohdaten als sortier- und durchsuchbare Tabelle' },
 };
 
 const ICONS = ['📈', '💪', '🌅', '🥗', '🏋️', '😴', '📚', '🥶', '💧', '🧘', '🚶', '💊', '🩺', '☕', '🧠', '❤️', '🌡️', '🎯', '✍️', '🎵'];
@@ -198,8 +200,8 @@ function StepFields({ fields, onChange, warnRemoval }: { fields: FieldDef[]; onC
     setOpen(f.id);
     setPicking(false);
   };
-  const remove = (f: FieldDef) => {
-    if (warnRemoval && !confirm(`Feld „${f.label || 'ohne Namen'}“ entfernen? Bereits erfasste Werte dieses Feldes werden nicht mehr angezeigt.`)) return;
+  const remove = async (f: FieldDef) => {
+    if (warnRemoval && !(await askConfirm(`Feld „${f.label || 'ohne Namen'}“ entfernen? Bereits erfasste Werte dieses Feldes werden nicht mehr angezeigt.`, { okLabel: 'Feld entfernen' }))) return;
     onChange(fields.filter((x) => x.id !== f.id));
   };
 

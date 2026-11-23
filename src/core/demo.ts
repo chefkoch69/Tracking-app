@@ -92,6 +92,7 @@ export function generateDemo(days = 60, now = new Date()): { trackers: Tracker[]
       });
     }
   }
+  for (const t of trackers) t.demo = true;
   belly.name = 'Bauchschmerztagebuch (Demo)';
   morning.name = 'Morgen-Check-in (Demo)';
   pushups.name = 'Liegestütze (Demo)';

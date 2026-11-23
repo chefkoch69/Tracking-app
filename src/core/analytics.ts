@@ -1,5 +1,6 @@
 import { addDays, dayKey, monthKey, startOfDay, weekKey } from './dates';
 import { aggregationOf, fieldSpec } from './fieldTypes';
+import { daySlotStatus } from './schedule';
 import type { Aggregation, Entry, FieldDef, Tracker } from './types';
 
 /**
@@ -258,4 +259,97 @@ export function entriesPerDay(entries: Entry[]): Map<string, number> {
     m.set(k, (m.get(k) ?? 0) + 1);
   }
   return m;
+}
+
+// ---------------------------------------------------------------------------
+// Regelmäßigkeit (Idee aus Habit-Trackern wie Loop / mhabit, eigene Umsetzung)
+// ---------------------------------------------------------------------------
+
+/** Halbwertszeit in Tagen: so schnell "vergisst" der Score alte Tage. */
+export const CONSISTENCY_HALF_LIFE = 14;
+
+/**
+ * Erfüllung eines Tages 0..1 – null, wenn der Tag nicht zählt
+ * (Zukunft, oder Wochentag ohne geplante Erinnerung).
+ */
+export function dayCompletion(tracker: Tracker, entries: Entry[], day: Date, now: Date): number | null {
+  const d = startOfDay(day);
+  if (d > now) return null;
+  if (tracker.schedule.mode === 'manual') {
+    const k = dayKey(d);
+    return entries.some((e) => e.trackerId === tracker.id && dayKey(new Date(e.timestamp)) === k) ? 1 : 0;
+  }
+  if (!tracker.schedule.weekdays.includes(d.getDay())) return null;
+  const slots = daySlotStatus(tracker, entries, d);
+  if (!slots.length) return null;
+  // Heute zählen nur bereits fällige Slots.
+  const relevant = dayKey(d) === dayKey(now) ? slots.filter((s) => s.slot <= now || s.done) : slots;
+  if (!relevant.length) return null;
+  return relevant.filter((s) => s.done).length / relevant.length;
+}
+
+/**
+ * Regelmäßigkeits-Score 0..1 als exponentiell geglätteter Mittelwert der
+ * Tageserfüllung. Ein verpasster Tag senkt den Score nur leicht, eine lange
+ * Serie baut ihn stetig auf.
+ */
+export function consistencySeries(tracker: Tracker, entries: Entry[], now = new Date()): Bucket[] {
+  const own = entries.filter((e) => e.trackerId === tracker.id);
+  if (!own.length) return [];
+  const first = startOfDay(new Date(Math.min(...own.map((e) => new Date(e.timestamp).getTime()))));
+  const alpha = 1 - 0.5 ** (1 / CONSISTENCY_HALF_LIFE);
+  let score = 0;
+  const out: Bucket[] = [];
+  for (let d = first; d <= now; d = addDays(d, 1)) {
+    const c = dayCompletion(tracker, own, d, now);
+    if (c === null) continue;
+    score += alpha * (c - score);
+    out.push({ key: dayKey(d), v: score, n: 1 });
+  }
+  return out;
+}
+
+export function consistencyScore(tracker: Tracker, entries: Entry[], now = new Date()): number | null {
+  const s = consistencySeries(tracker, entries, now);
+  return s.length ? s[s.length - 1].v : null;
+}
+
+// ---------------------------------------------------------------------------
+// Zeitliche Verteilung (Idee aus Track & Graph: Zeit-Histogramm)
+// ---------------------------------------------------------------------------
+
+export interface TimeDistribution {
+  byHour: number[];
+  /** Index 0 = Montag … 6 = Sonntag. */
+  byWeekday: number[];
+  weighted: boolean;
+}
+
+/**
+ * Wann treten Einträge auf? Optional gewichtet mit einem Zahlenfeld
+ * (z. B. Schmerzstärke statt nur Anzahl). Bei Zeitraum-Feldern zählt der Beginn.
+ */
+export function timeDistribution(entries: Entry[], weightField?: FieldDef): TimeDistribution {
+  const byHour = Array(24).fill(0);
+  const byWeekday = Array(7).fill(0);
+  const spec = weightField ? fieldSpec(weightField) : null;
+  for (const e of entries) {
+    let w = 1;
+    if (weightField && spec) {
+      const v = spec.toNumber(weightField, e.values[weightField.id] ?? null);
+      if (v === null) continue;
+      w = v;
+    }
+    const t = new Date(e.timestamp);
+    byHour[t.getHours()] += w;
+    byWeekday[(t.getDay() + 6) % 7] += w;
+  }
+  return { byHour, byWeekday, weighted: !!weightField };
+}
+
+/** Durchschnittlicher Abstand zwischen aufeinanderfolgenden Einträgen in Minuten. */
+export function averageGapMinutes(entries: Entry[]): number | null {
+  const ts = entries.map((e) => new Date(e.timestamp).getTime()).sort((a, b) => a - b);
+  if (ts.length < 2) return null;
+  return (ts[ts.length - 1] - ts[0]) / (ts.length - 1) / 60000;
 }

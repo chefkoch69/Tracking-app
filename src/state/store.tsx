@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
+import { generateDemo } from '../core/demo';
 import { emptyData, localStorageAdapter, type StorageAdapter } from '../core/storage';
 import type { AppData, Entry, Profile, ReminderState, Tracker } from '../core/types';
 
@@ -12,7 +13,8 @@ export type Action =
   | { type: 'reminder/update'; trackerId: string; patch: Partial<ReminderState> }
   | { type: 'profile/update'; patch: Partial<Profile> }
   | { type: 'data/replace'; data: AppData }
-  | { type: 'data/merge'; trackers: Tracker[]; entries: Entry[] };
+  | { type: 'data/merge'; trackers: Tracker[]; entries: Entry[] }
+  | { type: 'demo/remove' };
 
 function upsert<T extends { id: string }>(list: T[], item: T): T[] {
   const i = list.findIndex((x) => x.id === item.id);
@@ -63,6 +65,14 @@ export function reducer(state: AppData, action: Action): AppData {
       return { ...state, profile: { ...state.profile, ...action.patch } };
     case 'data/replace':
       return action.data;
+    case 'demo/remove': {
+      const ids = new Set(state.trackers.filter((t) => t.demo).map((t) => t.id));
+      return {
+        ...state,
+        trackers: state.trackers.filter((t) => !ids.has(t.id)),
+        entries: state.entries.filter((e) => !ids.has(e.trackerId)),
+      };
+    }
     case 'data/merge':
       return {
         ...state,
@@ -79,8 +89,14 @@ interface Store {
 
 const Ctx = createContext<Store | null>(null);
 
+/** Startzustand: leer – in der Vorschau-Version mit gekennzeichneten Beispieldaten. */
+function initial(): AppData {
+  if (import.meta.env.VITE_TARGET !== 'artifact') return emptyData();
+  return { ...emptyData(), ...generateDemo() };
+}
+
 export function StoreProvider({ children, adapter = localStorageAdapter }: { children: ReactNode; adapter?: StorageAdapter }) {
-  const [data, dispatch] = useReducer(reducer, undefined, () => adapter.load() ?? emptyData());
+  const [data, dispatch] = useReducer(reducer, undefined, () => adapter.load() ?? initial());
   useEffect(() => adapter.save(data), [data, adapter]);
   const value = useMemo(() => ({ data, dispatch }), [data]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

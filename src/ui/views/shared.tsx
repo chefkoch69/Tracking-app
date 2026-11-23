@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { askConfirm } from '../confirm';
 import { formatClock } from '../../core/dates';
 import { formatDuration, formatShort, formatValue, isEmptyValue, isTimeRange, metricLabel, rangeMinutes, severity } from '../../core/fieldTypes';
 import type { Entry, FieldDef, Tracker } from '../../core/types';
@@ -49,7 +50,7 @@ export function EntryCard({ tracker, entry }: { tracker: Tracker; entry: Entry }
           <button className="btn ghost small" onClick={() => navigate(`/t/${tracker.id}/entry/${entry.id}`)}>Bearbeiten</button>
           <button
             className="btn ghost small danger"
-            onClick={() => confirm('Diesen Eintrag löschen?') && dispatch({ type: 'entry/delete', id: entry.id })}
+            onClick={async () => (await askConfirm('Diesen Eintrag löschen?', { okLabel: 'Löschen' })) && dispatch({ type: 'entry/delete', id: entry.id })}
           >
             Löschen
           </button>

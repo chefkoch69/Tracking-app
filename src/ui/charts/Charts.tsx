@@ -116,7 +116,7 @@ export function BarChart({ bars, color, unit = '' }: { bars: { label: string; sh
         return (
           <g key={i}>
             <rect x={x + bw * 0.12} y={top} width={Math.max(1, bw * 0.76)} height={Math.max(h, 0.5)} rx={Math.min(3, bw / 4)} fill={color} onMouseEnter={() => setTip(t)} onClick={() => setTip(t)} />
-            {i % every === 0 && (
+            {i % every === 0 && b.short && (
               <text x={x + bw / 2} y={H - 8} textAnchor="middle" className="axis">{b.short}</text>
             )}
           </g>

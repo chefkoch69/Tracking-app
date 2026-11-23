@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  averageGapMinutes,
   bucketize,
+  consistencyScore,
+  consistencySeries,
+  timeDistribution,
   currentStreak,
   fieldStats,
   frequencies,
@@ -252,5 +256,39 @@ describe('Erkenntnisse', () => {
     expect(all.length).toBeGreaterThan(0);
     expect(all.length).toBeLessThanOrEqual(6);
     for (let i = 1; i < all.length; i++) expect(all[i - 1].strength).toBeGreaterThanOrEqual(all[i].strength);
+  });
+});
+
+describe('Regelmäßigkeit & Zeitverteilung', () => {
+  const t = trackerFromTemplate(TEMPLATES.find((x) => x.key === 'reading')!); // täglich 21:00
+  const d = (o: number) => new Date(2026, 10, 23 + o);
+
+  it('steigt mit erledigten Tagen und sinkt nur langsam bei einer Lücke', () => {
+    const es = Array.from({ length: 30 }, (_, i) => entry(t, at(20, 0, d(-30 + i))));
+    const full = consistencyScore(t, es, at(23, 0, d(-1)))!;
+    expect(full).toBeGreaterThan(0.7);
+    const gap = consistencyScore(t, es.filter((_, i) => i !== 28), at(23, 0, d(-1)))!;
+    expect(gap).toBeLessThan(full);
+    expect(full - gap).toBeLessThan(0.1); // eine Lücke wirft nicht alles zurück
+    const series = consistencySeries(t, es, at(23, 0, d(-1)));
+    expect(series[series.length - 1].v).toBeGreaterThan(series[5].v);
+  });
+
+  it('zählt heute erst nach dem fälligen Slot', () => {
+    const es = Array.from({ length: 10 }, (_, i) => entry(t, at(20, 0, d(-10 + i))));
+    const before = consistencySeries(t, es, at(12, 0));
+    expect(before[before.length - 1].key).toBe('2026-11-22');
+  });
+
+  it('verteilt Einträge nach Stunde und Wochentag, optional gewichtet', () => {
+    const pain = makeField('scale', 'Schmerz', { min: 0, max: 3 });
+    const tt = { ...t, fields: [pain] };
+    const es = [entry(tt, at(14, 10), { [pain.id]: 3 }), entry(tt, at(14, 50), { [pain.id]: 1 }), entry(tt, at(9, 0, d(-1)), { [pain.id]: 2 })];
+    const plain = timeDistribution(es);
+    expect(plain.byHour[14]).toBe(2);
+    expect(plain.byWeekday[0]).toBe(2); // Montag
+    expect(plain.byWeekday[6]).toBe(1); // Sonntag
+    expect(timeDistribution(es, pain).byHour[14]).toBe(4);
+    expect(averageGapMinutes(es)).toBeCloseTo((24 * 60 + 5 * 60 + 50) / 2);
   });
 });

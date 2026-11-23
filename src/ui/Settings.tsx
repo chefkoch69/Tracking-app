@@ -1,4 +1,6 @@
 import { useRef, useState } from 'react';
+import { CAN_DOWNLOAD } from './env';
+import { askConfirm } from './confirm';
 import { generateDemo } from '../core/demo';
 import { download, emptyData, exportJson, normalize } from '../core/storage';
 import { useStore } from '../state/store';
@@ -14,7 +16,7 @@ export function Settings() {
   const onImport = async (file: File) => {
     try {
       const imported = normalize(JSON.parse(await file.text()));
-      if (!confirm(`${imported.trackers.length} Tracker und ${imported.entries.length} Einträge importieren? Deine aktuellen Daten werden ersetzt.`)) return;
+      if (!(await askConfirm(`${imported.trackers.length} Tracker und ${imported.entries.length} Einträge importieren? Deine aktuellen Daten werden ersetzt.`, { okLabel: 'Importieren' }))) return;
       dispatch({ type: 'data/replace', data: imported });
       setMsg('Import erfolgreich.');
     } catch (e) {
@@ -63,12 +65,15 @@ export function Settings() {
       <section className="card">
         <h2>Daten</h2>
         <p className="muted">
-          Alle Daten bleiben lokal auf diesem Gerät ({data.trackers.length} Tracker, {data.entries.length} Einträge). Sichere sie regelmäßig als Datei.
+          Alle Daten bleiben lokal auf diesem Gerät ({data.trackers.length} Tracker, {data.entries.length} Einträge).
+          {CAN_DOWNLOAD ? ' Sichere sie regelmäßig als Datei.' : ' In dieser Vorschau sind Datei-Downloads nicht möglich; Import funktioniert.'}
         </p>
         <div className="actions">
-          <button className="btn" onClick={() => download(`tracker-backup-${new Date().toISOString().slice(0, 10)}.json`, exportJson(data), 'application/json')}>
-            Backup exportieren (JSON)
-          </button>
+          {CAN_DOWNLOAD && (
+            <button className="btn" onClick={() => download(`tracker-backup-${new Date().toISOString().slice(0, 10)}.json`, exportJson(data), 'application/json')}>
+              Backup exportieren (JSON)
+            </button>
+          )}
           <button className="btn" onClick={() => fileRef.current?.click()}>Backup importieren</button>
           <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => e.target.files?.[0] && onImport(e.target.files[0])} />
         </div>
@@ -94,7 +99,7 @@ export function Settings() {
         <h2>Alles löschen</h2>
         <button
           className="btn danger"
-          onClick={() => confirm('Wirklich ALLE Tracker und Einträge löschen? Das kann nicht rückgängig gemacht werden.') && dispatch({ type: 'data/replace', data: emptyData() })}
+          onClick={async () => (await askConfirm('Wirklich ALLE Tracker und Einträge löschen? Das kann nicht rückgängig gemacht werden.', { okLabel: 'Alles löschen' })) && dispatch({ type: 'data/replace', data: emptyData() })}
         >
           Alle Daten löschen
         </button>
