@@ -1,8 +1,8 @@
 import { entriesOf } from '../core/analytics';
 import { askConfirm } from './confirm';
-import { CAN_DOWNLOAD } from './env';
+import { saveFile } from './save';
 import { describeSchedule } from '../core/schedule';
-import { download, exportCsv } from '../core/storage';
+import { exportCsv } from '../core/storage';
 import type { Tracker, ViewType } from '../core/types';
 import { useStore } from '../state/store';
 import { navigate } from './router';
@@ -74,11 +74,9 @@ export function TrackerDetail({ tracker, view }: { tracker: Tracker; view?: stri
 
       <div className="actions tracker-actions no-print">
         <button className="btn ghost" onClick={() => navigate(`/t/${tracker.id}/edit`)}>Tracker bearbeiten</button>
-        {CAN_DOWNLOAD && (
-          <button className="btn ghost" onClick={() => download(`${tracker.name}.csv`, exportCsv(tracker, entries), 'text/csv;charset=utf-8')}>
-            CSV exportieren
-          </button>
-        )}
+        <button className="btn ghost" onClick={() => void saveFile(`${tracker.name}.csv`, exportCsv(tracker, entries), 'text/csv;charset=utf-8')}>
+          CSV exportieren
+        </button>
         <button className="btn ghost" onClick={() => dispatch({ type: 'tracker/archive', id: tracker.id, archived: !tracker.archived })}>
           {tracker.archived ? 'Wiederherstellen' : 'Archivieren'}
         </button>

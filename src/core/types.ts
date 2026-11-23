@@ -109,6 +109,8 @@ export interface Tracker {
   archived?: boolean;
   /** Beispieldaten – lassen sich gesammelt entfernen. */
   demo?: boolean;
+  /** Erscheint auf der „Jetzt“-Seite für den schnellen Check-in. */
+  quick?: boolean;
 }
 
 export interface Entry {

@@ -8,10 +8,23 @@ interface Request {
   message: string;
   okLabel: string;
   danger: boolean;
+  /** Nur Hinweis mit OK, ohne Abbrechen. */
+  info?: boolean;
+  /** Optionaler Text zum Markieren/Kopieren (Fallback, wenn die Zwischenablage gesperrt ist). */
+  text?: string;
   resolve: (ok: boolean) => void;
 }
 
 let open: ((r: Request) => void) | null = null;
+
+/** Hinweis mit OK-Knopf; optional mit markierbarem Text. */
+export function notify(message: string, text?: string): Promise<void> {
+  return new Promise((resolve) => {
+    const req: Request = { message, okLabel: 'OK', danger: false, info: true, text, resolve: () => resolve() };
+    if (open) open(req);
+    else resolve();
+  });
+}
 
 export function askConfirm(message: string, opts: { okLabel?: string; danger?: boolean } = {}): Promise<boolean> {
   return new Promise((resolve) => {
@@ -46,8 +59,11 @@ export function ConfirmHost() {
     <div className="dialog-backdrop" onClick={() => close(false)}>
       <div className="dialog" role="alertdialog" aria-modal="true" aria-labelledby="confirm-msg" onClick={(e) => e.stopPropagation()}>
         <p id="confirm-msg">{req.message}</p>
+        {req.text !== undefined && (
+          <textarea className="dialog-text" readOnly value={req.text} rows={10} onFocus={(e) => e.currentTarget.select()} aria-label="Text zum Kopieren" />
+        )}
         <div className="actions">
-          <button className="btn ghost" onClick={() => close(false)}>Abbrechen</button>
+          {!req.info && <button className="btn ghost" onClick={() => close(false)}>Abbrechen</button>}
           <button ref={okRef} className={`btn ${req.danger ? 'danger-solid' : 'primary'}`} onClick={() => close(true)}>
             {req.okLabel}
           </button>

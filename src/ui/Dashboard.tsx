@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { generateDemo } from '../core/demo';
 import { WakeChip } from './HealthPanel';
 import { withHealth } from '../core/health';
 import { askConfirm } from './confirm';
@@ -45,7 +46,7 @@ export function Dashboard() {
             </p>
             <div className="actions center">
               <button className="btn white big" onClick={() => navigate('/new')}>＋ Ersten Tracker bauen</button>
-              <button className="btn outline-white big" onClick={() => navigate('/settings')}>Mit Beispieldaten ansehen</button>
+              <button className="btn outline-white big" onClick={() => dispatch({ type: 'data/merge', ...generateDemo() })}>Mit Beispieldaten ansehen</button>
             </div>
           </div>
         </section>
@@ -81,6 +82,10 @@ export function Dashboard() {
               ? `${doneToday} von ${allSlots.length} geplanten Einträgen heute erledigt`
               : `${active.length} ${active.length === 1 ? 'Tracker' : 'Tracker'} aktiv`}
           </p>
+          <div className="hero-cta">
+            <button className="btn white" onClick={() => navigate('/now')}>⚡ Wie geht’s dir gerade?</button>
+            <button className="btn outline-white" onClick={() => navigate('/arzt')}>🩺 Arztbericht</button>
+          </div>
           <WakeChip now={now} />
           <WeekStrip now={now} state={(d) => combinedDayState(active, data.entries, d, now)} />
         </div>

@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { askConfirm } from './confirm';
-import { CAN_DOWNLOAD } from './env';
+import { saveFile } from './save';
 import { addDays, dayKey, startOfDay } from '../core/dates';
 import { fieldSpec, formatShort, formatValue, isEmptyValue, severity } from '../core/fieldTypes';
-import { download, exportCsv } from '../core/storage';
+import { exportCsv } from '../core/storage';
 import type { Entry, FieldDef, Tracker } from '../core/types';
 import { useStore } from '../state/store';
 import { severityColor } from './fieldInputs';
@@ -71,7 +71,7 @@ export function DataTable({ fixedTracker }: { fixedTracker?: Tracker }) {
 
   const exportFiltered = () => {
     if (tracker) {
-      download(`${tracker.name}-daten.csv`, exportCsv(tracker, rows), 'text/csv;charset=utf-8');
+      void saveFile(`${tracker.name}-daten.csv`, exportCsv(tracker, rows), 'text/csv;charset=utf-8');
       return;
     }
     // Gemischt: "langes" Format – eine Zeile je Wert.
@@ -84,7 +84,7 @@ export function DataTable({ fixedTracker }: { fixedTracker?: Tracker }) {
       }
     }
     const cell = (s: string) => (/[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
-    download('alle-daten.csv', '﻿' + lines.map((l) => l.map(cell).join(';')).join('\r\n'), 'text/csv;charset=utf-8');
+    void saveFile('alle-daten.csv', '﻿' + lines.map((l) => l.map(cell).join(';')).join('\r\n'), 'text/csv;charset=utf-8');
   };
 
   const shown = rows.slice(0, limit);
@@ -120,7 +120,7 @@ export function DataTable({ fixedTracker }: { fixedTracker?: Tracker }) {
         </div>
         <div className="actions" style={{ justifyContent: 'space-between' }}>
           <span className="muted small">{rows.length} {rows.length === 1 ? 'Eintrag' : 'Einträge'}</span>
-          {CAN_DOWNLOAD && <button className="btn small" disabled={!rows.length} onClick={exportFiltered}>⤓ Gefilterte Daten als CSV</button>}
+          <button className="btn small" disabled={!rows.length} onClick={exportFiltered}>⤓ Gefilterte Daten als CSV</button>
         </div>
       </div>
 

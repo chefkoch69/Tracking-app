@@ -7,6 +7,8 @@ export type Route =
   | { name: 'tracker'; id: string; view?: string }
   | { name: 'entry'; id: string; entryId?: string; date?: string }
   | { name: 'data' }
+  | { name: 'now' }
+  | { name: 'doctor' }
   | { name: 'health'; payload?: string }
   | { name: 'settings' };
 
@@ -16,6 +18,8 @@ export function parseRoute(hash: string): Route {
   const parts = path.split('/').filter(Boolean);
   if (parts[0] === 'new') return { name: 'new' };
   if (parts[0] === 'data') return { name: 'data' };
+  if (parts[0] === 'now') return { name: 'now' };
+  if (parts[0] === 'arzt') return { name: 'doctor' };
   if (parts[0] === 'health') return { name: 'health', payload: params.get('data') ?? undefined };
   if (parts[0] === 'settings') return { name: 'settings' };
   if (parts[0] === 't' && parts[1]) {

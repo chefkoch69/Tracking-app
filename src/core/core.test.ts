@@ -14,6 +14,8 @@ import {
   series,
 } from './analytics';
 import { atMinutes, weekKey } from './dates';
+import { cloudDiff, fromCloud, sameData, stableStringify, toCloud } from './cloudModel';
+import { dayColumns, dayValue, reportText, symptomSummary } from './report';
 import { generateDemo } from './demo';
 import { formatShort, formatValue, rangeMinutes, scaleLevels, severity, validateValues, withLevels } from './fieldTypes';
 import { optionRenames } from './trackerEdit';
@@ -368,5 +370,74 @@ describe('Baukasten: freie Skalenstufen & Umbenennen', () => {
     const state = { version: 1 as const, trackers: [t], reminders: {}, entries: [entry(t, at(8), { [meal.id]: 'vor der Mahlzeit (noch nichts gegessen)' })] };
     const next = reducer(state, { type: 'entries/renameOption', trackerId: t.id, fieldId: meal.id, from: 'vor der Mahlzeit (noch nichts gegessen)', to: 'nüchtern' });
     expect(next.entries[0].values[meal.id]).toBe('nüchtern');
+  });
+});
+
+describe('Cloud-Speicher: Abbildung und Abgleich', () => {
+  const demo = generateDemo(30, at(21));
+  const data = { version: 1 as const, trackers: demo.trackers, entries: demo.entries, reminders: {}, health: demo.health };
+
+  it('bündelt Einträge in Wochen und stellt den Zustand verlustfrei wieder her', () => {
+    const { meta, weeks } = toCloud(data);
+    expect(weeks.size).toBeGreaterThanOrEqual(4);
+    expect(weeks.size).toBeLessThanOrEqual(6);
+    const back = fromCloud(meta, [...weeks.values()]);
+    expect(back.entries.length).toBe(data.entries.length);
+    expect(sameData(back, data)).toBe(true);
+  });
+
+  it('schreibt nur geänderte Dokumente', () => {
+    const first = cloudDiff(null, data);
+    expect(first.meta).not.toBeNull();
+    expect(first.write.length).toBe(toCloud(data).weeks.size);
+    expect(cloudDiff(data, data)).toEqual({ meta: null, write: [], remove: [] });
+    const e = data.entries[data.entries.length - 1];
+    const changed = { ...data, entries: data.entries.map((x) => (x.id === e.id ? { ...x, values: { ...x.values, extra: 1 } } : x)) };
+    const d = cloudDiff(data, changed);
+    expect(d.meta).toBeNull();
+    expect(d.write.map((w) => w.week)).toEqual([weekKey(new Date(e.timestamp))]);
+    const profileOnly = { ...data, profile: { name: 'Test' } };
+    expect(cloudDiff(data, profileOnly).write).toEqual([]);
+    expect(cloudDiff(data, profileOnly).meta).not.toBeNull();
+  });
+
+  it('löscht leere Wochen und vergleicht unabhängig von der Schlüsselreihenfolge', () => {
+    const w = weekKey(new Date(data.entries[0].timestamp));
+    const without = { ...data, entries: data.entries.filter((x) => weekKey(new Date(x.timestamp)) !== w) };
+    expect(cloudDiff(data, without).remove).toEqual([w]);
+    expect(stableStringify({ b: 1, a: { d: 2, c: undefined } })).toBe(stableStringify({ a: { d: 2 }, b: 1 }));
+  });
+});
+
+describe('Arztbericht', () => {
+  const now = at(21);
+  const demo = generateDemo(30, now);
+  const [belly] = demo.trackers;
+  const from = '2026-11-10';
+  const to = '2026-11-23';
+
+  it('fasst Tage zusammen (Skala: Tageshöchstwert, Spanne bei mehreren Werten)', () => {
+    const pain = belly.fields.find((f) => f.label === 'Bauchschmerz')!;
+    const es = [entry(belly, at(9), { [pain.id]: 1 }), entry(belly, at(14), { [pain.id]: 3 })];
+    expect(dayValue(pain, es)).toBe('3 (1–3)');
+    const cols = dayColumns(belly, es);
+    expect(cols).toHaveLength(1);
+    expect(cols[0].sub).toBe('2 Einträge');
+  });
+
+  it('liefert eine Übersicht je Beschwerde mit Trend', () => {
+    const rows = symptomSummary([belly], demo.entries, from, to);
+    const pain = rows.find((r) => r.label === 'Bauchschmerz')!;
+    expect(pain.daysTracked).toBeGreaterThan(3);
+    expect(pain.daysWith).toBeLessThanOrEqual(pain.daysTracked);
+    expect(['better', 'worse', 'same', null]).toContain(pain.trend);
+  });
+
+  it('erzeugt eine lesbare Textfassung', () => {
+    const text = reportText([belly], demo.entries, demo.health, from, to, { name: 'Test Person' });
+    expect(text).toContain('Symptomtagebuch 10.11.2026 – 23.11.2026');
+    expect(text).toContain('Name: Test Person');
+    expect(text).toContain('ÜBERSICHT');
+    expect(text).toMatch(/Bauchschmerz \d/);
   });
 });

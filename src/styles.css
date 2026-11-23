@@ -582,6 +582,56 @@ input[type="checkbox"], input[type="radio"] { width: auto; accent-color: var(--a
 .seg button { border: 0; background: none; font: inherit; font-size: 0.85rem; font-weight: 650; color: var(--muted); padding: 0.3rem 0.75rem; border-radius: 999px; cursor: pointer; }
 .seg button.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 
+/* ---------- Jetzt / Bericht / Sync ---------- */
+.hero-cta { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.2rem; }
+.quick-time { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.quick-time label { font-weight: 650; opacity: 0.9; }
+.quick-time input { width: auto; max-width: 15rem; background: rgba(255, 255, 255, 0.95); color: #141a2e; border: 0; }
+.quick-time small { background: rgba(255, 255, 255, 0.2); padding: 0.1rem 0.5rem; border-radius: 999px; font-weight: 650; }
+.chip.on-hero { background: rgba(255, 255, 255, 0.15); color: #fff; border-color: rgba(255, 255, 255, 0.35); }
+.chip.on-hero.active { background: #fff; color: var(--accent); }
+.quick-form .field { padding-bottom: 0.9rem; margin-bottom: 0.9rem; }
+.quick-label { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
+.quick-label label { font-weight: 750; }
+.quick-label small { font-size: 0.8rem; }
+.delta { font-weight: 750; }
+.delta.good { color: var(--good); }
+.delta.bad { color: var(--bad); }
+.quick-count { margin-right: auto; align-self: center; }
+.saved-toast {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.6rem;
+  background: var(--good-bg); color: var(--text); border: 1px solid color-mix(in srgb, var(--good) 40%, var(--border));
+  border-radius: var(--radius-sm); padding: 0.6rem 0.9rem; font-weight: 600;
+}
+.tl-time-big { font-weight: 800; font-variant-numeric: tabular-nums; min-width: 3.2rem; padding-top: 0.15rem; }
+.report-actions { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.report-options { display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem; align-items: center; margin: 0.6rem 0; }
+.switch.small { font-size: 0.88rem; margin: 0; }
+.report-section { margin-top: 1.4rem; }
+.report-section h3 { margin-bottom: 0.5rem; }
+.summary-table { min-width: 560px; }
+.summary-table td { text-align: center; }
+.trend.better { color: var(--good); font-weight: 700; }
+.trend.worse { color: var(--bad); font-weight: 700; }
+.report-insights { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.3rem; }
+.sync-badge {
+  text-decoration: none; font-size: 0.82rem; font-weight: 750; padding: 0.3rem 0.55rem; border-radius: 999px;
+  background: var(--surface-2); color: var(--muted); white-space: nowrap;
+}
+.sync-badge.synced { color: var(--good); background: var(--good-bg); }
+.sync-badge.offline, .sync-badge.error { color: var(--warn); background: var(--warn-bg); }
+.sync-info { margin: 0 0 0.6rem; }
+.sync-info.synced b { color: var(--good); }
+.sync-info.offline b, .sync-info.error b { color: var(--warn); }
+.dialog-text { width: 100%; font-family: ui-monospace, Menlo, monospace; font-size: 0.78rem; margin-bottom: 0.8rem; }
+@media (max-width: 440px) {
+  .topbar { gap: 0.4rem; }
+  .topbar .logo svg { width: 20px; height: 20px; }
+  .topbar nav a { padding: 0.35rem 0.5rem; font-size: 0.86rem; }
+  .sync-badge { padding: 0.25rem 0.4rem; font-size: 0.75rem; }
+}
+.report-table th { overflow-wrap: anywhere; hyphens: auto; }
+
 /* ---------- Dialog & Hinweise ---------- */
 .dialog-backdrop {
   position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;

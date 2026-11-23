@@ -1,9 +1,11 @@
 import { useRef, useState } from 'react';
+import { SyncInfo } from './cloudSync';
 import { HealthSettings } from './HealthPanel';
-import { CAN_DOWNLOAD } from './env';
+import { copyText, saveFile } from './save';
+import { notify } from './confirm';
 import { askConfirm } from './confirm';
 import { generateDemo } from '../core/demo';
-import { download, emptyData, exportJson, normalize } from '../core/storage';
+import { emptyData, exportJson, normalize } from '../core/storage';
 import { useStore } from '../state/store';
 import { notificationsSupported, requestNotificationPermission } from './reminders';
 import { navigate } from './router';
@@ -48,6 +50,17 @@ export function Settings() {
         )}
       </section>
 
+      <section className="card">
+        <h2>Speicherort</h2>
+        <SyncInfo />
+        <p className="muted">
+          In claude.ai werden deine Einträge zusätzlich in einem privaten Speicher dieser Seite gesichert: nur du kannst sie
+          lesen und ändern, sie sind auf all deinen Geräten gleich und gehen nicht verloren, wenn der Browser-Speicher geleert
+          wird. Auf deine Bitte kann Claude sie im Chat auslesen – z. B. um daraus einen Arztzettel zu erstellen.
+          Wer die Seite geteilt bekommt, sieht deine Daten nicht.
+        </p>
+      </section>
+
       <HealthSettings />
 
       <section className="card">
@@ -69,14 +82,22 @@ export function Settings() {
         <h2>Daten</h2>
         <p className="muted">
           Alle Daten bleiben lokal auf diesem Gerät ({data.trackers.length} Tracker, {data.entries.length} Einträge).
-          {CAN_DOWNLOAD ? ' Sichere sie regelmäßig als Datei.' : ' In dieser Vorschau sind Datei-Downloads nicht möglich; Import funktioniert.'}
+ Sichere sie ab und zu als Datei.
         </p>
         <div className="actions">
-          {CAN_DOWNLOAD && (
-            <button className="btn" onClick={() => download(`tracker-backup-${new Date().toISOString().slice(0, 10)}.json`, exportJson(data), 'application/json')}>
-              Backup exportieren (JSON)
-            </button>
-          )}
+          <button className="btn" onClick={() => void saveFile(`tracker-backup-${new Date().toISOString().slice(0, 10)}.json`, exportJson(data), 'application/json')}>
+            Backup als Datei speichern
+          </button>
+          <button
+            className="btn"
+            onClick={async () => {
+              const json = exportJson(data);
+              if (await copyText(json)) await notify('Alle Daten kopiert (JSON). Du kannst sie z. B. in den Chat mit Claude einfügen.');
+              else await notify('Die Zwischenablage ist hier gesperrt. Markiere den Text und kopiere ihn selbst:', json);
+            }}
+          >
+            Alle Daten kopieren
+          </button>
           <button className="btn" onClick={() => fileRef.current?.click()}>Backup importieren</button>
           <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => e.target.files?.[0] && onImport(e.target.files[0])} />
         </div>

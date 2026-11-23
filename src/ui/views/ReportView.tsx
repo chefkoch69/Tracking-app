@@ -1,49 +1,25 @@
-import { useState } from 'react';
-import { CAN_PRINT } from '../env';
-import { entriesOf, frequencies } from '../../core/analytics';
-import { BODY_MAPS } from '../../core/bodyMaps';
-import { addDays, dayKey, formatClock, parseDayKey, startOfDay } from '../../core/dates';
-import { fmtLevel, formatShort, isEmptyValue, scaleLevels } from '../../core/fieldTypes';
-import type { Entry, FieldDef, Tracker } from '../../core/types';
+import { useRef, useState } from 'react';
+import { entriesOf } from '../../core/analytics';
+import { addDays, dayKey, parseDayKey, startOfDay } from '../../core/dates';
+import { inRange, reportText } from '../../core/report';
+import type { Tracker } from '../../core/types';
 import { useStore } from '../../state/store';
-import { BodyMapSvg } from '../BodyMap';
+import { ReportActions } from '../ReportActions';
+import { ReportSheet } from './ReportSheet';
 import { NoData } from './shared';
 
-const COLS = 7;
-
-/**
- * Druckbarer Bericht – aufgebaut wie ein Papiertagebuch: Felder als Zeilen,
- * Einträge als Spalten, darunter Legenden (Skalen, Lokalisationsschema).
- */
+/** Bericht für einen Tracker. Für alle Tracker zusammen gibt es den „Arztbericht“. */
 export function ReportView({ tracker }: { tracker: Tracker }) {
   const { data, dispatch } = useStore();
   const all = entriesOf(tracker, data.entries);
   const today = dayKey(new Date());
   const [from, setFrom] = useState(() => dayKey(addDays(startOfDay(new Date()), -13)));
   const [to, setTo] = useState(today);
+  const [mode, setMode] = useState<'entries' | 'days'>(tracker.quick ? 'days' : 'entries');
+  const sheet = useRef<HTMLElement>(null);
   if (!all.length) return <NoData tracker={tracker} />;
-
-  const entries = all.filter((e) => {
-    const k = dayKey(new Date(e.timestamp));
-    return k >= from && k <= to;
-  });
-  // Ausgeblendete Felder nur zeigen, wenn es im Zeitraum Werte dafür gibt.
-  const shownFields = tracker.fields.filter((f) => !f.hidden || entries.some((e) => !isEmptyValue(e.values[f.id])));
-  const rows = shownFields.filter((f) => !(f.type === 'text' && f.config.multiline));
-  const notes = shownFields.filter((f) => f.type === 'text' && f.config.multiline);
-  const chunks: Entry[][] = [];
-  for (let i = 0; i < entries.length; i += COLS) chunks.push(entries.slice(i, i + COLS));
-  const scales = shownFields.filter((f) => f.type === 'scale' && scaleLevels(f.config).some((l) => l.label));
-  const legendKeys = new Map<string, FieldDef>();
-  for (const f of scales) {
-    const key = `${f.description ?? ''}|${scaleLevels(f.config).map((l) => `${l.value}=${l.label}`).join('|')}`;
-    if (!legendKeys.has(key)) legendKeys.set(key, f);
-  }
-  const maps = shownFields.filter((f) => f.type === 'bodymap');
-  const preset = (days: number) => {
-    setFrom(dayKey(addDays(startOfDay(new Date()), -(days - 1))));
-    setTo(today);
-  };
+  const entries = inRange(all, from, to);
+  const name = tracker.name.replace(/\s*\(Demo\)$/, '');
 
   return (
     <div className="report-wrap">
@@ -69,20 +45,26 @@ export function ReportView({ tracker }: { tracker: Tracker }) {
         <div className="actions" style={{ justifyContent: 'space-between' }}>
           <span className="chips">
             {[7, 14, 30, 90].map((d) => (
-              <button key={d} className="chip small" onClick={() => preset(d)}>{d} Tage</button>
+              <button key={d} className="chip small" onClick={() => { setFrom(dayKey(addDays(startOfDay(new Date()), -(d - 1)))); setTo(today); }}>{d} Tage</button>
             ))}
+            <span className="seg">
+              <button className={mode === 'entries' ? 'active' : ''} onClick={() => setMode('entries')}>je Eintrag</button>
+              <button className={mode === 'days' ? 'active' : ''} onClick={() => setMode('days')}>je Tag</button>
+            </span>
           </span>
-          {CAN_PRINT ? (
-            <button className="btn primary" onClick={() => window.print()}>🖨 Drucken / als PDF speichern</button>
-          ) : (
-            <span className="muted small">Drucken ist in dieser Vorschau nicht möglich – in der installierten App gibt es „Drucken / als PDF“.</span>
-          )}
+          <ReportActions
+            title={name}
+            filename={`${name}-${from}-bis-${to}`}
+            sheet={sheet}
+            text={() => reportText([tracker], data.entries, undefined, from, to, data.profile)}
+          />
         </div>
+        <p className="muted small">Alle Tracker zusammen in einem Bericht: <a href="#/arzt">Arztbericht</a>.</p>
       </div>
 
-      <article className="report card">
+      <article className="report card" ref={sheet}>
         <header className="report-head">
-          <h2>{tracker.name.replace(/\s*\(Demo\)$/, '')}</h2>
+          <h2>{name}</h2>
           <div className="report-meta">
             <span>Name: <b>{data.profile?.name || '________________'}</b></span>
             <span>geboren: <b>{data.profile?.birthdate ? parseDayKey(data.profile.birthdate).toLocaleDateString('de-DE') : '__________'}</b></span>
@@ -90,89 +72,9 @@ export function ReportView({ tracker }: { tracker: Tracker }) {
             <span>{entries.length} Einträge</span>
           </div>
         </header>
-
-        {!entries.length && <p className="muted">Keine Einträge im gewählten Zeitraum.</p>}
-
-        {chunks.map((chunk, ci) => (
-          <div key={ci} className="report-table-wrap">
-            <table className="report-table">
-              <thead>
-                <tr>
-                  <th>Datum</th>
-                  {chunk.map((e) => (
-                    <th key={e.id}>
-                      {new Date(e.timestamp).toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' })}
-                      <small>{formatClock(new Date(e.timestamp))}</small>
-                    </th>
-                  ))}
-                  {Array.from({ length: COLS - chunk.length }, (_, i) => <th key={`pad${i}`} />)}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((f) => (
-                  <tr key={f.id}>
-                    <th>
-                      {f.label}
-                      {f.type === 'scale' && <small> ({fmtLevel(f.config.min ?? 0)}–{fmtLevel(f.config.max ?? 0)})</small>}
-                      {f.config.unit && f.type !== 'timerange' && <small> ({f.config.unit})</small>}
-                    </th>
-                    {chunk.map((e) => (
-                      <td key={e.id}>{cell(f, e) || <span className="muted">–</span>}</td>
-                    ))}
-                    {Array.from({ length: COLS - chunk.length }, (_, i) => <td key={`pad${i}`} />)}
-                  </tr>
-                ))}
-                {notes.map((f) => (
-                  <tr key={f.id}>
-                    <th>{f.label}</th>
-                    <td colSpan={COLS} className="report-notes">
-                      {chunk
-                        .filter((e) => !isEmptyValue(e.values[f.id]))
-                        .map((e) => `${new Date(e.timestamp).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}: ${e.values[f.id]}`)
-                        .join(' · ')}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ))}
-
-        <footer className="report-legend">
-          {[...legendKeys.values()].map((f) => (
-            <div key={f.id}>
-              <b>{f.description?.startsWith('Stärkegrade') ? 'Stärkegrade' : f.label}:</b>
-              <ul>
-                {f.description?.startsWith('Stärkegrade')
-                  ? f.description.replace('Stärkegrade: ', '').split(' · ').map((l) => <li key={l}>{l}</li>)
-                  : scaleLevels(f.config).map((l) => <li key={l.value}>{fmtLevel(l.value)} = {l.label || '–'}</li>)}
-              </ul>
-            </div>
-          ))}
-          {maps.map((f) => {
-            const kind = f.config.bodyMap ?? 'abdomen';
-            const freq = frequencies(f, entries);
-            const max = Math.max(1, ...freq.map((x) => x.count));
-            const intensity = Object.fromEntries(
-              BODY_MAPS[kind].regions.map((r) => [r.id, (freq.find((x) => x.label === r.label)?.count ?? 0) / max]),
-            );
-            return (
-              <div key={f.id} className="report-map">
-                <b>{f.label} – Häufigkeit im Zeitraum</b>
-                <BodyMapSvg kind={kind} intensity={intensity} color={tracker.color} size="small" />
-                <ul>
-                  {freq.map((x) => <li key={x.label}>{x.label}: {x.count}×</li>)}
-                </ul>
-              </div>
-            );
-          })}
-        </footer>
+        <ReportSheet tracker={tracker} entries={entries} mode={mode} />
         <p className="report-foot muted small">Erstellt am {new Date().toLocaleDateString('de-DE')} mit „Build Your Own Tracker“.</p>
       </article>
     </div>
   );
-}
-
-function cell(f: FieldDef, e: Entry): string {
-  return formatShort(f, e.values[f.id]);
 }

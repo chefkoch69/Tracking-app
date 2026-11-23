@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
-import { generateDemo } from '../core/demo';
 import { emptyData, localStorageAdapter, type StorageAdapter } from '../core/storage';
 import { mergeHealth } from '../core/health';
 import type { AppData, Entry, HealthDay, Profile, ReminderState, Tracker } from '../core/types';
@@ -115,10 +114,9 @@ interface Store {
 
 const Ctx = createContext<Store | null>(null);
 
-/** Startzustand: leer – in der Vorschau-Version mit gekennzeichneten Beispieldaten. */
+/** Startzustand: leer. Beispieldaten gibt es nur auf Knopfdruck. */
 function initial(): AppData {
-  if (import.meta.env.VITE_TARGET !== 'artifact') return emptyData();
-  return { ...emptyData(), ...generateDemo() };
+  return emptyData();
 }
 
 export function StoreProvider({ children, adapter = localStorageAdapter }: { children: ReactNode; adapter?: StorageAdapter }) {

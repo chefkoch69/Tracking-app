@@ -58,6 +58,19 @@ CSV-Export der gefilterten Daten) und Tab „Tabelle“ in jedem Tracker.
 | Im Kalender nachtragen | Table Habit (mhabit) | Tag im Erfüllungskalender antippen → „Eintrag für diesen Tag“ |
 | Gruppen | Table Habit (mhabit) | Dashboard gruppiert Tracker nach Kategorie |
 
+## Jetzt-Seite, Arztbericht und Cloud-Speicher
+
+- **Jetzt** (`#/now`): Schnell-Check-in über den Tag – Ereignisse antippen (gegessen, Medikament, aufgestanden …)
+  und Befinden auf 0 / 0,5 / 1 / 2 / 3. Neben jedem Wert steht der letzte Wert mit „▼ besser / ▲ schlechter“.
+  Gespeichert werden nur ausgefüllte Felder; „aufgestanden“ setzt die Aufstehzeit des Tages. Der Check-in ist ein
+  normaler Tracker (Vorlage „Befinden jetzt“) und im Baukasten frei änderbar.
+- **Arztbericht** (`#/arzt`): alle gewählten Tracker eines Zeitraums – Übersicht je Beschwerde (Tage mit
+  Beschwerden, Ø Tageshöchstwert, Höchstwert, Vergleich mit dem Zeitraum davor), Auffälligkeiten, Tagestabellen im
+  Papier-Stil, Gesundheitsdaten. Drucken, als HTML-Datei speichern oder als Text kopieren.
+- **Cloud-Speicher** (nur in claude.ai): Einträge werden zusätzlich im privaten Speicher der Seite gesichert
+  (`diary/meta` + `entries/<Kalenderwoche>`), nur für die Eigentümerin/den Eigentümer lesbar. Erstes Öffnen lädt die
+  lokalen Daten hoch, danach gleichen sich alle Geräte ab. Claude kann die Daten auf Wunsch auslesen.
+
 ## Baukasten-Werkzeuge
 
 - **Felder ziehen** (⠿, mit Finger oder Maus; Pfeiltasten auf dem Griff), ebenso Auswahloptionen.

@@ -1,4 +1,7 @@
 import { useStore } from '../state/store';
+import { SyncBadge } from './cloudSync';
+import { QuickPage } from './QuickPage';
+import { DoctorReport } from './DoctorReport';
 import { HealthImportPage } from './HealthPanel';
 import { ConfirmHost } from './confirm';
 import { Dashboard } from './Dashboard';
@@ -43,6 +46,12 @@ export function App() {
         page = <EntryForm key={route.entryId ?? `new-${route.date ?? ''}`} tracker={tracker!} entry={entry} date={route.date} />;
         break;
       }
+      case 'now':
+        page = <QuickPage />;
+        break;
+      case 'doctor':
+        page = <DoctorReport />;
+        break;
       case 'data':
         page = (
           <div className="page">
@@ -75,11 +84,13 @@ export function App() {
           <span className="brand-text">Build Your Own Tracker</span>
         </a>
         <nav>
+          <a href="#/now" className={route.name === 'now' ? 'active' : ''}>Jetzt</a>
           <a href="#/" className={route.name === 'dashboard' ? 'active' : ''}>Übersicht</a>
           <a href="#/data" className={route.name === 'data' ? 'active' : ''}>Daten</a>
-          <a href="#/new" className={route.name === 'new' ? 'active' : ''}>Neu</a>
+          <a href="#/new" className={route.name === 'new' ? 'active' : ''} aria-label="Neuer Tracker">＋</a>
           <a href="#/settings" className={route.name === 'settings' ? 'active' : ''} aria-label="Einstellungen">⚙</a>
         </nav>
+        <SyncBadge />
       </header>
       <main>{page}</main>
       <ConfirmHost />

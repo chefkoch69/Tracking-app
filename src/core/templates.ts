@@ -43,7 +43,40 @@ export interface TrackerTemplate {
 
 const sched = (s: Partial<Schedule>): Schedule => ({ ...defaultSchedule(), ...s });
 
+const fiveStep = () =>
+  withLevels([
+    { value: 0, label: 'keine' },
+    { value: 0.5, label: 'sehr leicht' },
+    { value: 1, label: 'leicht' },
+    { value: 2, label: 'mittel' },
+    { value: 3, label: 'schwer' },
+  ]);
+const symptom = (label: string) => makeField('scale', label, { ...fiveStep(), polarity: 'higher-worse' });
+
 export const TEMPLATES: TrackerTemplate[] = [
+  {
+    key: 'now',
+    name: 'Befinden jetzt',
+    category: 'Schnell-Check-in',
+    icon: '⚡',
+    color: '#7048e8',
+    description: 'Mehrmals täglich in Sekunden festhalten, was gerade ist: Ereignisse und Befinden.',
+    build: () => ({
+      fields: [
+        makeField('multiselect', 'Was ist passiert?', {
+          options: ['aufgestanden', 'gegessen', 'getrunken', 'Medikament genommen', 'Toilette', 'Bewegung', 'Pause / hingelegt', 'Stress'],
+        }),
+        symptom('Bauchschmerz'),
+        symptom('Übelkeit'),
+        symptom('Müdigkeit'),
+        symptom('Tinnitus'),
+        { ...symptom('Erschöpfung'), description: '„fertig“, ausgelaugt' },
+        makeField('text', 'Notiz', { multiline: true }),
+      ],
+      schedule: sched({ mode: 'manual' }),
+      views: ['history', 'table', 'chart', 'stats', 'report', 'calendar', 'compare'],
+    }),
+  },
   {
     key: 'abdominal',
     name: 'Bauchschmerztagebuch',
@@ -228,6 +261,7 @@ export function trackerFromTemplate(t: TrackerTemplate): Tracker {
     category: t.category,
     createdAt: new Date().toISOString(),
     ...t.build(),
+    ...(t.key === 'now' ? { quick: true } : {}),
   };
 }
 
