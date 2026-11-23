@@ -1,0 +1,38 @@
+import { useEffect, useState } from 'react';
+
+export type Route =
+  | { name: 'dashboard' }
+  | { name: 'new' }
+  | { name: 'edit'; id: string }
+  | { name: 'tracker'; id: string; view?: string }
+  | { name: 'entry'; id: string; entryId?: string }
+  | { name: 'settings' };
+
+export function parseRoute(hash: string): Route {
+  const parts = hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  if (parts[0] === 'new') return { name: 'new' };
+  if (parts[0] === 'settings') return { name: 'settings' };
+  if (parts[0] === 't' && parts[1]) {
+    if (parts[2] === 'edit') return { name: 'edit', id: parts[1] };
+    if (parts[2] === 'entry') return { name: 'entry', id: parts[1], entryId: parts[3] };
+    return { name: 'tracker', id: parts[1], view: parts[2] };
+  }
+  return { name: 'dashboard' };
+}
+
+export function navigate(path: string) {
+  window.location.hash = path;
+}
+
+export function useRoute(): Route {
+  const [route, setRoute] = useState(() => parseRoute(window.location.hash));
+  useEffect(() => {
+    const on = () => {
+      setRoute(parseRoute(window.location.hash));
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener('hashchange', on);
+    return () => window.removeEventListener('hashchange', on);
+  }, []);
+  return route;
+}

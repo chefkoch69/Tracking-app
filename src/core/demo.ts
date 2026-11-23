@@ -1,0 +1,64 @@
+import { addDays, atMinutes, startOfDay } from './dates';
+import { uid } from './id';
+import { TEMPLATES, trackerFromTemplate } from './templates';
+import type { Entry, FieldValue, Tracker } from './types';
+
+/** Erzeugt plausible Beispieldaten, um die Auswertungen auszuprobieren. */
+export function generateDemo(days = 60, now = new Date()): { trackers: Tracker[]; entries: Entry[] } {
+  let seed = 42;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  const tpl = (k: string) => trackerFromTemplate(TEMPLATES.find((t) => t.key === k)!);
+
+  const morning = tpl('morning');
+  const pushups = tpl('pushups');
+  const trackers = [morning, pushups];
+  const entries: Entry[] = [];
+  const byLabel = (t: Tracker, l: string) => t.fields.find((f) => f.label === l)!.id;
+
+  for (let i = days - 1; i >= 0; i--) {
+    const day = addDays(startOfDay(now), -i);
+    if (i === 0 && now.getHours() < 7) continue;
+
+    if (rnd() > 0.08) {
+      const temp = Math.round((17 + rnd() * 5) * 2) / 2;
+      const sleep = Math.round((5 + rnd() * 3.5) * 4) / 4;
+      const tired = clamp(Math.round((8 - sleep) * 0.9 + (rnd() - 0.5) * 1.2), 0, 3);
+      const cold = clamp(Math.round((21 - temp) * 0.7 + (rnd() - 0.5)), 0, 3);
+      const v: Record<string, FieldValue> = {
+        [byLabel(morning, 'Übelkeit')]: clamp(Math.round(rnd() * 1.6), 0, 3),
+        [byLabel(morning, 'Bauchschmerzen')]: clamp(Math.round(rnd() * 1.4), 0, 3),
+        [byLabel(morning, 'Erschöpfung')]: tired,
+        [byLabel(morning, 'Kälteempfinden')]: cold,
+        [byLabel(morning, 'Tinnitus')]: clamp(Math.round(rnd() * 2), 0, 3),
+        [byLabel(morning, 'Schlafqualität')]: clamp(Math.round(sleep / 2.5 + (rnd() - 0.5)), 0, 3),
+        [byLabel(morning, 'Schlafdauer')]: sleep,
+        [byLabel(morning, 'Raumtemperatur')]: temp,
+        [byLabel(morning, 'Luftfeuchtigkeit')]: Math.round(40 + rnd() * 25),
+        [byLabel(morning, 'Besonderheiten')]: rnd() > 0.85 ? 'Unruhige Nacht' : '',
+      };
+      const t = atMinutes(day, 6 * 60 + 40 + Math.floor(rnd() * 25));
+      entries.push({ id: uid(), trackerId: morning.id, timestamp: t.toISOString(), values: v });
+    }
+
+    const sets = rnd() > 0.3 ? 1 + Math.floor(rnd() * 3) : 0;
+    for (let s = 0; s < sets; s++) {
+      const base = 15 + (days - i) * 0.25;
+      const t = atMinutes(day, 7 * 60 + s * 300 + Math.floor(rnd() * 120));
+      if (t > now) continue;
+      entries.push({
+        id: uid(),
+        trackerId: pushups.id,
+        timestamp: t.toISOString(),
+        values: {
+          [byLabel(pushups, 'Anzahl')]: Math.round(base + (rnd() - 0.5) * 10),
+          [byLabel(pushups, 'Trainingsdauer')]: Math.round(3 + rnd() * 5),
+          [byLabel(pushups, 'Anmerkungen')]: '',
+        },
+      });
+    }
+  }
+  morning.name = 'Morgen-Check-in (Demo)';
+  pushups.name = 'Liegestütze (Demo)';
+  return { trackers, entries };
+}
