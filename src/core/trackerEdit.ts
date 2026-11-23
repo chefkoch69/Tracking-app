@@ -118,3 +118,42 @@ export function mergeTrackers(target: Tracker, source: Tracker, entries: Entry[]
   });
   return { tracker: { ...target, fields }, entries: moved };
 }
+
+/**
+ * Was zum Aufräumen ansteht – Grundlage der Karte „App startklar machen“.
+ * Rein lesend; die Oberfläche bietet für jeden Punkt eine Ein-Tipp-Aktion.
+ */
+export interface SetupState {
+  /** Eigener Check-in, der zu „Mein Befinden“ erweitert werden kann. */
+  upgrade: { tracker: Tracker; next: Tracker } | null;
+  /** Eigene Tracker, die thematisch in den Check-in gehören (gemeinsame Felder). */
+  mergeable: Tracker[];
+  /** Eigene Tracker ohne einen einzigen Eintrag (außer dem Check-in). */
+  empty: Tracker[];
+  /** Beispiel-Tracker, obwohl schon eigene Daten existieren. */
+  demos: Tracker[];
+}
+
+export function setupState(trackers: Tracker[], entries: Entry[], template: Pick<Tracker, 'fields'>): SetupState {
+  const norm = (s: string) => s.trim().toLocaleLowerCase('de-DE');
+  const own = trackers.filter((t) => !t.demo && !t.archived);
+  const count = (t: Tracker) => entries.filter((e) => e.trackerId === t.id).length;
+  const quick = own.find((t) => t.quick);
+  let upgrade: SetupState['upgrade'] = null;
+  if (quick) {
+    const related = quick.fields.filter((f) => template.fields.some((tf) => norm(tf.label) === norm(f.label))).length >= 3;
+    const up = templateUpgrades(quick, template);
+    const rename = quick.name === 'Befinden jetzt';
+    if (related && (hasUpgrades(up) || rename)) {
+      const next = applyUpgrades(quick, up, template);
+      upgrade = { tracker: quick, next: rename ? { ...next, name: 'Mein Befinden', icon: quick.icon === '⚡' ? '💙' : quick.icon, color: '#2f63f0' } : next };
+    }
+  }
+  const mergeable = quick
+    ? own.filter((t) => t.id !== quick.id && count(t) > 0 && t.fields.some((f) => quick.fields.some((q) => norm(q.label) === norm(f.label))))
+    : [];
+  const empty = own.filter((t) => !t.quick && count(t) === 0);
+  const hasOwnData = own.some((t) => count(t) > 0);
+  const demos = hasOwnData ? trackers.filter((t) => t.demo) : [];
+  return { upgrade, mergeable, empty, demos };
+}

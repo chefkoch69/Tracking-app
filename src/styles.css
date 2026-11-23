@@ -784,3 +784,8 @@ button.ring:disabled { cursor: default; }
 
 .list-text { display: flex; flex-direction: column; gap: 0.45rem; }
 .chips.suggest .chip { background: var(--surface-2); border-color: transparent; color: var(--text); }
+
+.setup-card { border: 1.5px solid color-mix(in srgb, var(--primary) 30%, var(--border)); }
+.setup-steps { margin: 0 0 0.6rem; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.7rem; }
+.setup-steps li { padding-left: 0.2rem; }
+.setup-steps li > span { display: block; margin-bottom: 0.35rem; }

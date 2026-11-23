@@ -19,7 +19,7 @@ import { cloudDiff, fromCloud, sameData, stableStringify, toCloud } from './clou
 import { dayColumns, dayValue, reportText, symptomSummary } from './report';
 import { generateDemo } from './demo';
 import { formatShort, formatValue, itemName, listItems, rangeMinutes, scaleLevels, severity, validateValues, withLevels } from './fieldTypes';
-import { applyUpgrades, hasUpgrades, mergeTrackers, optionRenames, templateUpgrades } from './trackerEdit';
+import { applyUpgrades, hasUpgrades, mergeTrackers, optionRenames, setupState, templateUpgrades } from './trackerEdit';
 import { interpretNarrative, narrativePrompt } from './narrative';
 import { reducer } from '../state/store';
 import { computeInsights, factorInsights, trendInsights } from './insights';
@@ -604,5 +604,25 @@ describe('Beschwerden im Verlauf', () => {
     const pain = me.fields.find((f) => f.label === 'Bauchschmerz')!;
     const tt = symptomTrend(me, [entry(me, at(8), { [pain.id]: 1 }), entry(me, at(15), { [pain.id]: 3 })], 7, now);
     expect(tt.series[0].values.at(-1)).toBe(3);
+  });
+});
+
+describe('App startklar machen', () => {
+  it('erkennt alten Check-in, leere und Beispiel-Tracker', () => {
+    const tpl = TEMPLATES.find((x) => x.key === 'now')!.build();
+    const full = trackerFromTemplate(TEMPLATES.find((x) => x.key === 'now')!);
+    const old = { ...full, name: 'Befinden jetzt', fields: full.fields.filter((f) => ['Was ist passiert?', 'Bauchschmerz', 'Übelkeit', 'Müdigkeit', 'Notiz'].includes(f.label)) };
+    const empty = { ...trackerFromTemplate(TEMPLATES.find((x) => x.key === 'reading')!), name: 'r' };
+    const demo = { ...trackerFromTemplate(TEMPLATES.find((x) => x.key === 'pushups')!), demo: true };
+    const s = setupState([old, empty, demo], [entry(old, at(9), {})], tpl);
+    expect(s.upgrade?.next.name).toBe('Mein Befinden');
+    expect(s.upgrade?.next.fields.length).toBe(tpl.fields.length);
+    expect(s.empty.map((t) => t.name)).toEqual(['r']);
+    expect(s.demos).toHaveLength(1);
+    // Nach dem Umbau: nichts mehr zu tun beim Check-in
+    const after = setupState([s.upgrade!.next], [entry(old, at(9), {})], tpl);
+    expect(after.upgrade).toBeNull();
+    // Ohne eigene Daten bleiben Beispiele unangetastet
+    expect(setupState([demo], [], tpl).demos).toHaveLength(0);
   });
 });

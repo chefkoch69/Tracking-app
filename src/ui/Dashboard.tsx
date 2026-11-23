@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { SymptomTrendCard } from './SymptomTrendCard';
+import { SetupCard } from './SetupCard';
 import { generateDemo } from '../core/demo';
 import { TEMPLATES, trackerFromTemplate } from '../core/templates';
 import { WakeChip } from './HealthPanel';
@@ -107,7 +108,9 @@ export function Dashboard() {
         </div>
       </section>
 
-      {data.trackers.some((t) => t.demo) && (
+      <SetupCard />
+
+      {data.trackers.some((t) => t.demo) && !data.entries.some((e) => data.trackers.find((t) => t.id === e.trackerId && !t.demo)) && (
         <div className="demo-banner">
           <span>
             <b>Beispieldaten</b> · Die mit „(Demo)“ markierten Tracker sind erfundene Beispiele zum Ausprobieren.
