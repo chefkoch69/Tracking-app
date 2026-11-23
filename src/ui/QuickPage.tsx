@@ -1,10 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { TalkCard } from './TalkCard';
 import { askConfirm } from './confirm';
 import { applyUpgrades, hasUpgrades, templateUpgrades } from '../core/trackerEdit';
 import { entriesOf } from '../core/analytics';
 import { dayKey, formatClock, toLocalInput } from '../core/dates';
-import { FIELD_TYPES, fmtLevel, formatValue, groupFields, isEmptyValue, validateValues } from '../core/fieldTypes';
+import { FIELD_TYPES, fmtLevel, formatValue, groupFields, isEmptyValue, polarityOf, validateValues } from '../core/fieldTypes';
+import { dayRhythm, entryFeedback, levelText, type ValueChange } from '../core/feedback';
+import { DayRhythmChart } from './DayRhythm';
+import { useNow } from './reminders';
 import { uid } from '../core/id';
 import { TEMPLATES, trackerFromTemplate } from '../core/templates';
 import type { Entry, FieldDef, FieldValue, Tracker } from '../core/types';
@@ -32,7 +35,7 @@ export function QuickPage({ talk }: { talk?: boolean }) {
         <section className="hero-band compact">
           <div className="hero-inner">
             <h1>Wie geht’s dir gerade?</h1>
-            <p className="hero-lead">Ein Schnell-Check-in für zwischendurch: antippen, was gerade ist, speichern – fertig.</p>
+            <p className="hero-lead">Für zwischendurch: antippen, was gerade ist, speichern – fertig.</p>
           </div>
         </section>
         <div className="card empty">
@@ -50,7 +53,7 @@ export function QuickPage({ talk }: { talk?: boolean }) {
           >
             „Mein Befinden“ einrichten
           </button>
-          <small className="muted">Oder einen eigenen Tracker bauen und dort „Auf der Jetzt-Seite zeigen“ einschalten.</small>
+          <small className="muted">Oder baue dir unter „Mehr“ einen ganz eigenen Tracker.</small>
         </div>
       </div>
     );
@@ -129,8 +132,37 @@ function MergeHint({ tracker }: { tracker: Tracker }) {
   );
 }
 
+/** Schnelle Zeitwahl: die meisten Einträge passieren „jetzt“ oder kurz davor. */
+const TIME_CHOICES = [
+  { key: 'now', label: 'Jetzt', minutes: 0 },
+  { key: '15', label: 'vor 15 Min', minutes: 15 },
+  { key: '30', label: 'vor 30 Min', minutes: 30 },
+  { key: '60', label: 'vor 1 Std', minutes: 60 },
+  { key: '120', label: 'vor 2 Std', minutes: 120 },
+] as const;
+
+/** Nach dem Speichern: was sich verändert hat und ein Anstoß für den nächsten Eintrag. */
+interface SavedInfo {
+  entry: Entry;
+  changes: ValueChange[];
+  rest: string[];
+  hint: string | null;
+}
+
+function nextHint(tracker: Tracker, values: Record<string, FieldValue>): string | null {
+  const texts = tracker.fields
+    .filter((f) => !isEmptyValue(values[f.id]) && (f.type === 'multiselect' || (f.type === 'text' && f.config.splitList)))
+    .flatMap((f) => (Array.isArray(values[f.id]) ? (values[f.id] as string[]) : [`${f.label} ${values[f.id]}`]))
+    .join(' ')
+    .toLocaleLowerCase('de-DE');
+  if (/medikament/.test(texts)) return 'Wie wirkt es? Trag in 1–2 Stunden ein, wie es dir dann geht – so siehst du, was wirklich hilft.';
+  if (/gegessen|getrunken/.test(texts)) return 'Trag in 1–2 Stunden ein, wie es dir nach dem Essen geht – so werden mögliche Auslöser sichtbar.';
+  return null;
+}
+
 function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; others: Tracker[]; onSwitch: (id: string) => void; talk?: boolean }) {
   const { data, dispatch } = useStore();
+  const now = useNow(30000);
   const visible = tracker.fields.filter((f) => !f.hidden);
   const groups = groupFields(visible);
   const OPEN_KEY = `byot:open:${tracker.id}`;
@@ -153,14 +185,32 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
     });
   const empty = () => Object.fromEntries(visible.map((f) => [f.id, FIELD_TYPES[f.type].emptyValue(f)]));
   const [values, setValues] = useState<Record<string, FieldValue>>(empty);
-  const [when, setWhen] = useState(() => toLocalInput(new Date()));
-  const [timeTouched, setTimeTouched] = useState(false);
-  const [saved, setSaved] = useState<string | null>(null);
-  const [undoIds, setUndoIds] = useState<string[]>([]);
+  const [mode, setMode] = useState<'tap' | 'talk'>(talk ? 'talk' : 'tap');
+  useEffect(() => {
+    if (talk) setMode('talk');
+  }, [talk]);
+  const [timeKey, setTimeKey] = useState<string>('now');
+  const [custom, setCustom] = useState(() => toLocalInput(new Date()));
+  const [saved, setSaved] = useState<SavedInfo | null>(null);
+  const [undone, setUndone] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+
+  /** Zeitpunkt des Eintrags – bei „jetzt“ der tatsächliche Speicherzeitpunkt. */
+  const timeFor = (ref: Date): Date => {
+    if (timeKey === 'custom') {
+      const d = new Date(custom);
+      return Number.isNaN(d.getTime()) ? ref : d;
+    }
+    const c = TIME_CHOICES.find((x) => x.key === timeKey) ?? TIME_CHOICES[0];
+    return new Date(ref.getTime() - c.minutes * 60000);
+  };
+  const when = timeFor(now);
+  const otherDay = dayKey(when) !== dayKey(now);
 
   const entries = useMemo(() => entriesOf(tracker, data.entries), [tracker, data.entries]);
-  const today = dayKey(new Date());
+  const today = dayKey(now);
   const todays = entries.filter((e) => dayKey(new Date(e.timestamp)) === today).reverse();
+  const rhythm = useMemo(() => dayRhythm(tracker, data.entries, now), [tracker, data.entries, today]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Letzter erfasster Wert je Feld (innerhalb der letzten 24 h). */
   const last = (f: FieldDef): { v: FieldValue; t: Date } | null => {
@@ -180,8 +230,7 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
 
   const save = () => {
     if (!filled.length || Object.keys(errors).length) return;
-    // Zeit: falls nicht angefasst, den tatsächlichen Speicherzeitpunkt nehmen.
-    const ts = timeTouched ? new Date(when) : new Date();
+    const ts = timeFor(new Date());
     const onlyFilled = Object.fromEntries(filled.map((f) => [f.id, values[f.id]]));
     const entry: Entry = { id: uid(), trackerId: tracker.id, timestamp: ts.toISOString(), values: onlyFilled };
     dispatch({ type: 'entry/save', entry });
@@ -191,32 +240,52 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
     if (woke && !data.health?.[key]?.wake) {
       dispatch({ type: 'health/upsert', days: [{ date: key, wake: formatClock(ts), source: 'manual' }] });
     }
-    setSaved(`Gespeichert um ${formatClock(ts)}: ${filled.map((f) => short(f, values[f.id])).join(' · ')}`);
-    setUndoIds([entry.id]);
+    const changes = entryFeedback(tracker, [...data.entries, entry], entry);
+    const clip = (t: string, n: number) => (t.length > n ? `${t.slice(0, n - 1)}…` : t);
+    const rest = filled
+      .filter((f) => !changes.some((c) => c.field.id === f.id))
+      .map((f) => (f.type === 'text' && !f.config.multiline ? clip(String(values[f.id]), 90) : short(f, values[f.id])));
+    setSaved({ entry, changes, rest, hint: nextHint(tracker, onlyFilled) });
+    setUndone(false);
     setValues(empty());
-    setTimeTouched(false);
-    setWhen(toLocalInput(new Date()));
-    window.scrollTo(0, 0);
+    setTimeKey('now');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  const title =
+    timeKey === 'now'
+      ? 'Wie geht’s dir gerade?'
+      : `Wie ging’s dir ${otherDay ? `am ${when.toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric' })} ` : ''}um ${formatClock(when)}?`;
 
   return (
     <div className="page">
       <section className="hero-band compact">
         <div className="hero-inner">
-          <h1>Wie geht’s dir gerade?</h1>
-          <div className="quick-time">
-            <label htmlFor="quick-when">Zeitpunkt</label>
-            <input
-              id="quick-when"
-              type="datetime-local"
-              value={when}
-              onChange={(e) => {
-                setWhen(e.target.value);
-                setTimeTouched(true);
+          <h1>{title}</h1>
+          <div className="time-chips" role="group" aria-label="Zeitpunkt des Eintrags">
+            {TIME_CHOICES.map((c) => (
+              <button key={c.key} type="button" className={`chip small on-hero ${timeKey === c.key ? 'active' : ''}`} aria-pressed={timeKey === c.key} onClick={() => setTimeKey(c.key)}>
+                {c.label}
+              </button>
+            ))}
+            <button
+              type="button"
+              className={`chip small on-hero ${timeKey === 'custom' ? 'active' : ''}`}
+              aria-pressed={timeKey === 'custom'}
+              onClick={() => {
+                if (timeKey !== 'custom') setCustom(toLocalInput(when));
+                setTimeKey('custom');
               }}
-            />
-            {!timeTouched && <small>jetzt</small>}
+            >
+              Andere Zeit…
+            </button>
           </div>
+          {timeKey === 'custom' && (
+            <div className="quick-time">
+              <label htmlFor="quick-when" className="sr-only">Datum und Uhrzeit</label>
+              <input id="quick-when" type="datetime-local" value={custom} max={toLocalInput(now)} onChange={(e) => setCustom(e.target.value)} />
+            </div>
+          )}
           {others.length > 1 && (
             <div className="chips">
               {others.map((t) => (
@@ -231,97 +300,136 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
 
       <UpgradeHint tracker={tracker} />
       <MergeHint tracker={tracker} />
-      <TalkCard quick={tracker} autoFocus={talk} />
 
       {saved && (
-        <div className="saved-toast" role="status">
-          <span>✓ {saved}</span>
-          <span className="inline">
-            {undoIds.length > 0 && (
-              <button
-                className="btn ghost small"
-                onClick={() => {
-                  undoIds.forEach((id) => dispatch({ type: 'entry/delete', id }));
-                  setUndoIds([]);
-                  setSaved('Rückgängig gemacht – der Eintrag ist entfernt.');
-                }}
-              >
-                Rückgängig
-              </button>
-            )}
-            <button className="btn ghost small" onClick={() => { setSaved(null); setUndoIds([]); }} aria-label="Hinweis schließen">✕</button>
-          </span>
-        </div>
+        <section className={`saved-card ${undone ? 'undone' : ''}`} role="status">
+          <div className="saved-head">
+            <span className="saved-check" aria-hidden>{undone ? '↺' : '✓'}</span>
+            <strong>{undone ? 'Rückgängig gemacht – der Eintrag ist entfernt.' : `Gespeichert · ${formatClock(new Date(saved.entry.timestamp))}${dayKey(new Date(saved.entry.timestamp)) !== today ? ` am ${new Date(saved.entry.timestamp).toLocaleDateString('de-DE')}` : ''}`}</strong>
+            <button className="btn ghost small icon-btn" onClick={() => setSaved(null)} aria-label="Rückmeldung schließen">✕</button>
+          </div>
+          {!undone && (
+            <>
+              {saved.changes.length > 0 && (
+                <ul className="saved-changes">
+                  {saved.changes.map((c) => (
+                    <li key={c.field.id} className={c.direction}>
+                      <span className="sc-label">{c.field.label}</span>
+                      <b>{levelText(c.field, c.value)}</b>
+                      <small>
+                        {c.direction === 'better' ? '▼ besser als' : c.direction === 'worse' ? '▲ schlechter als' : '= gleich wie'} um {formatClock(c.prevAt)}
+                        {c.direction !== 'same' && ` (${fmtLevel(c.prev)})`}
+                      </small>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {saved.rest.length > 0 && <p className="saved-rest">{saved.rest.join(' · ')}</p>}
+              {saved.hint && <p className="saved-hint">{saved.hint}</p>}
+              <div className="saved-actions">
+                <button
+                  className="btn ghost small"
+                  onClick={() => {
+                    dispatch({ type: 'entry/delete', id: saved.entry.id });
+                    setUndone(true);
+                  }}
+                >
+                  Rückgängig
+                </button>
+                <button className="btn ghost small" onClick={() => navigate(`/t/${tracker.id}/entry/${saved.entry.id}`)}>Bearbeiten</button>
+              </div>
+            </>
+          )}
+        </section>
       )}
 
-      <h2 className="quick-or">… oder antippen</h2>
-      <form
-        className="entry-form quick-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          save();
-        }}
-      >
-        <EntryDayContext.Provider value={when.slice(0, 10)}>
-          {groups.map((g, gi) => {
-            const isOpen = open[g.name] ?? (gi === 0 || g.fields.length <= 2);
-            const count = g.fields.filter((f) => filled.includes(f)).length;
-            return (
-              <section key={g.name} className={`card quick-group ${isOpen ? 'open' : ''}`}>
-                <button type="button" className="quick-group-head" aria-expanded={isOpen} onClick={() => toggleGroup(g.name, !isOpen)}>
-                  <span className="qg-title">{g.name}</span>
-                  {count > 0 && <span className="pill good">{count} ausgefüllt</span>}
-                  <span className="qg-chevron" aria-hidden>{isOpen ? '−' : '+'}</span>
-                </button>
-                {isOpen &&
-                  g.fields.map((f) => {
-                    const i = visible.indexOf(f);
-                    const prev = last(f);
-                    const now = values[f.id];
-                    const delta = typeof now === 'number' && prev && typeof prev.v === 'number' ? now - prev.v : null;
-                    return (
-                      <div key={f.id} className="field quick-field">
-                        <div className="quick-label">
-                          {/* Abschnitt mit nur einem gleichnamigen Feld: Bezeichnung nicht doppelt zeigen */}
-                          <label htmlFor={`q-${f.id}`} className={g.fields.length === 1 && g.name === f.label ? 'sr-only' : ''}>{f.label}</label>
-                          {prev && (
-                            <small className="muted">
-                              zuletzt {short(f, prev.v)} um {formatClock(prev.t)}
-                              {delta !== null && delta !== 0 && (
-                                <b className={`delta ${(delta < 0) === (f.config.polarity !== 'higher-better') ? 'good' : 'bad'}`}>
-                                  {(delta < 0) === (f.config.polarity !== 'higher-better') ? ' ▼ besser' : ' ▲ schlechter'}
-                                </b>
-                              )}
-                              {delta === 0 && <b className="delta"> = gleich</b>}
-                            </small>
-                          )}
+      <div className="seg mode-switch" role="tablist" aria-label="Art des Eintrags">
+        <button role="tab" aria-selected={mode === 'tap'} className={mode === 'tap' ? 'active' : ''} onClick={() => setMode('tap')}>
+          Antippen
+        </button>
+        <button role="tab" aria-selected={mode === 'talk'} className={mode === 'talk' ? 'active' : ''} onClick={() => setMode('talk')}>
+          🎙 Erzählen
+        </button>
+      </div>
+
+      {mode === 'talk' ? (
+        <TalkCard quick={tracker} autoFocus={talk} />
+      ) : (
+        <form
+          className="entry-form quick-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            save();
+          }}
+        >
+          <EntryDayContext.Provider value={dayKey(when)}>
+            {groups.map((g, gi) => {
+              const isOpen = open[g.name] ?? (gi === 0 || g.fields.length <= 2);
+              const count = g.fields.filter((f) => filled.includes(f)).length;
+              return (
+                <section key={g.name} className={`card quick-group ${isOpen ? 'open' : ''}`}>
+                  <button type="button" className="quick-group-head" aria-expanded={isOpen} onClick={() => toggleGroup(g.name, !isOpen)}>
+                    <span className="qg-title">{g.name}</span>
+                    {count > 0 && <span className="pill good">{count} ausgefüllt</span>}
+                    <span className="qg-chevron" aria-hidden>{isOpen ? '−' : '+'}</span>
+                  </button>
+                  {isOpen &&
+                    g.fields.map((f) => {
+                      const i = visible.indexOf(f);
+                      const prev = last(f);
+                      const cur = values[f.id];
+                      const delta = typeof cur === 'number' && prev && typeof prev.v === 'number' ? cur - prev.v : null;
+                      const better = delta !== null && (delta < 0) === (f.config.polarity !== 'higher-better');
+                      return (
+                        <div key={f.id} className="field quick-field">
+                          <div className="quick-label">
+                            {/* Abschnitt mit nur einem gleichnamigen Feld: Bezeichnung nicht doppelt zeigen */}
+                            <label htmlFor={`q-${f.id}`} className={g.fields.length === 1 && g.name === f.label ? 'sr-only' : ''}>{f.label}</label>
+                            {prev && (
+                              <small className="muted">
+                                zuletzt {short(f, prev.v)} um {formatClock(prev.t)}
+                                {delta !== null && delta !== 0 && polarityOf(f) !== 'neutral' && (
+                                  <b className={`delta ${better ? 'good' : 'bad'}`}>{better ? ' ▼ besser' : ' ▲ schlechter'}</b>
+                                )}
+                                {delta === 0 && <b className="delta"> = gleich</b>}
+                              </small>
+                            )}
+                          </div>
+                          {f.description && !visible.slice(0, i).some((p) => p.description === f.description) && <small className="muted">{f.description}</small>}
+                          <FieldInput id={`q-${f.id}`} field={f} value={values[f.id] ?? null} onChange={(v) => setValues((s) => ({ ...s, [f.id]: v }))} />
+                          {errors[f.id] && <small className="error">{errors[f.id]}</small>}
                         </div>
-                        {f.description && !visible.slice(0, i).some((p) => p.description === f.description) && <small className="muted">{f.description}</small>}
-                        <FieldInput id={`q-${f.id}`} field={f} value={values[f.id] ?? null} onChange={(v) => setValues((s) => ({ ...s, [f.id]: v }))} />
-                        {errors[f.id] && <small className="error">{errors[f.id]}</small>}
-                      </div>
-                    );
-                  })}
-              </section>
-            );
-          })}
-        </EntryDayContext.Provider>
-        <div className="actions sticky quick-save">
-          <span className="muted small quick-count">{filled.length ? `${filled.length} ausgefüllt` : 'Tippe an, was gerade ist'}</span>
-          <button type="submit" className="btn primary" disabled={!filled.length}>
-            Speichern{timeTouched ? '' : ` · ${formatClock(new Date())}`}
-          </button>
-        </div>
-      </form>
+                      );
+                    })}
+                </section>
+              );
+            })}
+          </EntryDayContext.Provider>
+          <div className="actions sticky quick-save">
+            <span className="muted small quick-count">
+              {filled.length ? `${filled.length} ${filled.length === 1 ? 'Angabe' : 'Angaben'}` : 'Tippe an, was gerade ist'}
+            </span>
+            {filled.length > 0 && (
+              <button type="button" className="btn ghost small" onClick={() => setValues(empty())}>
+                Leeren
+              </button>
+            )}
+            <button type="submit" className="btn primary" disabled={!filled.length}>
+              Speichern · {otherDay ? `${when.toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric' })} ` : ''}{formatClock(when)}
+            </button>
+          </div>
+        </form>
+      )}
 
       {todays.length > 0 && (
         <section className="card">
           <div className="section-head">
             <h2>Heute</h2>
-            <button className="btn ghost small" onClick={() => navigate(`/t/${tracker.id}/table`)}>Alle Daten</button>
+            <button className="btn ghost small" onClick={() => navigate(`/t/${tracker.id}/table`)}>Alle Einträge</button>
           </div>
+          <DayRhythmChart rhythm={rhythm} onPick={(id) => navigate(`/t/${tracker.id}/entry/${id}`)} />
           <ul className="timeline">
-            {todays.map((e) => (
+            {(showAll ? todays : todays.slice(0, 3)).map((e) => (
               <li key={e.id} style={{ '--accent': tracker.color } as React.CSSProperties}>
                 <button className="tl-item" onClick={() => navigate(`/t/${tracker.id}/entry/${e.id}`)}>
                   <span className="tl-time-big">{formatClock(new Date(e.timestamp))}</span>
@@ -335,6 +443,11 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
               </li>
             ))}
           </ul>
+          {todays.length > 3 && (
+            <button className="btn ghost small show-more" onClick={() => setShowAll((v) => !v)}>
+              {showAll ? 'Weniger zeigen' : `Alle ${todays.length} Einträge von heute zeigen`}
+            </button>
+          )}
         </section>
       )}
     </div>

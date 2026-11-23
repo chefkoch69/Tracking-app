@@ -2,7 +2,8 @@ import { aggregate, entriesOf } from './analytics';
 import { regionLabel } from './bodyMaps';
 import { addDays, dayKey, formatClock, parseDayKey } from './dates';
 import { aggregationOf, fieldSpec, fmtLevel, formatDuration, formatShort, formatValue, isEmptyValue, isTimeRange, metricLabel, polarityOf } from './fieldTypes';
-import type { Entry, FieldDef, HealthDay, Tracker } from './types';
+import { questionList } from './feedback';
+import type { Entry, FieldDef, HealthDay, Profile, Tracker } from './types';
 
 /**
  * Berichtslogik (ohne UI): Spalten für die Tabellen im Papier-Stil,
@@ -195,13 +196,19 @@ export function reportText(
   health: Record<string, HealthDay> | undefined,
   from: string,
   to: string,
-  profile?: { name?: string; birthdate?: string },
+  profile?: Profile,
 ): string {
   const d = (k: string) => parseDayKey(k).toLocaleDateString('de-DE');
   const lines: string[] = [];
   lines.push(`Symptomtagebuch ${d(from)} – ${d(to)}`);
   if (profile?.name) lines.push(`Name: ${profile.name}${profile.birthdate ? `, geb. ${d(profile.birthdate)}` : ''}`);
   lines.push('');
+  const questions = questionList(profile?.questions);
+  if (questions.length) {
+    lines.push('MEINE FRAGEN');
+    questions.forEach((q, i) => lines.push(`${i + 1}. ${q}`));
+    lines.push('');
+  }
   const summary = symptomSummary(trackers, allEntries, from, to);
   if (summary.length) {
     lines.push('ÜBERSICHT (Tageshöchstwerte)');

@@ -120,7 +120,7 @@ export function DataTable({ fixedTracker }: { fixedTracker?: Tracker }) {
         </div>
         <div className="actions" style={{ justifyContent: 'space-between' }}>
           <span className="muted small">{rows.length} {rows.length === 1 ? 'Eintrag' : 'Einträge'}</span>
-          <button className="btn small" disabled={!rows.length} onClick={exportFiltered}>⤓ Gefilterte Daten als CSV</button>
+          <button className="btn small" disabled={!rows.length} onClick={exportFiltered}>⤓ Auswahl als Tabelle (CSV)</button>
         </div>
       </div>
 

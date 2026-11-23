@@ -8,6 +8,7 @@ import { Dashboard } from './Dashboard';
 import { EntryForm } from './EntryForm';
 import { useReminderEngine } from './reminders';
 import { navigate, useRoute } from './router';
+import { TabBar, TopNav, useTypingClass } from './Nav';
 import { Settings } from './Settings';
 import { DataTable } from './DataTable';
 import { TrackerBuilder } from './TrackerBuilder';
@@ -15,6 +16,7 @@ import { TrackerDetail } from './TrackerDetail';
 
 export function App() {
   useReminderEngine();
+  useTypingClass();
   const route = useRoute();
   const { data } = useStore();
   const tracker = 'id' in route ? data.trackers.find((t) => t.id === route.id) : undefined;
@@ -83,16 +85,11 @@ export function App() {
           </span>
           <span className="brand-text">Build Your Own Tracker</span>
         </a>
-        <nav>
-          <a href="#/now" className={route.name === 'now' ? 'active' : ''}>Jetzt</a>
-          <a href="#/" className={route.name === 'dashboard' ? 'active' : ''}>Übersicht</a>
-          <a href="#/data" className={route.name === 'data' ? 'active' : ''}>Daten</a>
-          <a href="#/new" className={route.name === 'new' ? 'active' : ''} aria-label="Neuer Tracker">＋</a>
-          <a href="#/settings" className={route.name === 'settings' ? 'active' : ''} aria-label="Einstellungen">⚙</a>
-        </nav>
+        <TopNav route={route} />
         <SyncBadge />
       </header>
       <main>{page}</main>
+      <TabBar route={route} />
       <ConfirmHost />
     </>
   );

@@ -96,9 +96,9 @@ export function EntryForm({ tracker, entry, date }: { tracker: Tracker; entry?: 
           <input id="when" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
         </div>
         <div className="actions sticky">
-          <button type="button" className="btn ghost" onClick={() => navigate(`/t/${tracker.id}`)}>Abbrechen</button>
+          <button type="button" className="btn ghost hide-mobile" onClick={() => navigate(`/t/${tracker.id}`)}>Abbrechen</button>
           {!entry && (
-            <button type="button" className="btn" onClick={() => submit(true)}>Speichern & weiterer</button>
+            <button type="button" className="btn" onClick={() => submit(true)}>Speichern & neu</button>
           )}
           <button type="submit" className="btn primary">Speichern</button>
         </div>

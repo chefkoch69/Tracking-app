@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { SymptomTrendCard } from './SymptomTrendCard';
 import { SetupCard } from './SetupCard';
 import { generateDemo } from '../core/demo';
@@ -16,7 +16,10 @@ import type { Tracker } from '../core/types';
 import { useStore } from '../state/store';
 import { combinedDayState, WeekStrip } from './Adherence';
 import { Sparkline } from './charts/Charts';
-import { InsightList } from './Insights';
+import { InsightList, InsightReadiness } from './Insights';
+import { AppointmentCard } from './AppointmentCard';
+import { DayRhythmChart } from './DayRhythm';
+import { dayRhythm, insightReadiness } from '../core/feedback';
 import { useDueTrackers, useNow } from './reminders';
 import { navigate } from './router';
 import { ValuePills } from './views/shared';
@@ -36,6 +39,7 @@ export function Dashboard() {
     const all = withHealth(data);
     return computeInsights(all.trackers, all.entries, new Date());
   }, [data]);
+  const readiness = insightReadiness(data.trackers, data.entries, now);
 
   if (!data.trackers.length) {
     return (
@@ -65,7 +69,7 @@ export function Dashboard() {
         <div className="feature-grid">
           {[
             ['🧩', 'Baukasten', 'Zahlen, Skalen, Messwerte, Auswahl, Zeiträume, Körperkarte – frei kombinierbar.'],
-            ['⏰', 'Erinnerungen', 'Feste Zeiten oder Intervalle, Wiederholung, Schlummern und Überspringen.'],
+            ['⏰', 'Erinnerungen', 'Feste Zeiten oder Intervalle – was fällig ist, siehst du sofort in der Übersicht.'],
             ['📈', 'Auswertungen', 'Verläufe, Kalender, Rekorde, Zusammenhänge und was dir wirklich hilft.'],
             ['🩺', 'Arztbericht', 'Druckbare Tabelle wie ein Papiertagebuch – mit einem Tipp.'],
           ].map(([icon, title, text]) => (
@@ -155,33 +159,25 @@ export function Dashboard() {
         </section>
       )}
 
+      <AppointmentCard now={now} />
+
+      <TodayTimeline trackers={active} now={now} main={mainTracker} />
+
+      {mainTracker && <SymptomTrendCard tracker={mainTracker} />}
+
+      <section className="card">
+        <div className="section-head">
+          <h2>Was auffällt</h2>
+          <small className="muted">aus deinen Einträgen</small>
+        </div>
+        {insights.length > 0 ? <InsightList insights={insights} showTracker grouped /> : <InsightReadiness readiness={readiness} />}
+      </section>
+
       <div className="section-head">
         <h2>Meine Tracker</h2>
         <button className="btn primary" onClick={() => navigate('/new')}>＋ Neuer Tracker</button>
       </div>
       <TrackerGroups trackers={active} now={now} />
-
-      {mainTracker && <SymptomTrendCard tracker={mainTracker} />}
-
-      <section className="card doctor-card">
-        <div>
-          <h2>Arzttermin?</h2>
-          <p className="muted small">Ein Blatt mit Übersicht, Verlauf und Tagestabellen – zum Ausdrucken oder als Datei.</p>
-        </div>
-        <button className="btn primary" onClick={() => navigate('/arzt')}>🩺 Bericht erstellen</button>
-      </section>
-
-      {insights.length > 0 && (
-        <section className="card">
-          <div className="section-head">
-            <h2>Was hilft wirklich?</h2>
-            <small className="muted">automatisch aus deinen Daten</small>
-          </div>
-          <InsightList insights={insights} showTracker />
-        </section>
-      )}
-
-      <TodayTimeline trackers={active} now={now} />
 
       {archived.length > 0 && (
         <details className="archived">
@@ -193,6 +189,10 @@ export function Dashboard() {
           </div>
         </details>
       )}
+
+      <p className="feedback-link">
+        <button className="linkish" onClick={() => navigate('/settings')}>💬 Etwas fehlt oder nervt? Sag es Claude.</button>
+      </p>
     </div>
   );
 }
@@ -254,8 +254,10 @@ function TrackerCard({ tracker, now }: { tracker: Tracker; now: Date }) {
   );
 }
 
-function TodayTimeline({ trackers, now }: { trackers: Tracker[]; now: Date }) {
+function TodayTimeline({ trackers, now, main }: { trackers: Tracker[]; now: Date; main?: Tracker }) {
   const { data } = useStore();
+  const [showAll, setShowAll] = useState(false);
+  const rhythm = main ? dayRhythm(main, data.entries, now) : null;
   const today = dayKey(now);
   const items = data.entries
     .filter((e) => dayKey(new Date(e.timestamp)) === today)
@@ -272,8 +274,9 @@ function TodayTimeline({ trackers, now }: { trackers: Tracker[]; now: Date }) {
   return (
     <section className="card timeline-card">
       <h2>Heute</h2>
+      {rhythm && main && <DayRhythmChart rhythm={rhythm} onPick={(id) => navigate(`/t/${main.id}/entry/${id}`)} />}
       <ul className="timeline">
-        {items.map(({ e, t }) => (
+        {(showAll ? items : items.slice(0, 4)).map(({ e, t }) => (
           <li key={e.id} style={{ '--accent': t.color } as React.CSSProperties}>
             <button className="tl-item" onClick={() => navigate(`/t/${t.id}/entry/${e.id}`)}>
               <span className="tl-icon">{t.icon}</span>
@@ -286,6 +289,11 @@ function TodayTimeline({ trackers, now }: { trackers: Tracker[]; now: Date }) {
           </li>
         ))}
       </ul>
+      {items.length > 4 && (
+        <button className="btn ghost small show-more" onClick={() => setShowAll((v) => !v)}>
+          {showAll ? 'Weniger zeigen' : `Alle ${items.length} Einträge von heute zeigen`}
+        </button>
+      )}
     </section>
   );
 }

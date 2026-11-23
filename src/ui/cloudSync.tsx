@@ -89,10 +89,10 @@ export function CloudSyncProvider({ children }: { children: ReactNode }) {
         status: code === 'unavailable' ? 'offline' : 'error',
         message:
           code === 'quota_exceeded'
-            ? 'Der Cloud-Speicher ist voll. Alte Einträge exportieren und löschen.'
+            ? 'Der Online-Speicher ist voll. Sichere alte Einträge als Datei und lösche sie dann.'
             : code === 'unavailable'
               ? 'Gerade keine Verbindung – Änderungen bleiben auf diesem Gerät und werden später hochgeladen.'
-              : 'Speichern in der Cloud fehlgeschlagen. Die Daten bleiben auf diesem Gerät.',
+              : 'Online speichern hat nicht geklappt. Deine Daten bleiben auf diesem Gerät.',
       });
       // Einmal später erneut versuchen.
       window.setTimeout(() => void flush(), 15000);
@@ -111,7 +111,7 @@ export function CloudSyncProvider({ children }: { children: ReactNode }) {
     let metaFinal = false;
     let weeksFinal = false;
     const loadTimer = window.setTimeout(() => {
-      if (!ready.current && !cancelled) setState({ status: 'offline', message: 'Cloud-Speicher noch nicht erreichbar – du arbeitest auf diesem Gerät weiter.' });
+      if (!ready.current && !cancelled) setState({ status: 'offline', message: 'Online-Speicher noch nicht erreichbar – du kannst ganz normal weiter eintragen.' });
     }, 10000);
 
     // Meta und Wochen kommen als getrennte Meldungen: kurz sammeln, dann gemeinsam auswerten,
@@ -152,7 +152,7 @@ export function CloudSyncProvider({ children }: { children: ReactNode }) {
       const user = await claudeUse('user');
       if (cancelled) return;
       if (user && typeof user.isOwner === 'function' && !(await user.isOwner())) {
-        setState({ status: 'local', message: 'Nur die Eigentümerin bzw. der Eigentümer dieser Seite speichert in der Cloud.' });
+        setState({ status: 'local', message: 'Nur wer die Seite erstellt hat, speichert online. Du siehst hier deine eigene, lokale Version.' });
         window.clearTimeout(loadTimer);
         return;
       }
@@ -160,13 +160,13 @@ export function CloudSyncProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       if (!store) {
         window.clearTimeout(loadTimer);
-        setState({ status: 'local', message: 'Cloud-Speicher hier nicht verfügbar – Daten bleiben auf diesem Gerät.' });
+        setState({ status: 'local', message: 'Online-Speicher hier nicht verfügbar – deine Daten bleiben auf diesem Gerät.' });
         return;
       }
       db.current = store;
       const onError = (e: { code?: string }) => {
         window.clearTimeout(loadTimer);
-        setState({ status: e?.code === 'revoked' ? 'local' : 'offline', message: 'Verbindung zum Cloud-Speicher unterbrochen – Daten bleiben auf diesem Gerät.' });
+        setState({ status: e?.code === 'revoked' ? 'local' : 'offline', message: 'Verbindung zum Online-Speicher unterbrochen – deine Daten bleiben auf diesem Gerät.' });
       };
       unsubs.push(
         store.doc('diary/meta').onSnapshot((s: typeof metaSnap) => {
@@ -211,12 +211,12 @@ export function CloudSyncProvider({ children }: { children: ReactNode }) {
 }
 
 const LABEL: Record<SyncStatus, string> = {
-  local: 'Nur auf diesem Gerät',
+  local: 'Nur auf diesem Gerät gespeichert',
   connecting: 'Verbinde …',
-  synced: 'In der Cloud gesichert',
+  synced: 'Privat gespeichert – auf all deinen Geräten',
   saving: 'Speichert …',
-  offline: 'Offline – lokal gespeichert',
-  error: 'Cloud-Fehler – lokal gespeichert',
+  offline: 'Offline – auf diesem Gerät gesichert, wird später übertragen',
+  error: 'Online-Speicher gerade gestört – auf diesem Gerät gesichert',
 };
 
 export function SyncBadge() {

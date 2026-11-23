@@ -137,7 +137,7 @@ export function TalkCard({ quick, autoFocus }: { quick: Tracker; autoFocus?: boo
   return (
     <section className="card talk-card">
       <div className="section-head">
-        <h2>🎙 Erzählen</h2>
+        <h2>Erzähl einfach</h2>
         {dict.available && (
           <button type="button" className={`btn small mic ${dict.listening ? 'on' : ''}`} onClick={() => (dict.listening ? dict.stop() : dict.start())} aria-pressed={dict.listening}>
             {dict.listening ? '■ Stopp' : '🎙 Sprechen'}
@@ -147,7 +147,7 @@ export function TalkCard({ quick, autoFocus }: { quick: Tracker; autoFocus?: boo
       {phase !== 'review' && (
         <>
           <p className="muted small">
-            Frei erzählen – Claude macht daraus Einträge, du prüfst vor dem Speichern.
+            Was war los, was hast du gegessen, wie geht’s dir? Claude macht daraus Einträge – du prüfst sie vor dem Speichern.
             {!dict.available && (isIOS() ? ' Tipp: Tippe auf das 🎤 unten auf deiner Tastatur und sprich.' : ' Tipp: Nutze die Diktierfunktion deiner Tastatur.')}
           </p>
           <textarea

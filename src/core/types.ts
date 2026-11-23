@@ -161,6 +161,10 @@ export interface HealthDay {
 export interface Profile {
   name?: string;
   birthdate?: string;
+  /** Nächster Arzttermin (YYYY-MM-DD). */
+  appointment?: string;
+  /** Fragen für den Termin, eine pro Zeile. */
+  questions?: string;
 }
 
 export interface AppData {

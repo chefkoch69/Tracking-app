@@ -534,9 +534,12 @@ export const FIELD_UI: Record<
         <p className="muted">Ausgewertet wird die Dauer in Minuten.</p>
         <label className="switch">
           <input type="checkbox" checked={!!p.config.fromWake} onChange={(e) => p.onChange({ fromWake: e.target.checked })} />
-          <span>Beginn automatisch „seit dem Aufstehen“ (Aufstehzeit aus Health bzw. „Ich bin aufgestanden“)</span>
+          <span>Beginn automatisch „seit dem Aufstehen“ (Aufstehzeit aus Apple Health oder „aufgestanden“)</span>
         </label>
         <div className="cfg-grid">
+          <Row label="Name in Auswertungen">
+            <input value={p.config.metricName ?? ''} placeholder="z. B. Schmerzdauer" onChange={(e) => p.onChange({ metricName: e.target.value || undefined })} />
+          </Row>
           <AggregationConfig {...p} type="timerange" />
           <PolarityConfig {...p} type="timerange" />
         </div>

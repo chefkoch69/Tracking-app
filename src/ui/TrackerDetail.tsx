@@ -59,7 +59,7 @@ export function TrackerDetail({ tracker, view }: { tracker: Tracker; view?: stri
               </p>
             </div>
           </div>
-          <button className="btn white" onClick={() => navigate(`/t/${tracker.id}/entry`)}>＋ Eintrag erfassen</button>
+          <button className="btn white" onClick={() => navigate(`/t/${tracker.id}/entry`)}>＋ Eintragen</button>
         </div>
       </section>
 
@@ -74,7 +74,7 @@ export function TrackerDetail({ tracker, view }: { tracker: Tracker; view?: stri
       <View tracker={tracker} />
 
       <div className="actions tracker-actions no-print">
-        <button className="btn ghost" onClick={() => navigate(`/t/${tracker.id}/edit`)}>Tracker bearbeiten</button>
+        <button className="btn ghost" onClick={() => navigate(`/t/${tracker.id}/edit`)}>Felder & Erinnerung ändern</button>
         <button className="btn ghost" onClick={() => void saveFile(`${tracker.name}.csv`, exportCsv(tracker, entries), 'text/csv;charset=utf-8')}>
           CSV exportieren
         </button>

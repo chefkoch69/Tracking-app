@@ -8,6 +8,8 @@ import { inRange, reportText, symptomSummary } from '../core/report';
 import { useStore } from '../state/store';
 import { ReportActions } from './ReportActions';
 import { ReportSheet } from './views/ReportSheet';
+import { appointmentLabel, questionList } from '../core/feedback';
+import { useDictation } from './useDictation';
 
 /**
  * Arztbericht: alle (gewählten) Tracker eines Zeitraums auf einen Blick –
@@ -43,6 +45,7 @@ export function DoctorReport() {
       .sort((a, b) => b.strength - a.strength)
       .slice(0, 6);
   }, [showInsights, data, from, to, trackers]);
+  const questions = questionList(data.profile?.questions);
   const toggle = (id: string) => setExcluded((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const fmtDay = (k: string) => parseDayKey(k).toLocaleDateString('de-DE');
 
@@ -54,6 +57,8 @@ export function DoctorReport() {
           <p className="hero-lead">Alle Daten eines Zeitraums auf einem Blatt – zum Ausdrucken, als Datei oder als Text.</p>
         </div>
       </section>
+
+      <QuestionsCard />
 
       <div className="card no-print report-controls">
         <div className="controls">
@@ -117,6 +122,15 @@ export function DoctorReport() {
             <span>Zeitraum: <b>{fmtDay(from)} – {fmtDay(to)}</b></span>
           </div>
         </header>
+
+        {questions.length > 0 && (
+          <section className="report-section report-questions">
+            <h3>Meine Fragen</h3>
+            <ol>
+              {questions.map((q, i) => <li key={i}>{q}</li>)}
+            </ol>
+          </section>
+        )}
 
         {summary.length > 0 && (
           <section className="report-section">
@@ -222,5 +236,42 @@ export function DoctorReport() {
         <p className="report-foot muted small">Erstellt am {new Date().toLocaleDateString('de-DE')} mit „Build Your Own Tracker“. Selbst erfasste Angaben.</p>
       </article>
     </div>
+  );
+}
+
+/** Termin und Fragen – damit beim Arzt nichts vergessen wird. Fragen stehen oben im Bericht. */
+function QuestionsCard() {
+  const { data, dispatch } = useStore();
+  const today = dayKey(new Date());
+  const q = data.profile?.questions ?? '';
+  const set = (questions: string) => dispatch({ type: 'profile/update', patch: { questions } });
+  const dict = useDictation((piece) => set(`${q}${q && !q.endsWith('\n') ? '\n' : ''}${piece.trim()}`));
+  const date = data.profile?.appointment;
+  return (
+    <section className="card no-print questions-card">
+      <div className="questions-head">
+        <h2>Termin & Fragen</h2>
+        <label className="appt-date">
+          <span>Termin</span>
+          <input type="date" value={date ?? ''} min={date && date < today ? undefined : today} onChange={(e) => dispatch({ type: 'profile/update', patch: { appointment: e.target.value || undefined } })} />
+        </label>
+        {date && <span className="pill">{appointmentLabel(date, new Date())}</span>}
+      </div>
+      <label htmlFor="questions" className="muted small">Was möchtest du fragen? Eine Frage pro Zeile – sie stehen oben im Bericht.</label>
+      <textarea
+        id="questions"
+        rows={4}
+        value={q}
+        placeholder={'z. B. Kann es eine Unverträglichkeit sein?\nWarum bin ich nach dem Essen so erschöpft?'}
+        onChange={(e) => set(e.target.value)}
+      />
+      {dict.available && (
+        <div className="actions">
+          <button type="button" className={`btn small mic ${dict.listening ? 'on' : ''}`} onClick={() => (dict.listening ? dict.stop() : dict.start())}>
+            {dict.listening ? '■ Stopp' : '🎙 Frage diktieren'}
+          </button>
+        </div>
+      )}
+    </section>
   );
 }

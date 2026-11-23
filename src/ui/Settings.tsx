@@ -1,75 +1,121 @@
 import { useRef, useState } from 'react';
-import { SyncInfo } from './cloudSync';
+import { SyncInfo, useSyncStatus } from './cloudSync';
+import { FeedbackCard } from './FeedbackCard';
 import { HealthSettings } from './HealthPanel';
 import { copyText, saveFile } from './save';
-import { notify } from './confirm';
-import { askConfirm } from './confirm';
+import { askConfirm, notify } from './confirm';
+import { IS_ARTIFACT } from './env';
 import { generateDemo } from '../core/demo';
 import { emptyData, exportJson, normalize } from '../core/storage';
 import { useStore } from '../state/store';
 import { notificationsSupported, requestNotificationPermission } from './reminders';
 import { navigate } from './router';
 
+/** „Mehr“: Feedback, eigene Tracker, Gesundheitsdaten, Erinnerungen, Speicher und Sicherung. */
 export function Settings() {
   const { data, dispatch } = useStore();
+  const sync = useSyncStatus();
   const fileRef = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [perm, setPerm] = useState(notificationsSupported() ? Notification.permission : 'unsupported');
+  const online = sync.status !== 'local';
+  const own = data.trackers.filter((t) => !t.demo);
 
   const onImport = async (file: File) => {
     try {
       const imported = normalize(JSON.parse(await file.text()));
-      if (!(await askConfirm(`${imported.trackers.length} Tracker und ${imported.entries.length} Einträge importieren? Deine aktuellen Daten werden ersetzt.`, { okLabel: 'Importieren' }))) return;
+      if (!(await askConfirm(`${imported.trackers.length} Tracker und ${imported.entries.length} Einträge aus der Datei übernehmen? Deine jetzigen Daten werden dabei ersetzt.`, { okLabel: 'Übernehmen' }))) return;
       dispatch({ type: 'data/replace', data: imported });
-      setMsg('Import erfolgreich.');
+      setMsg('Sicherung übernommen.');
     } catch (e) {
-      setMsg(`Import fehlgeschlagen: ${(e as Error).message}`);
+      setMsg(`Die Datei ließ sich nicht lesen: ${(e as Error).message}`);
     }
   };
 
   return (
     <div className="page">
-      <h1>Einstellungen & Daten</h1>
-
-      <section className="card">
-        <h2>Erinnerungen</h2>
-        <p className="muted">
-          Erinnerungen werden als Systembenachrichtigung angezeigt, solange die App geöffnet ist (auch in einem Hintergrund-Tab).
-          Tipp: Installiere die App über „Zum Startbildschirm hinzufügen“.
-        </p>
-        <p>
-          Status:{' '}
-          <b>
-            {perm === 'granted' ? 'erlaubt ✓' : perm === 'denied' ? 'blockiert (in den Browser-Einstellungen freigeben)' : perm === 'unsupported' ? 'nicht unterstützt' : 'noch nicht erlaubt'}
-          </b>
-        </p>
-        {perm === 'default' && (
-          <button className="btn primary" onClick={async () => setPerm(await requestNotificationPermission())}>
-            Benachrichtigungen erlauben
-          </button>
-        )}
+      <section className="hero-band compact">
+        <div className="hero-inner">
+          <h1>Mehr</h1>
+          <p className="hero-lead">Feedback, deine Tracker, Gesundheitsdaten, Erinnerungen und wo deine Daten liegen.</p>
+        </div>
       </section>
 
+      <FeedbackCard />
+
       <section className="card">
-        <h2>Speicherort</h2>
-        <SyncInfo />
-        <p className="muted">
-          In claude.ai werden deine Einträge zusätzlich in einem privaten Speicher dieser Seite gesichert: nur du kannst sie
-          lesen und ändern, sie sind auf all deinen Geräten gleich und gehen nicht verloren, wenn der Browser-Speicher geleert
-          wird. Auf deine Bitte kann Claude sie im Chat auslesen – z. B. um daraus einen Arztzettel zu erstellen.
-          Wer die Seite geteilt bekommt, sieht deine Daten nicht.
-        </p>
+        <div className="section-head">
+          <h2>Deine Tracker</h2>
+          <button className="btn small" onClick={() => navigate('/new')}>＋ Neuen bauen</button>
+        </div>
+        {data.trackers.length ? (
+          <ul className="tracker-list">
+            {data.trackers.map((t) => (
+              <li key={t.id}>
+                <button className="linkish tl-name" onClick={() => navigate(`/t/${t.id}`)}>
+                  <span aria-hidden>{t.icon}</span> {t.name}
+                  {t.archived && <small className="muted"> · archiviert</small>}
+                </button>
+                <button className="btn ghost small" onClick={() => navigate(`/t/${t.id}/edit`)}>Felder ändern</button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted">Noch keine Tracker.</p>
+        )}
+        <p className="muted small">Felder hinzufügen, umbenennen, verschieben oder ausblenden – deine Einträge bleiben dabei erhalten.</p>
       </section>
 
       <HealthSettings />
 
       <section className="card">
-        <h2>Für Berichte</h2>
-        <p className="muted">Erscheint im Kopf des druckbaren Berichts (z. B. für die Ärztin/den Arzt). Bleibt lokal auf diesem Gerät.</p>
+        <h2>Erinnerungen</h2>
+        {IS_ARTIFACT ? (
+          <p className="muted">
+            In claude.ai darf die Seite keine Mitteilungen aufs Handy schicken. Fällige Einträge siehst du oben in der
+            Übersicht, sobald du die App öffnest. Für feste Zeiten hilft ein Wecker oder eine Erinnerung in der
+            Erinnerungen-App deines iPhones.
+          </p>
+        ) : (
+          <>
+            <p className="muted">Erinnerungen erscheinen als Mitteilung, solange die App geöffnet ist (auch im Hintergrund-Tab).</p>
+            <p>
+              Mitteilungen:{' '}
+              <b>{perm === 'granted' ? 'erlaubt ✓' : perm === 'denied' ? 'blockiert – in den Browser-Einstellungen freigeben' : perm === 'unsupported' ? 'hier nicht möglich' : 'noch nicht erlaubt'}</b>
+            </p>
+            {perm === 'default' && (
+              <button className="btn primary" onClick={async () => setPerm(await requestNotificationPermission())}>
+                Mitteilungen erlauben
+              </button>
+            )}
+          </>
+        )}
+      </section>
+
+      <section className="card">
+        <h2>Wo deine Daten liegen</h2>
+        <SyncInfo />
+        {online ? (
+          <p className="muted">
+            Deine Einträge liegen in einem privaten Speicher dieser Seite: Nur du kannst sie lesen und ändern, sie sind auf
+            all deinen Geräten gleich und bleiben, auch wenn der Browser-Speicher geleert wird. Wer die Seite geteilt
+            bekommt, sieht deine Daten nicht. Wenn du Claude im Chat darum bittest, kann Claude sie auslesen – z. B. für
+            einen Arztzettel.
+          </p>
+        ) : (
+          <p className="muted">
+            Deine Einträge liegen nur in diesem Browser auf diesem Gerät. Sichere sie ab und zu als Datei.
+          </p>
+        )}
+      </section>
+
+      <section className="card">
+        <h2>Für den Arztbericht</h2>
+        <p className="muted">Steht oben im Bericht. Wird mit deinen Einträgen gespeichert.</p>
         <div className="cfg-grid">
           <label className="cfg-row">
             <span>Name</span>
-            <input value={data.profile?.name ?? ''} onChange={(e) => dispatch({ type: 'profile/update', patch: { name: e.target.value } })} />
+            <input value={data.profile?.name ?? ''} autoComplete="name" onChange={(e) => dispatch({ type: 'profile/update', patch: { name: e.target.value } })} />
           </label>
           <label className="cfg-row">
             <span>Geburtsdatum</span>
@@ -79,26 +125,25 @@ export function Settings() {
       </section>
 
       <section className="card">
-        <h2>Daten</h2>
+        <h2>Sichern & übertragen</h2>
         <p className="muted">
-          Alle Daten bleiben lokal auf diesem Gerät ({data.trackers.length} Tracker, {data.entries.length} Einträge).
- Sichere sie ab und zu als Datei.
+          {data.trackers.length} Tracker, {data.entries.length} Einträge. Eine Sicherung als Datei kannst du später hier wieder einlesen.
         </p>
-        <div className="actions">
-          <button className="btn" onClick={() => void saveFile(`tracker-backup-${new Date().toISOString().slice(0, 10)}.json`, exportJson(data), 'application/json')}>
-            Backup als Datei speichern
+        <div className="actions start">
+          <button className="btn" onClick={() => void saveFile(`tracker-sicherung-${new Date().toISOString().slice(0, 10)}.json`, exportJson(data), 'application/json')}>
+            Als Datei sichern
           </button>
           <button
             className="btn"
             onClick={async () => {
               const json = exportJson(data);
-              if (await copyText(json)) await notify('Alle Daten kopiert (JSON). Du kannst sie z. B. in den Chat mit Claude einfügen.');
+              if (await copyText(json)) await notify('Alle Daten kopiert. Du kannst sie z. B. in den Chat mit Claude einfügen.');
               else await notify('Die Zwischenablage ist hier gesperrt. Markiere den Text und kopiere ihn selbst:', json);
             }}
           >
-            Alle Daten kopieren
+            Alles kopieren
           </button>
-          <button className="btn" onClick={() => fileRef.current?.click()}>Backup importieren</button>
+          <button className="btn" onClick={() => fileRef.current?.click()}>Sicherung einlesen</button>
           <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => e.target.files?.[0] && onImport(e.target.files[0])} />
         </div>
         {msg && <p className="info">{msg}</p>}
@@ -106,24 +151,27 @@ export function Settings() {
 
       <section className="card">
         <h2>Ausprobieren</h2>
-        <p className="muted">Fügt drei Demo-Tracker (Bauchschmerztagebuch, Morgen-Check-in, Liegestütze) mit 60 Tagen Beispieldaten hinzu, um die Auswertungen zu erkunden.</p>
+        <p className="muted">
+          Fügt Beispiel-Tracker („Mein Befinden (Demo)“ und „Liegestütze (Demo)“) mit 60 Tagen erfundener Einträge hinzu – so
+          siehst du, wie Verlauf und Auswertungen aussehen. Mit einem Tipp in der Übersicht wieder entfernt.
+        </p>
         <button
           className="btn"
           onClick={() => {
-            const demo = generateDemo();
-            dispatch({ type: 'data/merge', ...demo });
+            dispatch({ type: 'data/merge', ...generateDemo() });
             navigate('/');
           }}
         >
-          Demo-Daten hinzufügen
+          Beispieldaten hinzufügen
         </button>
       </section>
 
       <section className="card danger-zone">
         <h2>Alles löschen</h2>
+        <p className="muted small">{own.length ? 'Löscht alle Tracker und Einträge, auch deine eigenen.' : 'Löscht alle Tracker und Einträge.'}</p>
         <button
           className="btn danger"
-          onClick={async () => (await askConfirm('Wirklich ALLE Tracker und Einträge löschen? Das kann nicht rückgängig gemacht werden.', { okLabel: 'Alles löschen' })) && dispatch({ type: 'data/replace', data: emptyData() })}
+          onClick={async () => (await askConfirm('Wirklich ALLE Tracker und Einträge löschen? Das lässt sich nicht rückgängig machen.', { okLabel: 'Alles löschen' })) && dispatch({ type: 'data/replace', data: emptyData() })}
         >
           Alle Daten löschen
         </button>

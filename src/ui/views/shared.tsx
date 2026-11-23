@@ -79,7 +79,7 @@ export function EntryCard({ tracker, entry }: { tracker: Tracker; entry: Entry }
   );
 }
 
-export function FieldSelect({ fields, value, onChange, label = 'Messgröße' }: { fields: FieldDef[]; value: string; onChange: (id: string) => void; label?: string }) {
+export function FieldSelect({ fields, value, onChange, label = 'Wert' }: { fields: FieldDef[]; value: string; onChange: (id: string) => void; label?: string }) {
   return (
     <label className="cfg-row">
       <span>{label}</span>

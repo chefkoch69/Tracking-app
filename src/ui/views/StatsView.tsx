@@ -286,7 +286,7 @@ function MeasureOverview({ tracker, fields }: { tracker: Tracker; fields: FieldD
           <table className="table measure-table">
             <thead>
               <tr>
-                <th>Messgröße</th>
+                <th>Angabe</th>
                 <th className="num">Ø</th>
                 <th className="num">Max</th>
                 <th className="num">7 Tage</th>

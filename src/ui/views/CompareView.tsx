@@ -69,11 +69,11 @@ export function CompareView({ tracker }: { tracker: Tracker }) {
     <div className="card">
       <div className="controls">
         <label className="cfg-row">
-          <span>Messgröße A (x-Achse)</span>
+          <span>Wert A (waagerecht)</span>
           <select value={a} onChange={(e) => setA(e.target.value)}>{options}</select>
         </label>
         <label className="cfg-row">
-          <span>Messgröße B (y-Achse)</span>
+          <span>Wert B (senkrecht)</span>
           <select value={b} onChange={(e) => setB(e.target.value)}>{options}</select>
         </label>
         <label className="cfg-row">

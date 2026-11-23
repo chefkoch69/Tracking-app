@@ -1,6 +1,7 @@
 import { aggregate, dailyValues, entriesOf, numericFields, pairMetrics, pearson } from './analytics';
 import { addDays, dayKey, startOfDay } from './dates';
 import { fieldSpec, metricLabel, polarityOf } from './fieldTypes';
+import { HEALTH_TRACKER_ID } from './health';
 import type { Entry, FieldDef, Tracker } from './types';
 
 /**
@@ -131,7 +132,12 @@ export function correlationInsights(trackers: Tracker[], entries: Entry[], minPa
   const metrics = trackers
     .filter((t) => !t.archived)
     .flatMap((t) => numericFields(t).map((f) => ({ t, f })));
-  const out: Insight[] = [];
+  // Trackername nur anhängen, wenn die Bezeichnung sonst mehrdeutig wäre.
+  const labelCount = new Map<string, number>();
+  for (const m of metrics) labelCount.set(metricLabel(m.f), (labelCount.get(metricLabel(m.f)) ?? 0) + 1);
+  const nameOf = (m: { t: Tracker; f: FieldDef }) =>
+    (labelCount.get(metricLabel(m.f)) ?? 0) > 1 ? `${metricLabel(m.f)} (${m.t.name.replace(/\s*\(Demo\)$/, '')})` : metricLabel(m.f);
+  const found: { key: string; insight: Insight }[] = [];
   for (let i = 0; i < metrics.length; i++) {
     for (let j = 0; j < metrics.length; j++) {
       if (i === j) continue;
@@ -152,26 +158,35 @@ export function correlationInsights(trackers: Tracker[], entries: Entry[], minPa
         if (p.pairs.length < needPairs) continue;
         const r = pearson(p.pairs.map((x) => x.x), p.pairs.map((x) => x.y));
         if (r === null || Math.abs(r) < needR) continue;
-        // Messwerte (Raumtemperatur, Schlaf, Schritte …) als mögliche Ursache vorne nennen.
-        const swap = same && B.f.type === 'measurement' && A.f.type !== 'measurement';
+        // Messwerte (Raumtemperatur, Schlaf, Schritte …) als mögliche Ursache vorne nennen;
+        // mit Zeitversatz bleibt die zeitliche Reihenfolge.
+        const swap = lag === 0 && B.f.type === 'measurement' && A.f.type !== 'measurement';
         const [X, Y] = swap ? [B, A] : [A, B];
-        const nameA = same ? metricLabel(X.f) : `${metricLabel(X.f)} (${X.t.name.replace(/\s*\(Demo\)$/, '')})`;
-        const nameB = same ? metricLabel(Y.f) : `${metricLabel(Y.f)} (${Y.t.name.replace(/\s*\(Demo\)$/, '')})`;
+        // In die Richtung formulieren, in der es einem schlechter geht: „Schlaf kürzer → Erschöpfung stärker“.
+        const yUp = polarityOf(Y.f) !== 'higher-better';
+        const xUp = r > 0 ? yUp : !yUp;
         const strong = Math.abs(r) >= 0.6;
-        out.push({
-          id: `corr-${A.f.id}-${B.f.id}-${lag}`,
-          kind: 'correlation',
-          trackerId: A.t.id,
-          title: `${nameA} ${changeWord(X.f, true)} → ${nameB} ${lag ? 'am Folgetag ' : ''}meist ${changeWord(Y.f, r > 0)}`,
-          detail: `beobachtet an ${p.pairs.length} ${p.basis === 'entry' ? 'Einträgen' : 'Tagen'} · ${strong ? 'deutlicher' : 'erkennbarer'} Zusammenhang (r = ${num(r, 2)})`,
-          metric: strong ? 'deutlich' : 'erkennbar',
-          tone: 'neutral',
-          strength: Math.abs(r),
+        found.push({
+          // Pro Ursache und Thema nur die stärkste Aussage (Müdigkeit & Erschöpfung sind ein Thema).
+          key: `${X.t.id}|${X.f.id}|${Y.t.id}|${Y.f.group ?? Y.f.id}|${lag}`,
+          insight: {
+            id: `corr-${A.f.id}-${B.f.id}-${lag}`,
+            kind: 'correlation',
+            // Verweis auf den eigenen Tracker, nicht auf die (nur berechneten) Gesundheitsdaten.
+            trackerId: Y.t.id === HEALTH_TRACKER_ID ? X.t.id : Y.t.id,
+            title: `${nameOf(X)} ${changeWord(X.f, xUp)} → ${nameOf(Y)} ${lag ? 'am Folgetag ' : ''}meist ${changeWord(Y.f, yUp)}`,
+            detail: `beobachtet an ${p.pairs.length} ${p.basis === 'entry' ? 'Einträgen' : 'Tagen'} · ${strong ? 'deutlicher' : 'erkennbarer'} Zusammenhang (r = ${num(r, 2)})`,
+            metric: strong ? 'deutlich' : 'erkennbar',
+            tone: 'neutral',
+            strength: Math.abs(r),
+          },
         });
       }
     }
   }
-  return out.sort((a, b) => b.strength - a.strength);
+  const best = new Map<string, Insight>();
+  for (const f of found.sort((a, b) => b.insight.strength - a.insight.strength)) if (!best.has(f.key)) best.set(f.key, f.insight);
+  return [...best.values()];
 }
 
 /** Zeitfenster für „danach“ bzw. „vorher“ bei Ereignissen. */

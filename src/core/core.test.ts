@@ -23,6 +23,7 @@ import { applyUpgrades, hasUpgrades, mergeTrackers, optionRenames, setupState, t
 import { interpretNarrative, narrativePrompt } from './narrative';
 import { reducer } from '../state/store';
 import { computeInsights, factorInsights, trendInsights } from './insights';
+import { appointmentLabel, dayRhythm, daysUntil, entryFeedback, insightReadiness, levelText, questionList } from './feedback';
 import { healthAsTracker, minutesSinceWake, parseHealthText, sinceWakeDistribution } from './health';
 import { daySlotStatus, dueSlot, nextSlot, reminderToFire, slotKey, slotMinutesForDay } from './schedule';
 import { exportCsv, normalize } from './storage';
@@ -581,8 +582,8 @@ describe('Erkenntnisse ohne Selbstverständlichkeiten', () => {
     expect(all.some((i) => i.title.includes('Füße') && i.title.includes('Kälteempfinden'))).toBe(false);
     expect(all.some((i) => i.title.includes('Müdigkeit') && i.title.includes('Erschöpfung'))).toBe(false);
     expect(all.some((i) => i.kind === 'correlation' && i.title.includes('Bauchschmerz') && i.title.includes('Schmerzdauer'))).toBe(false);
-    // Messwert als Ursache vorne
-    expect(all.some((i) => i.title.startsWith('Raumtemperatur höher → Kälteempfinden'))).toBe(true);
+    // Messwert als Ursache vorne, in der Richtung, in der es schlechter wird
+    expect(all.some((i) => i.title === 'Raumtemperatur niedriger → Kälteempfinden meist stärker')).toBe(true);
   });
   it('behält Einflüsse von Messwerten und anderen Themen', () => {
     expect(all.some((i) => i.title.includes('Raumtemperatur') && i.title.includes('Kälteempfinden'))).toBe(true);
@@ -706,5 +707,63 @@ describe('Health: Bewegung und Körperanalyse', () => {
     const h = healthAsTracker(demo.health)!;
     expect(h.tracker.fields.map((f) => f.label)).toEqual(expect.arrayContaining(['Aktive Energie', 'Trainingsminuten', 'Gewicht', 'Körperfett']));
     expect(h.entries.some((e) => typeof e.values['health-weight'] === 'number')).toBe(true);
+  });
+});
+
+describe('Rückmeldung, Tagesrhythmus, Termin', () => {
+  const tpl = () => trackerFromTemplate(TEMPLATES.find((x) => x.key === 'now')!);
+  const id = (t: Tracker, l: string) => t.fields.find((f) => f.label === l)!.id;
+
+  it('vergleicht mit dem letzten Wert und sagt besser/schlechter', () => {
+    const t = tpl();
+    const a = entry(t, at(8), { [id(t, 'Bauchschmerz')]: 2, [id(t, 'Übelkeit')]: 1 });
+    const b = entry(t, at(10), { [id(t, 'Tinnitus')]: 1 });
+    const c = entry(t, at(12), { [id(t, 'Bauchschmerz')]: 1, [id(t, 'Übelkeit')]: 1, [id(t, 'Tinnitus')]: 2, [id(t, 'Raumtemperatur')]: 19 });
+    const fb = entryFeedback(t, [a, b, c], c);
+    const by = (l: string) => fb.find((x) => x.field.label === l);
+    expect(by('Bauchschmerz')?.direction).toBe('better');
+    expect(by('Bauchschmerz')?.prev).toBe(2);
+    expect(by('Übelkeit')?.direction).toBe('same');
+    expect(by('Tinnitus')?.direction).toBe('worse');
+    // neutrale Messwerte (Raumtemperatur) werden nicht bewertet
+    expect(by('Raumtemperatur')).toBeUndefined();
+    expect(levelText(t.fields.find((f) => f.label === 'Übelkeit')!, 0.5)).toBe('0,5 · sehr leicht');
+  });
+
+  it('zeigt den Tag als Zeitachse mit Beschwerden und Ereignissen', () => {
+    const t = tpl();
+    const es = [
+      entry(t, at(7, 10), { [id(t, 'Was ist passiert?')]: ['aufgestanden'], [id(t, 'Müdigkeit')]: 2 }),
+      entry(t, at(8), { [id(t, 'Was ist passiert?')]: ['gegessen'], [id(t, 'Was gegessen?')]: '3 Eier, Toast' }),
+      entry(t, at(9, 30), { [id(t, 'Bauchschmerz')]: 2, [id(t, 'Wo kalt?')]: ['Füße'] }),
+      entry(t, at(9, 45), { [id(t, 'Was ist passiert?')]: ['Medikament genommen'], [id(t, 'Medikamente')]: 'Buscopan 10 mg' }),
+      entry(t, at(11), { [id(t, 'Bauchschmerz')]: 0.5 }),
+      entry(t, at(12), { [id(t, 'Bauchschmerz')]: 3 }, ),
+    ];
+    es[5].timestamp = atMinutes(new Date(2026, 10, 22), 12 * 60).toISOString(); // anderer Tag
+    const r = dayRhythm(t, es, day);
+    expect(r.rows.map((x) => x.field.label)).toEqual(['Bauchschmerz', 'Müdigkeit']);
+    expect(r.rows[0].points.map((p) => p.value)).toEqual([2, 0.5]);
+    expect(r.events.map((e) => `${e.kind}:${e.label}`)).toEqual(['wake:aufgestanden', 'meal:3 Eier, Toast', 'med:Buscopan 10 mg']);
+    expect(r.from).toBe(6 * 60);
+    expect(r.to).toBe(22 * 60);
+  });
+
+  it('zählt Tage bis zu ersten Mustern und bis zum Termin', () => {
+    const t = tpl();
+    const es = [0, 1, 1, 3].map((d) => entry(t, at(9, 0, new Date(2026, 10, 23 - d)), { [id(t, 'Müdigkeit')]: 1 }));
+    expect(insightReadiness([t], es, at(21))).toEqual({ days: 3, need: 7, ready: false });
+    expect(insightReadiness([{ ...t, demo: true }], es, at(21)).days).toBe(0);
+    expect(daysUntil('2026-12-07', at(21))).toBe(14);
+    expect(appointmentLabel('2026-11-24', at(21))).toBe('morgen');
+    expect(appointmentLabel('2026-11-20', at(21))).toBe('war vor 3 Tagen');
+    expect(questionList('- Woher kommt die Übelkeit?\n\n2) Laktose testen?\n  ')).toEqual(['Woher kommt die Übelkeit?', 'Laktose testen?']);
+  });
+
+  it('nimmt die Fragen in die Textfassung des Berichts auf', () => {
+    const t = tpl();
+    const es = [entry(t, at(9), { [id(t, 'Müdigkeit')]: 1 })];
+    const txt = reportText([t], es, undefined, '2026-11-20', '2026-11-23', { name: 'Test', questions: 'Laktose testen?' });
+    expect(txt).toContain('MEINE FRAGEN\n1. Laktose testen?');
   });
 });

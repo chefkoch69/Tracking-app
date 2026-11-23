@@ -17,11 +17,11 @@ const STEPS = ['Was?', 'Welche Daten?', 'Wann?', 'Auswertung', 'Starten'];
 
 export const VIEW_INFO: Record<ViewType, { label: string; hint: string }> = {
   history: { label: 'Verlauf', hint: 'Alle Einträge chronologisch' },
-  chart: { label: 'Diagramm', hint: 'Entwicklung einer Messgröße über die Zeit' },
+  chart: { label: 'Diagramm', hint: 'Wie sich ein Wert über die Zeit entwickelt' },
   calendar: { label: 'Kalender', hint: 'An welchen Tagen wurde getrackt?' },
   stats: { label: 'Statistiken', hint: 'Summen, Durchschnitte, Rekorde, Häufigkeiten' },
   daily: { label: 'Tagesübersicht', hint: 'Alle Werte eines bestimmten Tages' },
-  compare: { label: 'Vergleich', hint: 'Zusammenhänge zwischen Messgrößen finden' },
+  compare: { label: 'Vergleich', hint: 'Zwei Werte vergleichen und Zusammenhänge finden' },
   report: { label: 'Bericht', hint: 'Druckbare Tabelle für Ärztin/Arzt – wie ein Papiertagebuch' },
   table: { label: 'Tabelle', hint: 'Alle Rohdaten als sortier- und durchsuchbare Tabelle' },
 };
@@ -172,7 +172,7 @@ function StepBasics({ tracker, update }: { tracker: Tracker; update: (p: Partial
       <h2>Was möchtest du tracken?</h2>
       <label className="field">
         <span>Name</span>
-        <input autoFocus value={tracker.name} placeholder="z. B. Morgen-Check-in" onChange={(e) => update({ name: e.target.value })} />
+        <input autoFocus value={tracker.name} placeholder="z. B. Mein Morgen" onChange={(e) => update({ name: e.target.value })} />
       </label>
       <label className="field">
         <span>Beschreibung / Ziel (optional)</span>
@@ -198,6 +198,10 @@ function StepBasics({ tracker, update }: { tracker: Tracker; update: (p: Partial
           ))}
         </div>
       </div>
+      <label className="switch">
+        <input type="checkbox" checked={!!tracker.quick} onChange={(e) => update({ quick: e.target.checked })} />
+        <span>Auf der Seite „Eintragen“ anzeigen</span>
+      </label>
     </>
   );
 }

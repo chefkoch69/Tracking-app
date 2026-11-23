@@ -37,7 +37,7 @@ export function DailyView({ tracker }: { tracker: Tracker }) {
           <table className="table">
             <thead>
               <tr>
-                <th>Messgröße</th>
+                <th>Angabe</th>
                 <th className="num">Tageswert</th>
               </tr>
             </thead>
