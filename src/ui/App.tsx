@@ -48,9 +48,12 @@ export function App() {
 
   return (
     <>
-      <header className="topbar">
+      <header className="topbar no-print">
         <a href="#/" className="brand">
-          <span className="logo">◧</span> Build Your Own Tracker
+          <span className="logo" aria-hidden>
+            <svg viewBox="0 0 24 24" width="22" height="22"><rect width="24" height="24" rx="7" fill="currentColor" /><rect x="5.5" y="12" width="3" height="6" rx="1.2" fill="#fff" /><rect x="10.5" y="8.5" width="3" height="9.5" rx="1.2" fill="#fff" /><rect x="15.5" y="5.5" width="3" height="12.5" rx="1.2" fill="#fff" /></svg>
+          </span>
+          <span className="brand-text">Build Your Own Tracker</span>
         </a>
         <nav>
           <a href="#/" className={route.name === 'dashboard' ? 'active' : ''}>Übersicht</a>

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
 import { emptyData, localStorageAdapter, type StorageAdapter } from '../core/storage';
-import type { AppData, Entry, ReminderState, Tracker } from '../core/types';
+import type { AppData, Entry, Profile, ReminderState, Tracker } from '../core/types';
 
 export type Action =
   | { type: 'tracker/save'; tracker: Tracker }
@@ -10,6 +10,7 @@ export type Action =
   | { type: 'entry/save'; entry: Entry }
   | { type: 'entry/delete'; id: string }
   | { type: 'reminder/update'; trackerId: string; patch: Partial<ReminderState> }
+  | { type: 'profile/update'; patch: Partial<Profile> }
   | { type: 'data/replace'; data: AppData }
   | { type: 'data/merge'; trackers: Tracker[]; entries: Entry[] };
 
@@ -58,6 +59,8 @@ export function reducer(state: AppData, action: Action): AppData {
           [action.trackerId]: { ...state.reminders[action.trackerId], ...action.patch },
         },
       };
+    case 'profile/update':
+      return { ...state, profile: { ...state.profile, ...action.patch } };
     case 'data/replace':
       return action.data;
     case 'data/merge':

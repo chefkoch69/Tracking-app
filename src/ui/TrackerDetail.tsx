@@ -10,6 +10,7 @@ import { ChartView } from './views/ChartView';
 import { CompareView } from './views/CompareView';
 import { DailyView } from './views/DailyView';
 import { HistoryView } from './views/HistoryView';
+import { ReportView } from './views/ReportView';
 import { StatsView } from './views/StatsView';
 
 const VIEW_COMPONENTS: Record<ViewType, (p: { tracker: Tracker }) => React.ReactNode> = {
@@ -19,6 +20,7 @@ const VIEW_COMPONENTS: Record<ViewType, (p: { tracker: Tracker }) => React.React
   stats: StatsView,
   daily: DailyView,
   compare: CompareView,
+  report: ReportView,
 };
 
 export function TrackerDetail({ tracker, view }: { tracker: Tracker; view?: string }) {
@@ -37,22 +39,24 @@ export function TrackerDetail({ tracker, view }: { tracker: Tracker; view?: stri
 
   return (
     <div className="page" style={{ '--accent': tracker.color } as React.CSSProperties}>
-      <div className="section-head">
-        <div>
-          <h1>
-            {tracker.icon} {tracker.name}
-          </h1>
-          <p className="muted">
-            {tracker.description && <>{tracker.description} · </>}
-            {describeSchedule(tracker.schedule)} · {entries.length} Einträge
-          </p>
+      <section className="hero-band tinted no-print">
+        <div className="hero-inner">
+          <button className="back linkish" onClick={() => navigate('/')}>‹ Übersicht</button>
+          <div className="detail-head">
+            <span className="detail-icon">{tracker.icon}</span>
+            <div>
+              <h1>{tracker.name}</h1>
+              <p className="hero-lead">
+                {tracker.description && <>{tracker.description}<br /></>}
+                {describeSchedule(tracker.schedule)} · {entries.length} Einträge
+              </p>
+            </div>
+          </div>
+          <button className="btn white" onClick={() => navigate(`/t/${tracker.id}/entry`)}>＋ Eintrag erfassen</button>
         </div>
-        <button className="btn primary" style={{ background: tracker.color }} onClick={() => navigate(`/t/${tracker.id}/entry`)}>
-          ＋ Eintrag
-        </button>
-      </div>
+      </section>
 
-      <nav className="tabs" role="tablist">
+      <nav className="tabs no-print" role="tablist">
         {views.map((v) => (
           <button key={v} role="tab" aria-selected={v === active} className={v === active ? 'active' : ''} onClick={() => navigate(`/t/${tracker.id}/${v}`)}>
             {VIEW_INFO[v].label}
@@ -62,7 +66,7 @@ export function TrackerDetail({ tracker, view }: { tracker: Tracker; view?: stri
 
       <View tracker={tracker} />
 
-      <div className="actions tracker-actions">
+      <div className="actions tracker-actions no-print">
         <button className="btn ghost" onClick={() => navigate(`/t/${tracker.id}/edit`)}>Tracker bearbeiten</button>
         <button className="btn ghost" onClick={() => download(`${tracker.name}.csv`, exportCsv(tracker, entries), 'text/csv;charset=utf-8')}>
           CSV exportieren

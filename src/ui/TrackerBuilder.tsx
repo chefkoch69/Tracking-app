@@ -18,10 +18,11 @@ export const VIEW_INFO: Record<ViewType, { label: string; hint: string }> = {
   stats: { label: 'Statistiken', hint: 'Summen, Durchschnitte, Rekorde, Häufigkeiten' },
   daily: { label: 'Tagesübersicht', hint: 'Alle Werte eines bestimmten Tages' },
   compare: { label: 'Vergleich', hint: 'Zusammenhänge zwischen Messgrößen finden' },
+  report: { label: 'Bericht', hint: 'Druckbare Tabelle für Ärztin/Arzt – wie ein Papiertagebuch' },
 };
 
 const ICONS = ['📈', '💪', '🌅', '🥗', '🏋️', '😴', '📚', '🥶', '💧', '🧘', '🚶', '💊', '🩺', '☕', '🧠', '❤️', '🌡️', '🎯', '✍️', '🎵'];
-const COLORS = ['#4c6ef5', '#e8590c', '#f59f00', '#2f9e44', '#1971c2', '#5f3dc4', '#c2255c', '#1098ad', '#868e96'];
+const COLORS = ['#2f5bea', '#e8590c', '#f59f00', '#2f9e44', '#1971c2', '#5f3dc4', '#c2255c', '#1098ad', '#868e96'];
 
 export function TrackerBuilder({ existing }: { existing?: Tracker }) {
   const { data, dispatch } = useStore();

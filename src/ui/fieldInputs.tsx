@@ -1,6 +1,13 @@
 import { useState, type ReactNode } from 'react';
-import { AGGREGATION_LABELS, FIELD_TYPES } from '../core/fieldTypes';
-import type { Aggregation, FieldConfig, FieldDef, FieldType, FieldValue } from '../core/types';
+import { BODY_MAPS } from '../core/bodyMaps';
+import { AGGREGATION_LABELS, FIELD_TYPES, formatDuration, isTimeRange, rangeMinutes, severity } from '../core/fieldTypes';
+import type { Aggregation, BodyMapKind, FieldConfig, FieldDef, FieldType, FieldValue, Polarity } from '../core/types';
+import { BodyMapSvg } from './BodyMap';
+
+/** Ampelfarbe für einen Schweregrad 0 (gut) … 1 (schlecht). */
+export function severityColor(t: number): string {
+  return `hsl(${Math.round(135 * (1 - t))} 62% 44%)`;
+}
 
 /**
  * UI-Hälfte der Feldtyp-Registry: Eingabe-Komponente und
@@ -56,19 +63,68 @@ function ScaleInput({ field, value, onChange, id }: InputProps) {
   const steps = Array.from({ length: Math.max(0, max - min + 1) }, (_, i) => min + i);
   return (
     <div className="scale" id={id} role="radiogroup">
-      {steps.map((s, i) => (
+      {steps.map((s, i) => {
+        const sev = severity(field, s);
+        const style = sev !== null ? ({ '--step': severityColor(sev) } as React.CSSProperties) : undefined;
+        return (
         <button
           key={s}
           type="button"
           role="radio"
           aria-checked={value === s}
-          className={`scale-step ${value === s ? 'active' : ''}`}
+          className={`scale-step ${value === s ? 'active' : ''} ${sev !== null ? 'graded' : ''}`}
+          style={style}
           onClick={() => onChange(value === s ? null : s)}
         >
           <strong>{s}</strong>
           {labels[i] && <small>{labels[i]}</small>}
         </button>
-      ))}
+        );
+      })}
+    </div>
+  );
+}
+
+function TimeRangeInput({ value, onChange, id }: InputProps) {
+  const v = isTimeRange(value) ? value : { from: '', to: '' };
+  const now = () => new Date().toTimeString().slice(0, 5);
+  const d = rangeMinutes(v);
+  return (
+    <div className="timerange" id={id}>
+      <label>
+        <small>von</small>
+        <span className="inline">
+          <input type="time" value={v.from} onChange={(e) => onChange({ ...v, from: e.target.value })} />
+          <button type="button" className="btn ghost small" onClick={() => onChange({ ...v, from: now() })}>jetzt</button>
+        </span>
+      </label>
+      <label>
+        <small>bis</small>
+        <span className="inline">
+          <input type="time" value={v.to} onChange={(e) => onChange({ ...v, to: e.target.value })} />
+          <button type="button" className="btn ghost small" onClick={() => onChange({ ...v, to: now() })}>jetzt</button>
+        </span>
+      </label>
+      {d !== null && <span className="pill">Dauer {formatDuration(d)}</span>}
+    </div>
+  );
+}
+
+function BodyMapInput({ field, value, onChange, id }: InputProps) {
+  const kind = field.config.bodyMap ?? 'abdomen';
+  const sel = Array.isArray(value) ? value : [];
+  const toggle = (r: string) => onChange(sel.includes(r) ? sel.filter((x) => x !== r) : [...sel, r]);
+  return (
+    <div className="bodymap-input" id={id}>
+      <BodyMapSvg kind={kind} selected={sel} onToggle={toggle} color="var(--accent)" />
+      <div className="chips">
+        {BODY_MAPS[kind].regions.map((r) => (
+          <button key={r.id} type="button" aria-pressed={sel.includes(r.id)} className={`chip small ${sel.includes(r.id) ? 'active' : ''}`} onClick={() => toggle(r.id)}>
+            {kind === 'abdomen' ? `${r.id} · ` : ''}
+            {r.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -184,6 +240,19 @@ function RangeConfig({ config, onChange, withUnit }: ConfigProps & { withUnit?: 
   );
 }
 
+function PolarityConfig({ config, onChange, type }: ConfigProps & { type: FieldType }) {
+  const def: Polarity = type === 'scale' ? 'higher-worse' : 'neutral';
+  return (
+    <Row label="Ein höherer Wert ist …">
+      <select value={config.polarity ?? def} onChange={(e) => onChange({ polarity: e.target.value as Polarity })}>
+        <option value="higher-worse">schlechter (z. B. Schmerz, Übelkeit)</option>
+        <option value="higher-better">besser (z. B. Energie, Schlafqualität)</option>
+        <option value="neutral">weder noch (z. B. Gewicht, Temperatur)</option>
+      </select>
+    </Row>
+  );
+}
+
 function AggregationConfig({ config, onChange, type }: ConfigProps & { type: FieldType }) {
   const opts: Aggregation[] = ['sum', 'avg', 'max', 'min', 'last'];
   return (
@@ -283,7 +352,10 @@ export const FIELD_UI: Record<
     Config: (p) => (
       <>
         <RangeConfig {...p} withUnit />
-        <AggregationConfig {...p} type="number" />
+        <div className="cfg-grid">
+          <AggregationConfig {...p} type="number" />
+          <PolarityConfig {...p} type="number" />
+        </div>
       </>
     ),
   },
@@ -292,7 +364,10 @@ export const FIELD_UI: Record<
     Config: (p) => (
       <>
         <RangeConfig {...p} withUnit />
-        <AggregationConfig {...p} type="measurement" />
+        <div className="cfg-grid">
+          <AggregationConfig {...p} type="measurement" />
+          <PolarityConfig {...p} type="measurement" />
+        </div>
       </>
     ),
   },
@@ -301,7 +376,10 @@ export const FIELD_UI: Record<
     Config: (p) => (
       <>
         <ScaleConfig {...p} />
-        <AggregationConfig {...p} type="scale" />
+        <div className="cfg-grid">
+          <AggregationConfig {...p} type="scale" />
+          <PolarityConfig {...p} type="scale" />
+        </div>
       </>
     ),
   },
@@ -328,6 +406,30 @@ export const FIELD_UI: Record<
   },
   checkbox: { Input: CheckboxInput, Config: () => <p className="muted">Keine weiteren Einstellungen.</p> },
   datetime: { Input: DateTimeInput, Config: () => <p className="muted">Keine weiteren Einstellungen.</p> },
+  timerange: {
+    Input: TimeRangeInput,
+    Config: (p) => (
+      <>
+        <p className="muted">Ausgewertet wird die Dauer in Minuten.</p>
+        <div className="cfg-grid">
+          <AggregationConfig {...p} type="timerange" />
+          <PolarityConfig {...p} type="timerange" />
+        </div>
+      </>
+    ),
+  },
+  bodymap: {
+    Input: BodyMapInput,
+    Config: ({ config, onChange }) => (
+      <Row label="Schema">
+        <select value={config.bodyMap ?? 'abdomen'} onChange={(e) => onChange({ bodyMap: e.target.value as BodyMapKind })}>
+          {(Object.keys(BODY_MAPS) as BodyMapKind[]).map((k) => (
+            <option key={k} value={k}>{BODY_MAPS[k].label}</option>
+          ))}
+        </select>
+      </Row>
+    ),
+  },
 };
 
 export function FieldInput(props: InputProps) {

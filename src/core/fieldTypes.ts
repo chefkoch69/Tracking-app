@@ -1,4 +1,5 @@
-import type { Aggregation, FieldConfig, FieldDef, FieldType, FieldValue } from './types';
+import { BODY_MAPS, regionLabel } from './bodyMaps';
+import type { Aggregation, FieldConfig, FieldDef, FieldType, FieldValue, Polarity, TimeRange } from './types';
 
 /**
  * Registry aller Feldtypen (Bausteine).
@@ -28,6 +29,7 @@ export interface FieldTypeSpec {
 }
 
 export function isEmptyValue(v: FieldValue | undefined): boolean {
+  if (isTimeRange(v)) return !v.from && !v.to;
   return v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0);
 }
 
@@ -50,6 +52,26 @@ const numberToNumber = (_f: FieldDef, v: FieldValue) =>
   typeof v === 'number' && !Number.isNaN(v) ? v : null;
 
 const none = () => [] as string[];
+
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+export function isTimeRange(v: unknown): v is TimeRange {
+  return !!v && typeof v === 'object' && !Array.isArray(v) && 'from' in v && 'to' in v;
+}
+
+/** Dauer eines Zeitraums in Minuten (über Mitternacht möglich). */
+export function rangeMinutes(r: TimeRange): number | null {
+  if (!TIME_RE.test(r.from) || !TIME_RE.test(r.to)) return null;
+  const toMin = (s: string) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3));
+  const d = toMin(r.to) - toMin(r.from);
+  return d >= 0 ? d : d + 24 * 60;
+}
+
+export function formatDuration(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = Math.round(min % 60);
+  return h ? (m ? `${h} h ${m} min` : `${h} h`) : `${m} min`;
+}
 
 export const FIELD_TYPES: Record<FieldType, FieldTypeSpec> = {
   number: {
@@ -187,12 +209,85 @@ export const FIELD_TYPES: Record<FieldType, FieldTypeSpec> = {
     toNumber: () => null,
     categories: none,
   },
+  timerange: {
+    type: 'timerange',
+    label: 'Zeitraum (von–bis)',
+    hint: 'z. B. Dauer der Beschwerden, Schlafenszeit',
+    icon: '↔',
+    numeric: true,
+    categorical: false,
+    defaultAggregation: 'sum',
+    defaultConfig: () => ({ unit: 'min' }),
+    emptyValue: () => ({ from: '', to: '' }),
+    validate: (_f, v) =>
+      isTimeRange(v) && rangeMinutes(v) !== null ? null : 'Bitte Beginn und Ende angeben.',
+    format: (_f, v) => {
+      if (!isTimeRange(v)) return '–';
+      const d = rangeMinutes(v);
+      return d === null ? '–' : `${v.from}–${v.to} (${formatDuration(d)})`;
+    },
+    toNumber: (_f, v) => (isTimeRange(v) ? rangeMinutes(v) : null),
+    categories: none,
+  },
+  bodymap: {
+    type: 'bodymap',
+    label: 'Körperkarte / Lokalisation',
+    hint: 'Wo genau? Regionen auf einem Schema antippen',
+    icon: '⌖',
+    numeric: false,
+    categorical: true,
+    defaultAggregation: 'count',
+    defaultConfig: () => ({ bodyMap: 'abdomen' }),
+    emptyValue: () => [],
+    validate: (f, v) => {
+      if (!Array.isArray(v)) return 'Ungültige Auswahl.';
+      const ids = BODY_MAPS[f.config.bodyMap ?? 'abdomen'].regions.map((r) => r.id);
+      return v.every((x) => ids.includes(x)) ? null : 'Unbekannte Region.';
+    },
+    format: (f, v) =>
+      Array.isArray(v) && v.length ? v.map((id) => regionLabel(f.config.bodyMap ?? 'abdomen', id)).join(', ') : '–',
+    toNumber: () => null,
+    categories: (f, v) => (Array.isArray(v) ? v.map((id) => regionLabel(f.config.bodyMap ?? 'abdomen', id)) : []),
+  },
 };
 
 export const FIELD_TYPE_LIST = Object.values(FIELD_TYPES);
 
 export function fieldSpec(field: FieldDef): FieldTypeSpec {
   return FIELD_TYPES[field.type];
+}
+
+export function polarityOf(field: FieldDef): Polarity {
+  if (field.config.polarity) return field.config.polarity;
+  return field.type === 'scale' ? 'higher-worse' : 'neutral';
+}
+
+/** Kurzform für Tabellen/Pills (Skalen nur als Zahl, Zeiträume als Dauer). */
+export function formatShort(field: FieldDef, value: FieldValue | undefined): string {
+  if (value === undefined || isEmptyValue(value)) return '';
+  if (field.type === 'scale' && typeof value === 'number') return String(value);
+  if (field.type === 'bodymap' && Array.isArray(value)) return value.join(', ');
+  if (field.type === 'timerange' && isTimeRange(value)) return `${value.from}–${value.to}`;
+  const s = formatValue(field, value);
+  return s === '–' ? '' : s;
+}
+
+/**
+ * Schweregrad 0..1 eines Wertes (0 = gut, 1 = schlecht) für die Einfärbung.
+ * null, wenn das Feld keine Bewertungsrichtung hat.
+ */
+export function severity(field: FieldDef, value: FieldValue | undefined): number | null {
+  const pol = polarityOf(field);
+  if (pol === 'neutral' || typeof value !== 'number') return null;
+  const { min, max } = field.config;
+  if (min === undefined || max === undefined || max <= min) return null;
+  const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  return pol === 'higher-worse' ? t : 1 - t;
+}
+
+/** Bezeichnung einer Messgröße in Auswertungen (Zeiträume werden als Dauer ausgewertet). */
+export function metricLabel(field: FieldDef): string {
+  return field.type === 'timerange' ? `Dauer (${field.label})` : field.label;
 }
 
 export function aggregationOf(field: FieldDef): Aggregation {

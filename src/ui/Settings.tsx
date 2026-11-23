@@ -46,6 +46,21 @@ export function Settings() {
       </section>
 
       <section className="card">
+        <h2>Für Berichte</h2>
+        <p className="muted">Erscheint im Kopf des druckbaren Berichts (z. B. für die Ärztin/den Arzt). Bleibt lokal auf diesem Gerät.</p>
+        <div className="cfg-grid">
+          <label className="cfg-row">
+            <span>Name</span>
+            <input value={data.profile?.name ?? ''} onChange={(e) => dispatch({ type: 'profile/update', patch: { name: e.target.value } })} />
+          </label>
+          <label className="cfg-row">
+            <span>Geburtsdatum</span>
+            <input type="date" value={data.profile?.birthdate ?? ''} onChange={(e) => dispatch({ type: 'profile/update', patch: { birthdate: e.target.value } })} />
+          </label>
+        </div>
+      </section>
+
+      <section className="card">
         <h2>Daten</h2>
         <p className="muted">
           Alle Daten bleiben lokal auf diesem Gerät ({data.trackers.length} Tracker, {data.entries.length} Einträge). Sichere sie regelmäßig als Datei.
@@ -62,13 +77,13 @@ export function Settings() {
 
       <section className="card">
         <h2>Ausprobieren</h2>
-        <p className="muted">Fügt zwei Demo-Tracker (Morgen-Check-in, Liegestütze) mit 60 Tagen Beispieldaten hinzu, um die Auswertungen zu erkunden.</p>
+        <p className="muted">Fügt drei Demo-Tracker (Bauchschmerztagebuch, Morgen-Check-in, Liegestütze) mit 60 Tagen Beispieldaten hinzu, um die Auswertungen zu erkunden.</p>
         <button
           className="btn"
           onClick={() => {
             const demo = generateDemo();
             dispatch({ type: 'data/merge', ...demo });
-            navigate(`/t/${demo.trackers[0].id}/compare`);
+            navigate('/');
           }}
         >
           Demo-Daten hinzufügen

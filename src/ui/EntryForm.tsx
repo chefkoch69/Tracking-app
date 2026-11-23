@@ -43,11 +43,15 @@ export function EntryForm({ tracker, entry }: { tracker: Tracker; entry?: Entry 
   };
 
   return (
-    <div className="page">
-      <h1 style={{ color: tracker.color }}>
-        {tracker.icon} {tracker.name}
-      </h1>
-      <p className="muted">{entry ? 'Eintrag bearbeiten' : 'Neuer Eintrag'}</p>
+    <div className="page" style={{ '--accent': tracker.color } as React.CSSProperties}>
+      <section className="hero-band tinted compact">
+        <div className="hero-inner">
+          <button className="back linkish" onClick={() => navigate(`/t/${tracker.id}`)}>‹ {tracker.name}</button>
+          <h1>
+            {tracker.icon} {entry ? 'Eintrag bearbeiten' : 'Neuer Eintrag'}
+          </h1>
+        </div>
+      </section>
       <form
         className="card entry-form"
         onSubmit={(e) => {
@@ -55,13 +59,15 @@ export function EntryForm({ tracker, entry }: { tracker: Tracker; entry?: Entry 
           submit(false);
         }}
       >
-        {tracker.fields.map((f) => (
+        {tracker.fields.map((f, i) => (
           <div key={f.id} className={`field ${tried && errors[f.id] ? 'invalid' : ''}`}>
             <label htmlFor={`f-${f.id}`}>
               {f.label}
               {f.required && <b className="req">*</b>}
             </label>
-            {f.description && <small className="muted">{f.description}</small>}
+            {f.description && !tracker.fields.slice(0, i).some((p) => p.description === f.description) && (
+              <small className="muted">{f.description}</small>
+            )}
             <FieldInput id={`f-${f.id}`} field={f} value={values[f.id] ?? null} onChange={(v) => setValues((s) => ({ ...s, [f.id]: v }))} />
             {tried && errors[f.id] && <small className="error">{errors[f.id]}</small>}
           </div>
@@ -75,7 +81,7 @@ export function EntryForm({ tracker, entry }: { tracker: Tracker; entry?: Entry 
           {!entry && (
             <button type="button" className="btn" onClick={() => submit(true)}>Speichern & weiterer</button>
           )}
-          <button type="submit" className="btn primary" style={{ background: tracker.color }}>Speichern</button>
+          <button type="submit" className="btn primary">Speichern</button>
         </div>
       </form>
     </div>

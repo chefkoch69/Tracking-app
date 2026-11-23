@@ -3,7 +3,11 @@ import { dayKey, formatDateTime, formatDay, parseDayKey } from '../../core/dates
 import { AGGREGATION_LABELS, aggregationOf } from '../../core/fieldTypes';
 import type { FieldDef, Tracker } from '../../core/types';
 import { useStore } from '../../state/store';
+import { BODY_MAPS } from '../../core/bodyMaps';
+import { factorInsights, trendInsights } from '../../core/insights';
+import { BodyMapSvg } from '../BodyMap';
 import { FrequencyBars } from '../charts/Charts';
+import { InsightList } from '../Insights';
 import { NoData } from './shared';
 
 const n = (v: number | null | undefined, unit?: string) =>
@@ -32,12 +36,42 @@ export function StatsView({ tracker }: { tracker: Tracker }) {
         <NumericStats key={f.id} field={f} tracker={tracker} />
       ))}
 
-      {cats.map((f) => (
-        <section key={f.id} className="card">
-          <h3>{f.label} – Häufigkeit</h3>
-          <FrequencyBars items={frequencies(f, entries)} color={tracker.color} />
-        </section>
-      ))}
+      {(() => {
+        const ins = [...trendInsights(tracker, data.entries, new Date()), ...factorInsights(tracker, data.entries)].slice(0, 6);
+        return ins.length ? (
+          <section className="card">
+            <h3>Was fällt auf?</h3>
+            <InsightList insights={ins} />
+          </section>
+        ) : null;
+      })()}
+
+      {cats.map((f) => {
+        const freq = frequencies(f, entries);
+        if (!freq.length) return null;
+        if (f.type === 'bodymap') {
+          const kind = f.config.bodyMap ?? 'abdomen';
+          const max = Math.max(1, ...freq.map((x) => x.count));
+          const intensity = Object.fromEntries(
+            BODY_MAPS[kind].regions.map((r) => [r.id, (freq.find((x) => x.label === r.label)?.count ?? 0) / max]),
+          );
+          return (
+            <section key={f.id} className="card">
+              <h3>{f.label} – wo am häufigsten?</h3>
+              <div className="map-stats">
+                <BodyMapSvg kind={kind} intensity={intensity} color={tracker.color} />
+                <FrequencyBars items={freq} color={tracker.color} />
+              </div>
+            </section>
+          );
+        }
+        return (
+          <section key={f.id} className="card">
+            <h3>{f.label} – Häufigkeit</h3>
+            <FrequencyBars items={freq} color={tracker.color} />
+          </section>
+        );
+      })}
     </>
   );
 }

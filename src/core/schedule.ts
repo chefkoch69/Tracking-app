@@ -65,8 +65,9 @@ export function daySlotStatus(tracker: Tracker, entries: Entry[], day: Date): Sl
     const prev = slots[i - 1];
     const next = slots[i + 1];
     const earliest = slot.getTime() - EARLY_TOLERANCE_MIN * 60000;
-    // Das Fenster beginnt frühestens in der Mitte zum vorherigen Slot.
-    const ws = prev ? Math.max(earliest, (prev.getTime() + slot.getTime()) / 2) : earliest;
+    // Erster Slot: jeder Eintrag des Tages zählt (z. B. Tagebuch-Erinnerung am Abend).
+    // Weitere Slots: frühestens ab der Mitte zum vorherigen Slot.
+    const ws = prev ? Math.max(earliest, (prev.getTime() + slot.getTime()) / 2) : startOfDay(day).getTime();
     const we = next ? (slot.getTime() + next.getTime()) / 2 : dayEnd.getTime();
     const done = times.some((t) => t >= ws && t < we);
     return { slot, windowStart: new Date(ws), windowEnd: new Date(we), done };

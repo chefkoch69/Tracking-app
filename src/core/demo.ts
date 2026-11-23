@@ -12,7 +12,8 @@ export function generateDemo(days = 60, now = new Date()): { trackers: Tracker[]
 
   const morning = tpl('morning');
   const pushups = tpl('pushups');
-  const trackers = [morning, pushups];
+  const belly = tpl('abdominal');
+  const trackers = [belly, morning, pushups];
   const entries: Entry[] = [];
   const byLabel = (t: Tracker, l: string) => t.fields.find((f) => f.label === l)!.id;
 
@@ -41,6 +42,39 @@ export function generateDemo(days = 60, now = new Date()): { trackers: Tracker[]
       entries.push({ id: uid(), trackerId: morning.id, timestamp: t.toISOString(), values: v });
     }
 
+    // Bauchschmerztagebuch: an ~60 % der Tage eine Episode, in den letzten 2 Wochen besser.
+    if (rnd() > 0.4) {
+      const after = rnd() > 0.45;
+      const meds = rnd() > 0.65;
+      const recent = i < 14 ? -0.7 : 0;
+      const pain = clamp(Math.round(1 + (after ? 1 : 0) + recent - (meds ? 0.8 : 0) + (rnd() - 0.5)), 0, 3);
+      const start = 11 * 60 + Math.floor(rnd() * 8) * 60;
+      const dur = Math.round((30 + pain * 40 + rnd() * 40) / 5) * 5;
+      const hhmm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+      const regions = rnd() > 0.5 ? ['6'] : rnd() > 0.5 ? ['1'] : ['1', '6'];
+      if (rnd() > 0.85) regions.push('4');
+      const when = atMinutes(day, start + dur);
+      if (when <= now) {
+        entries.push({
+          id: uid(),
+          trackerId: belly.id,
+          timestamp: when.toISOString(),
+          values: {
+            [byLabel(belly, 'Bauchschmerz')]: pain,
+            [byLabel(belly, 'Uhrzeit von–bis')]: { from: hhmm(start), to: hhmm(start + dur) },
+            [byLabel(belly, 'Bezug zu Mahlzeiten')]: after ? 'nach der Mahlzeit' : rnd() > 0.5 ? 'während der Mahlzeit' : 'unabhängig',
+            [byLabel(belly, 'Lokalisation')]: regions,
+            [byLabel(belly, 'Übelkeit')]: clamp(Math.round(pain * 0.6 + (rnd() - 0.5)), 0, 3),
+            [byLabel(belly, 'Sodbrennen')]: clamp(Math.round(rnd() * 1.3), 0, 3),
+            [byLabel(belly, 'Erbrechen')]: pain === 3 && rnd() > 0.6 ? 1 : 0,
+            [byLabel(belly, 'Stuhlgang')]: clamp(Math.round(2 + (rnd() - 0.4) * 2), 0, 4),
+            [byLabel(belly, 'Medikamente')]: meds ? 'Buscopan 10 mg' : '',
+            [byLabel(belly, 'Besonderheiten')]: rnd() > 0.9 ? 'Stressiger Tag' : '',
+          },
+        });
+      }
+    }
+
     const sets = rnd() > 0.3 ? 1 + Math.floor(rnd() * 3) : 0;
     for (let s = 0; s < sets; s++) {
       const base = 15 + (days - i) * 0.25;
@@ -58,6 +92,7 @@ export function generateDemo(days = 60, now = new Date()): { trackers: Tracker[]
       });
     }
   }
+  belly.name = 'Bauchschmerztagebuch (Demo)';
   morning.name = 'Morgen-Check-in (Demo)';
   pushups.name = 'Liegestütze (Demo)';
   return { trackers, entries };

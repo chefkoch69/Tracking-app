@@ -7,6 +7,16 @@ import { EntryCard, NoData } from './shared';
 
 const PAGE = 30;
 
+function dayTitle(key: string): string {
+  const today = dayKey(new Date());
+  const y = new Date();
+  y.setDate(y.getDate() - 1);
+  if (key === today) return 'Heute';
+  if (key === dayKey(y)) return 'Gestern';
+  return formatDay(parseDayKey(key));
+}
+
+/** Verlauf als Timeline, gruppiert nach Tagen. */
 export function HistoryView({ tracker }: { tracker: Tracker }) {
   const { data } = useStore();
   const [limit, setLimit] = useState(PAGE);
@@ -21,13 +31,15 @@ export function HistoryView({ tracker }: { tracker: Tracker }) {
   return (
     <div className="history">
       {[...groups].map(([k, es]) => (
-        <section key={k}>
+        <section key={k} className="day-group">
           <h3 className="day-head">
-            {formatDay(parseDayKey(k))} <small className="muted">{es.length} {es.length === 1 ? 'Eintrag' : 'Einträge'}</small>
+            {dayTitle(k)} <small className="muted">{es.length} {es.length === 1 ? 'Eintrag' : 'Einträge'}</small>
           </h3>
-          {es.map((e) => (
-            <EntryCard key={e.id} tracker={tracker} entry={e} />
-          ))}
+          <div className="timeline-rail">
+            {es.map((e) => (
+              <EntryCard key={e.id} tracker={tracker} entry={e} />
+            ))}
+          </div>
         </section>
       ))}
       {entries.length > limit && (

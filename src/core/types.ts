@@ -15,7 +15,14 @@ export type FieldType =
   | 'select'
   | 'multiselect'
   | 'checkbox'
-  | 'datetime';
+  | 'datetime'
+  | 'timerange'
+  | 'bodymap';
+
+/** Ob ein höherer Wert gut, schlecht oder neutral ist (für Farben & Erkenntnisse). */
+export type Polarity = 'higher-worse' | 'higher-better' | 'neutral';
+
+export type BodyMapKind = 'abdomen' | 'body';
 
 /** Wie Werte eines Feldes pro Tag/Woche/Monat zusammengefasst werden. */
 export type Aggregation = 'sum' | 'avg' | 'max' | 'min' | 'last' | 'count';
@@ -31,6 +38,9 @@ export interface FieldConfig {
   scaleLabels?: string[];
   multiline?: boolean;
   aggregation?: Aggregation;
+  polarity?: Polarity;
+  /** Welches Lokalisationsschema (Feldtyp bodymap). */
+  bodyMap?: BodyMapKind;
 }
 
 export interface FieldDef {
@@ -42,7 +52,13 @@ export interface FieldDef {
   config: FieldConfig;
 }
 
-export type FieldValue = number | string | boolean | string[] | null;
+/** Zeitraum "HH:MM"–"HH:MM" (Feldtyp timerange). */
+export interface TimeRange {
+  from: string;
+  to: string;
+}
+
+export type FieldValue = number | string | boolean | string[] | TimeRange | null;
 
 export type ScheduleMode = 'manual' | 'times' | 'interval';
 
@@ -63,7 +79,7 @@ export interface Schedule {
   maxRepeats: number;
 }
 
-export type ViewType = 'history' | 'chart' | 'calendar' | 'stats' | 'daily' | 'compare';
+export type ViewType = 'history' | 'chart' | 'calendar' | 'stats' | 'daily' | 'compare' | 'report';
 
 export interface Tracker {
   id: string;
@@ -97,9 +113,16 @@ export interface ReminderState {
   skippedSlot?: string;
 }
 
+/** Optionale Angaben für Berichte (z. B. Arztbogen). */
+export interface Profile {
+  name?: string;
+  birthdate?: string;
+}
+
 export interface AppData {
   version: 1;
   trackers: Tracker[];
   entries: Entry[];
   reminders: Record<string, ReminderState>;
+  profile?: Profile;
 }

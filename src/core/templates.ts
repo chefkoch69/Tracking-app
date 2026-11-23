@@ -22,7 +22,13 @@ export function makeField(type: FieldType, label: string, config: FieldConfig = 
 const severity = (label: string) =>
   makeField('scale', label, { min: 0, max: 3, scaleLabels: ['keine', 'leicht', 'mittel', 'stark'] });
 
-const ALL_VIEWS: ViewType[] = ['history', 'chart', 'calendar', 'stats', 'daily', 'compare'];
+const ALL_VIEWS: ViewType[] = ['history', 'chart', 'calendar', 'stats', 'daily', 'compare', 'report'];
+
+const GRADES = 'Stärkegrade: 0 = keine · 1 = leicht (normale Tätigkeit nicht beeinträchtigt) · 2 = mittel (normale Tätigkeit beeinträchtigt) · 3 = schwer (normaler Tagesablauf nicht mehr möglich)';
+const graded = (label: string) => ({
+  ...makeField('scale', label, { min: 0, max: 3, scaleLabels: ['keine', 'leicht', 'mittel', 'schwer'], polarity: 'higher-worse' }),
+  description: GRADES,
+});
 const everyDay = [0, 1, 2, 3, 4, 5, 6];
 
 export interface TrackerTemplate {
@@ -39,6 +45,33 @@ const sched = (s: Partial<Schedule>): Schedule => ({ ...defaultSchedule(), ...s 
 
 export const TEMPLATES: TrackerTemplate[] = [
   {
+    key: 'abdominal',
+    name: 'Bauchschmerztagebuch',
+    category: 'Symptomtagebuch',
+    icon: '🩺',
+    color: '#2f5bea',
+    description: 'Bauchschmerzen, Begleitsymptome, Stuhlgang und Medikamente – als Bericht für die Ärztin/den Arzt.',
+    build: () => ({
+      fields: [
+        graded('Bauchschmerz'),
+        makeField('timerange', 'Uhrzeit von–bis', { aggregation: 'sum', polarity: 'higher-worse' }),
+        makeField('select', 'Bezug zu Mahlzeiten', { options: ['während der Mahlzeit', 'nach der Mahlzeit', 'unabhängig'] }),
+        makeField('bodymap', 'Lokalisation', { bodyMap: 'abdomen' }),
+        graded('Übelkeit'),
+        graded('Sodbrennen'),
+        graded('Erbrechen'),
+        {
+          ...makeField('scale', 'Stuhlgang', { min: 0, max: 4, scaleLabels: ['kein', 'hart', 'geformt', 'weich', 'flüssig'], polarity: 'neutral' }),
+          description: '0 = kein, 1 = hart, 2 = geformt, 3 = weich, 4 = flüssig',
+        },
+        { ...makeField('text', 'Medikamente'), description: 'Name und Dosis – leer lassen, wenn keine' },
+        makeField('text', 'Besonderheiten', { multiline: true }),
+      ],
+      schedule: sched({ mode: 'times', times: ['20:00'], repeatMinutes: 30, maxRepeats: 2 }),
+      views: ['history', 'report', 'calendar', 'stats', 'chart', 'compare'],
+    }),
+  },
+  {
     key: 'pushups',
     name: 'Liegestütze',
     category: 'Habit / Fitness',
@@ -47,7 +80,7 @@ export const TEMPLATES: TrackerTemplate[] = [
     description: 'Anzahl der Liegestütze regelmäßig dokumentieren.',
     build: () => ({
       fields: [
-        makeField('number', 'Anzahl', { min: 0, step: 1, aggregation: 'sum' }, true),
+        makeField('number', 'Anzahl', { min: 0, step: 1, aggregation: 'sum', polarity: 'higher-better' }, true),
         makeField('measurement', 'Trainingsdauer', { unit: 'min', min: 0, step: 1, aggregation: 'sum' }),
         makeField('text', 'Anmerkungen', { multiline: true }),
       ],
@@ -69,8 +102,8 @@ export const TEMPLATES: TrackerTemplate[] = [
         severity('Erschöpfung'),
         severity('Kälteempfinden'),
         severity('Tinnitus'),
-        makeField('scale', 'Schlafqualität', { min: 0, max: 3, scaleLabels: ['schlecht', 'mäßig', 'gut', 'sehr gut'] }),
-        makeField('measurement', 'Schlafdauer', { unit: 'h', min: 0, max: 24, step: 0.25, aggregation: 'avg' }),
+        makeField('scale', 'Schlafqualität', { min: 0, max: 3, scaleLabels: ['schlecht', 'mäßig', 'gut', 'sehr gut'], polarity: 'higher-better' }),
+        makeField('measurement', 'Schlafdauer', { unit: 'h', min: 0, max: 24, step: 0.25, aggregation: 'avg', polarity: 'higher-better' }),
         makeField('measurement', 'Raumtemperatur', { unit: '°C', step: 0.5, aggregation: 'avg' }),
         makeField('measurement', 'Luftfeuchtigkeit', { unit: '%', min: 0, max: 100, step: 1, aggregation: 'avg' }),
         makeField('text', 'Besonderheiten', { multiline: true }),
@@ -93,7 +126,7 @@ export const TEMPLATES: TrackerTemplate[] = [
         makeField('measurement', 'Menge', { unit: 'g', min: 0, step: 10, aggregation: 'sum' }),
         makeField('scale', 'Beschwerden nach dem Essen', { min: 0, max: 3, scaleLabels: ['keine', 'leicht', 'mittel', 'stark'] }),
         makeField('multiselect', 'Symptome', { options: ['Blähungen', 'Übelkeit', 'Bauchschmerzen', 'Sodbrennen', 'Müdigkeit'] }),
-        makeField('scale', 'Energielevel nach dem Essen', { min: 1, max: 5, scaleLabels: ['sehr niedrig', 'niedrig', 'normal', 'hoch', 'sehr hoch'] }),
+        makeField('scale', 'Energielevel nach dem Essen', { min: 1, max: 5, scaleLabels: ['sehr niedrig', 'niedrig', 'normal', 'hoch', 'sehr hoch'], polarity: 'higher-better' }),
       ],
       schedule: sched({ mode: 'manual' }),
       views: ['history', 'stats', 'daily', 'calendar', 'compare'],
@@ -130,7 +163,7 @@ export const TEMPLATES: TrackerTemplate[] = [
       fields: [
         makeField('datetime', 'Eingeschlafen um'),
         makeField('measurement', 'Schlafdauer', { unit: 'h', min: 0, max: 24, step: 0.25, aggregation: 'avg' }, true),
-        makeField('scale', 'Erholung', { min: 1, max: 5, scaleLabels: ['gar nicht', 'wenig', 'mittel', 'gut', 'sehr gut'] }),
+        makeField('scale', 'Erholung', { min: 1, max: 5, scaleLabels: ['gar nicht', 'wenig', 'mittel', 'gut', 'sehr gut'], polarity: 'higher-better' }),
         makeField('checkbox', 'Nachts aufgewacht'),
       ],
       schedule: sched({ mode: 'times', times: ['07:30'] }),
@@ -192,7 +225,7 @@ export function emptyTracker(): Tracker {
     name: '',
     description: '',
     icon: '📈',
-    color: '#4c6ef5',
+    color: '#2f5bea',
     category: '',
     fields: [],
     schedule: defaultSchedule(),

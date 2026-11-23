@@ -11,7 +11,8 @@ import {
 } from './analytics';
 import { atMinutes, weekKey } from './dates';
 import { generateDemo } from './demo';
-import { formatValue, validateValues } from './fieldTypes';
+import { formatShort, formatValue, rangeMinutes, severity, validateValues } from './fieldTypes';
+import { computeInsights, factorInsights, trendInsights } from './insights';
 import { daySlotStatus, dueSlot, nextSlot, reminderToFire, slotKey, slotMinutesForDay } from './schedule';
 import { exportCsv, normalize } from './storage';
 import { TEMPLATES, makeField, trackerFromTemplate } from './templates';
@@ -69,6 +70,15 @@ describe('Zeitplan & Erinnerungen', () => {
     const e = entry(t, at(6, 20));
     expect(dueSlot(t, [e], at(7, 0))).toBeNull();
     expect(daySlotStatus(t, [e], day)[0].done).toBe(true);
+  });
+
+  it('Tagebuch-Erinnerung am Abend gilt durch einen Eintrag am selben Tag als erledigt', () => {
+    const t = trackerFromTemplate(TEMPLATES.find((x) => x.key === 'abdominal')!); // 20:00
+    expect(dueSlot(t, [entry(t, at(15, 0))], at(20, 5))).toBeNull();
+    expect(dueSlot(t, [], at(20, 5))).not.toBeNull();
+    // Morgen-Check-in mit zwei Slots: zweiter Slot verlangt eigenen Eintrag
+    const m = { ...morning(), schedule: { ...morning().schedule, times: ['06:45', '18:00'] } };
+    expect(dueSlot(m, [entry(m, at(7, 0))], at(18, 5))).not.toBeNull();
   });
 
   it('wiederholt die Erinnerung nach 10 Minuten bis maxRepeats', () => {
@@ -153,13 +163,13 @@ describe('Auswertungen', () => {
     expect(pearson([1, 2], [1, 2])).toBeNull();
 
     const demo = generateDemo(60, at(12));
-    const [m] = demo.trackers;
+    const [, m] = demo.trackers;
     const id = (l: string) => m.fields.find((f) => f.label === l)!.id;
     const same = pairMetrics(demo.trackers, demo.entries, { trackerId: m.id, fieldId: id('Schlafdauer') }, { trackerId: m.id, fieldId: id('Erschöpfung') });
     expect(same.basis).toBe('entry');
     expect(pearson(same.pairs.map((p) => p.x), same.pairs.map((p) => p.y))!).toBeLessThan(-0.3);
 
-    const [, p] = demo.trackers;
+    const [, , p] = demo.trackers;
     const cross = pairMetrics(demo.trackers, demo.entries, { trackerId: m.id, fieldId: id('Raumtemperatur') }, { trackerId: p.id, fieldId: p.fields[0].id });
     expect(cross.basis).toBe('day');
     expect(cross.pairs.length).toBeGreaterThan(10);
@@ -191,5 +201,56 @@ describe('Vorlagen', () => {
       expect(t.fields.length).toBeGreaterThan(0);
       expect(new Set(t.fields.map((f) => f.id)).size).toBe(t.fields.length);
     }
+  });
+});
+
+describe('Neue Bausteine', () => {
+  it('Zeitraum: Dauer auch über Mitternacht', () => {
+    const f = makeField('timerange', 'Dauer');
+    expect(rangeMinutes({ from: '10:15', to: '11:30' })).toBe(75);
+    expect(rangeMinutes({ from: '23:30', to: '00:15' })).toBe(45);
+    expect(formatValue(f, { from: '10:15', to: '11:30' })).toBe('10:15–11:30 (1 h 15 min)');
+    expect(validateValues([f], { [f.id]: { from: '10:00', to: '' } })[f.id]).toBeTruthy();
+    expect(validateValues([f], { [f.id]: { from: '', to: '' } })).toEqual({});
+  });
+
+  it('Körperkarte: validiert Regionen und liefert Kategorien', () => {
+    const f = makeField('bodymap', 'Lokalisation', { bodyMap: 'abdomen' });
+    expect(validateValues([f], { [f.id]: ['1', '6'] })).toEqual({});
+    expect(validateValues([f], { [f.id]: ['99'] })[f.id]).toBeTruthy();
+    expect(formatValue(f, ['1', '6'])).toBe('Oberbauch Mitte, Nabelregion');
+    expect(formatShort(f, ['1', '6'])).toBe('1, 6');
+  });
+
+  it('Schweregrad berücksichtigt die Polarität', () => {
+    const pain = makeField('scale', 'Schmerz', { min: 0, max: 3 });
+    const sleep = makeField('scale', 'Schlaf', { min: 0, max: 3, polarity: 'higher-better' });
+    expect(severity(pain, 3)).toBe(1);
+    expect(severity(sleep, 3)).toBe(0);
+    expect(severity(makeField('measurement', 'Temp'), 20)).toBeNull();
+  });
+});
+
+describe('Erkenntnisse', () => {
+  const now = at(21);
+  const demo = generateDemo(60, now);
+  const [belly] = demo.trackers;
+
+  it('erkennt die Verbesserung der letzten zwei Wochen', () => {
+    const t = trendInsights(belly, demo.entries, now).find((i) => i.title.startsWith('Bauchschmerz'));
+    expect(t?.tone).toBe('good');
+  });
+
+  it('findet Einflussfaktoren (Mahlzeit, Medikament)', () => {
+    const f = factorInsights(belly, demo.entries);
+    expect(f.some((i) => i.title.includes('nach der Mahlzeit') && i.tone === 'bad')).toBe(true);
+    expect(f.some((i) => i.title.includes('Buscopan') && i.tone === 'good')).toBe(true);
+  });
+
+  it('liefert eine begrenzte, sortierte Liste', () => {
+    const all = computeInsights(demo.trackers, demo.entries, now);
+    expect(all.length).toBeGreaterThan(0);
+    expect(all.length).toBeLessThanOrEqual(6);
+    for (let i = 1; i < all.length; i++) expect(all[i - 1].strength).toBeGreaterThanOrEqual(all[i].strength);
   });
 });
