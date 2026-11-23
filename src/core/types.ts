@@ -146,6 +146,12 @@ export interface HealthDay {
   sleepHours?: number;
   steps?: number;
   restingHr?: number;
+  /** Bewegung: aktive Energie (kcal) und Trainingsminuten. */
+  activeKcal?: number;
+  exerciseMin?: number;
+  /** Körperanalyse (z. B. Waage, die in Health schreibt). */
+  weight?: number;
+  bodyFat?: number;
   source: 'manual' | 'health' | 'demo';
 }
 

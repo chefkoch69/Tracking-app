@@ -218,7 +218,15 @@ export function reportText(
     lines.push(parseDayKey(k).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }));
     const h = health?.[k];
     if (h) {
-      const hp = [h.wake && `aufgestanden ${h.wake}`, h.sleepHours !== undefined && `${fmtLevel(h.sleepHours)} h Schlaf`, h.steps !== undefined && `${h.steps} Schritte`].filter(Boolean);
+      const hp = [
+        h.wake && `aufgestanden ${h.wake}`,
+        h.sleepHours !== undefined && `${fmtLevel(h.sleepHours)} h Schlaf`,
+        h.steps !== undefined && `${h.steps} Schritte`,
+        h.exerciseMin !== undefined && `${h.exerciseMin} min Training`,
+        h.activeKcal !== undefined && `${h.activeKcal} kcal aktiv`,
+        h.weight !== undefined && `${fmtLevel(h.weight)} kg`,
+        h.bodyFat !== undefined && `${fmtLevel(h.bodyFat)} % Körperfett`,
+      ].filter(Boolean);
       if (hp.length) lines.push(`  Gesundheit: ${hp.join(', ')}`);
     }
     for (const t of trackers) {

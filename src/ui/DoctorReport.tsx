@@ -189,7 +189,13 @@ export function DoctorReport() {
             <div className="report-table-wrap">
               <table className="report-table">
                 <thead>
-                  <tr><th>Tag</th><th>Aufgestanden</th><th>Schlaf</th><th>Schritte</th><th>Ruhepuls</th></tr>
+                  <tr>
+                    <th>Tag</th><th>Aufgestanden</th><th>Schlaf</th><th>Schritte</th>
+                    {healthDays.some((h) => h.exerciseMin !== undefined || h.activeKcal !== undefined) && <th>Bewegung</th>}
+                    {healthDays.some((h) => h.weight !== undefined) && <th>Gewicht</th>}
+                    {healthDays.some((h) => h.bodyFat !== undefined) && <th>Körperfett</th>}
+                    <th>Ruhepuls</th>
+                  </tr>
                 </thead>
                 <tbody>
                   {healthDays.map((h) => (
@@ -198,6 +204,11 @@ export function DoctorReport() {
                       <td>{h.wake ?? '–'}</td>
                       <td>{h.sleepHours !== undefined ? `${fmtLevel(h.sleepHours)} h` : '–'}</td>
                       <td>{h.steps?.toLocaleString('de-DE') ?? '–'}</td>
+                      {healthDays.some((x) => x.exerciseMin !== undefined || x.activeKcal !== undefined) && (
+                        <td>{[h.exerciseMin !== undefined && `${h.exerciseMin} min`, h.activeKcal !== undefined && `${h.activeKcal} kcal`].filter(Boolean).join(' · ') || '–'}</td>
+                      )}
+                      {healthDays.some((x) => x.weight !== undefined) && <td>{h.weight !== undefined ? `${fmtLevel(h.weight)} kg` : '–'}</td>}
+                      {healthDays.some((x) => x.bodyFat !== undefined) && <td>{h.bodyFat !== undefined ? `${fmtLevel(h.bodyFat)} %` : '–'}</td>}
                       <td>{h.restingHr ?? '–'}</td>
                     </tr>
                   ))}

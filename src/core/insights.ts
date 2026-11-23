@@ -50,6 +50,18 @@ function toneFor(field: FieldDef, change: number): InsightTone {
   return better ? 'good' : 'bad';
 }
 
+function dailyMax(f: FieldDef, es: Entry[]): Map<string, number> {
+  const spec = fieldSpec(f);
+  const m = new Map<string, number>();
+  for (const e of es) {
+    const v = spec.toNumber(f, e.values[f.id] ?? null);
+    if (v === null) continue;
+    const k = dayKey(new Date(e.timestamp));
+    m.set(k, Math.max(m.get(k) ?? -Infinity, v));
+  }
+  return m;
+}
+
 export function trendInsights(tracker: Tracker, entries: Entry[], now: Date): Insight[] {
   const out: Insight[] = [];
   const es = entriesOf(tracker, entries);
@@ -57,7 +69,9 @@ export function trendInsights(tracker: Tracker, entries: Entry[], now: Date): In
   const k = (o: number) => dayKey(addDays(today, o));
   for (const f of numericFields(tracker)) {
     if (polarityOf(f) === 'neutral' || f.type === 'checkbox') continue;
-    const days = dailyValues(f, es);
+    // Bewertungen: schlimmster Moment des Tages (wie im Verlaufsdiagramm und im Arztbericht),
+    // sonst die Tages-Zusammenfassung des Feldes.
+    const days = f.type === 'scale' ? dailyMax(f, es) : dailyValues(f, es);
     const pick = (from: number, to: number) => [...days].filter(([d]) => d >= k(from) && d <= k(to)).map(([, v]) => v);
     const recent = pick(-13, 0);
     const prev = pick(-27, -14);

@@ -48,11 +48,13 @@ export function WakeChip({ now }: { now: Date }) {
       </button>
       {today.sleepHours !== undefined && <span className="wake-pill static">☾ {today.sleepHours.toLocaleString('de-DE')} h Schlaf</span>}
       {today.steps !== undefined && <span className="wake-pill static">👣 {today.steps.toLocaleString('de-DE')} Schritte</span>}
+      {today.exerciseMin !== undefined && <span className="wake-pill static">🏃 {today.exerciseMin} min Training</span>}
+      {today.weight !== undefined && <span className="wake-pill static">⚖ {today.weight.toLocaleString('de-DE')} kg</span>}
     </div>
   );
 }
 
-const EXAMPLE = 'BYOT-HEALTH {"date":"2026-11-23","wake":"06:42","sleep":7.5,"steps":4512,"ruhepuls":58}';
+const EXAMPLE = 'BYOT-HEALTH {"date":"2026-11-23","wake":"06:42","schlaf":450,"steps":4512,"kcal":380,"training":25,"gewicht":71.8,"fett":0.22}';
 
 /** Einstellungen: Health-Daten einfügen, Anleitung für den Kurzbefehl, letzte Tage. */
 export function HealthSettings() {
@@ -85,7 +87,8 @@ export function HealthSettings() {
     <section className="card">
       <h2>Apple Health</h2>
       <p className="muted">
-        Aufstehzeit, Schlaf, Schritte und Ruhepuls fließen in „seit dem Aufstehen“, den Vergleich und „Was hilft wirklich?“ ein.
+        Schlaf (Aufstehzeit, Dauer), Bewegung (Schritte, aktive Energie, Trainingsminuten), Ruhepuls und Körperanalyse (Gewicht,
+        Körperfett) fließen in „seit dem Aufstehen“, den Vergleich, „Was hilft wirklich?“ und den Arztbericht ein.
         Eine Web-App darf Health nicht direkt lesen – ein iPhone-Kurzbefehl holt die Werte und übergibt sie hierher.
       </p>
 
@@ -120,11 +123,22 @@ export function HealthSettings() {
             Aktion <b>Health-Samples suchen</b>: Typ <i>Schlafanalyse</i>, Startdatum „in den letzten 1 Tagen“, sortiert nach Enddatum (neueste zuerst), Limit 1.
             Das <b>Enddatum</b> davon ist deine Aufwachzeit.
           </li>
-          <li>Optional noch einmal <b>Health-Samples suchen</b>: Typ <i>Schritte</i>, Startdatum „heute“ → danach <b>Statistik berechnen</b> (Summe).</li>
-          <li>Optional <b>Health-Samples suchen</b>: Typ <i>Ruheherzfrequenz</i>, Limit 1.</li>
           <li>
-            Aktion <b>Text</b> mit genau diesem Aufbau (die Werte in eckigen Klammern sind die Variablen aus den Schritten oben, Datum als „yyyy-MM-dd“, Zeit als „HH:mm“):
-            <code className="code-block">{'BYOT-HEALTH {"date":"[Aktuelles Datum]","wake":"[Enddatum]","steps":[Summe],"ruhepuls":[Ruheherzfrequenz]}'}</code>
+            Optional <b>Schlafdauer</b>: Health-Samples suchen, Typ <i>Schlafanalyse</i>, Wert „Schlafend“ (bzw. Kern/Tief/REM), Startdatum
+            „in den letzten 1 Tagen“ → <b>Statistik berechnen</b> (Summe der Dauer, in Minuten).
+          </li>
+          <li>
+            Optional <b>Bewegung</b>, jeweils Startdatum „heute“ → <b>Statistik berechnen</b> (Summe): Typ <i>Schritte</i>, Typ
+            <i> Aktive Energie</i>, Typ <i>Trainingsminuten</i>.
+          </li>
+          <li>
+            Optional <b>Körperanalyse</b> (z. B. von deiner Waage), jeweils Limit 1, neueste zuerst: Typ <i>Gewicht</i>, Typ
+            <i> Körperfettanteil</i>. Optional auch <i>Ruheherzfrequenz</i>.
+          </li>
+          <li>
+            Aktion <b>Text</b> mit genau diesem Aufbau (die Werte in eckigen Klammern sind die Variablen aus den Schritten oben,
+            Datum als „yyyy-MM-dd“, Zeit als „HH:mm“; was du nicht abfragst, einfach weglassen):
+            <code className="code-block">{'BYOT-HEALTH {"date":"[Aktuelles Datum]","wake":"[Enddatum]","schlaf":[Schlafminuten],"steps":[Schritte],"kcal":[Aktive Energie],"training":[Trainingsminuten],"gewicht":[Gewicht],"fett":[Körperfettanteil],"ruhepuls":[Ruheherzfrequenz]}'}</code>
           </li>
           <li>Aktion <b>In Zwischenablage kopieren</b>.</li>
           <li>Morgens: Kurzbefehl antippen (oder per Automation „Wecker gestoppt“ automatisch starten), dann hier ins Feld einfügen.</li>
@@ -148,6 +162,10 @@ export function HealthSettings() {
                   <th className="num">Schlaf</th>
                   <th className="num">Schritte</th>
                   <th className="num">Ruhepuls</th>
+                  <th className="num">Aktiv</th>
+                  <th className="num">Training</th>
+                  <th className="num">Gewicht</th>
+                  <th className="num">Fett</th>
                   <th>Quelle</th>
                   <th />
                 </tr>
@@ -160,6 +178,10 @@ export function HealthSettings() {
                     <td className="num">{d.sleepHours !== undefined ? `${d.sleepHours.toLocaleString('de-DE')} h` : '–'}</td>
                     <td className="num">{d.steps?.toLocaleString('de-DE') ?? '–'}</td>
                     <td className="num">{d.restingHr ?? '–'}</td>
+                    <td className="num">{d.activeKcal !== undefined ? `${d.activeKcal} kcal` : '–'}</td>
+                    <td className="num">{d.exerciseMin !== undefined ? `${d.exerciseMin} min` : '–'}</td>
+                    <td className="num">{d.weight !== undefined ? `${d.weight.toLocaleString('de-DE')} kg` : '–'}</td>
+                    <td className="num">{d.bodyFat !== undefined ? `${d.bodyFat.toLocaleString('de-DE')} %` : '–'}</td>
                     <td className="muted small">{d.source === 'health' ? 'Health' : d.source === 'demo' ? 'Beispiel' : 'manuell'}</td>
                     <td>
                       <button
@@ -187,6 +209,10 @@ function describe(d: HealthDay): string {
   if (d.sleepHours !== undefined) parts.push(`${d.sleepHours.toLocaleString('de-DE')} h Schlaf`);
   if (d.steps !== undefined) parts.push(`${d.steps.toLocaleString('de-DE')} Schritte`);
   if (d.restingHr !== undefined) parts.push(`Ruhepuls ${d.restingHr}`);
+  if (d.activeKcal !== undefined) parts.push(`${d.activeKcal} kcal aktiv`);
+  if (d.exerciseMin !== undefined) parts.push(`${d.exerciseMin} min Training`);
+  if (d.weight !== undefined) parts.push(`${d.weight.toLocaleString('de-DE')} kg`);
+  if (d.bodyFat !== undefined) parts.push(`${d.bodyFat.toLocaleString('de-DE')} % Körperfett`);
   return parts.join(', ');
 }
 

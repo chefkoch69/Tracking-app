@@ -57,6 +57,10 @@ const KEYS = {
   sleepHours: ['sleephours', 'sleep', 'schlaf', 'schlafdauer', 'schlafstunden'],
   steps: ['steps', 'schritte'],
   restingHr: ['restinghr', 'restingheartrate', 'ruhepuls', 'hr'],
+  activeKcal: ['activekcal', 'activeenergy', 'aktiveenergie', 'aktivenergie', 'kcal', 'kalorien'],
+  exerciseMin: ['exercisemin', 'exerciseminutes', 'exercise', 'trainingsminuten', 'training', 'bewegungsminuten', 'bewegung'],
+  weight: ['weight', 'gewicht', 'körpergewicht', 'koerpergewicht', 'bodymass'],
+  bodyFat: ['bodyfat', 'körperfett', 'koerperfett', 'körperfettanteil', 'fettanteil', 'fett'],
 };
 
 function pick(o: Record<string, unknown>, keys: string[]): unknown {
@@ -75,9 +79,17 @@ function fromObject(o: Record<string, unknown>, today: string): HealthDay | null
     sleepHours,
     steps: toNum(pick(o, KEYS.steps)),
     restingHr: toNum(pick(o, KEYS.restingHr)),
+    activeKcal: toNum(pick(o, KEYS.activeKcal)),
+    exerciseMin: toNum(pick(o, KEYS.exerciseMin)),
+    weight: toNum(pick(o, KEYS.weight)),
+    bodyFat: toNum(pick(o, KEYS.bodyFat)),
     source: 'health',
   };
-  const has = day.wake || day.sleepStart || day.sleepHours !== undefined || day.steps !== undefined || day.restingHr !== undefined;
+  // Health liefert den Körperfettanteil oft als Anteil (0,23) statt Prozent.
+  if (day.bodyFat !== undefined && day.bodyFat > 0 && day.bodyFat < 1) day.bodyFat = Math.round(day.bodyFat * 1000) / 10;
+  if (day.activeKcal !== undefined) day.activeKcal = Math.round(day.activeKcal);
+  if (day.exerciseMin !== undefined) day.exerciseMin = Math.round(day.exerciseMin);
+  const has = [day.wake, day.sleepStart, day.sleepHours, day.steps, day.restingHr, day.activeKcal, day.exerciseMin, day.weight, day.bodyFat].some((x) => x !== undefined);
   if (!has) return null;
   for (const k of Object.keys(day) as (keyof HealthDay)[]) if (day[k] === undefined) delete day[k];
   return day;
@@ -154,6 +166,10 @@ const F = {
   steps: 'health-steps',
   wake: 'health-wake',
   hr: 'health-hr',
+  kcal: 'health-kcal',
+  exercise: 'health-exercise',
+  weight: 'health-weight',
+  fat: 'health-fat',
 };
 
 function healthFields(): FieldDef[] {
@@ -166,6 +182,10 @@ function healthFields(): FieldDef[] {
     f(F.steps, 'Schritte', '', 'higher-better'),
     f(F.wake, 'Aufstehzeit', 'h', 'neutral'),
     f(F.hr, 'Ruhepuls', 'bpm', 'neutral'),
+    f(F.kcal, 'Aktive Energie', 'kcal', 'higher-better'),
+    f(F.exercise, 'Trainingsminuten', 'min', 'higher-better'),
+    f(F.weight, 'Gewicht', 'kg', 'neutral'),
+    f(F.fat, 'Körperfett', '%', 'neutral'),
   ];
 }
 
@@ -194,6 +214,10 @@ export function healthAsTracker(health: Record<string, HealthDay> | undefined): 
       [F.steps]: d.steps ?? null,
       [F.wake]: d.wake ? Math.round((parseTime(d.wake) / 60) * 100) / 100 : null,
       [F.hr]: d.restingHr ?? null,
+      [F.kcal]: d.activeKcal ?? null,
+      [F.exercise]: d.exerciseMin ?? null,
+      [F.weight]: d.weight ?? null,
+      [F.fat]: d.bodyFat ?? null,
     },
   }));
   return { tracker, entries };
@@ -218,6 +242,10 @@ export function demoHealth(days: number, now: Date, rnd: () => number): Record<s
       sleepHours: sleep,
       steps: i === 0 ? Math.round(1500 + rnd() * 2500) : Math.round(3000 + rnd() * 9000),
       restingHr: Math.round(54 + rnd() * 12 - (sleep - 7) * 2),
+      activeKcal: Math.round(150 + rnd() * 450),
+      exerciseMin: Math.round(rnd() * 50),
+      weight: Math.round((72 - (days - i) * 0.02 + (rnd() - 0.5) * 0.8) * 10) / 10,
+      bodyFat: Math.round((22 + (rnd() - 0.5) * 1.2) * 10) / 10,
       source: 'demo',
     };
   }

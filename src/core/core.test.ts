@@ -626,3 +626,18 @@ describe('App startklar machen', () => {
     expect(setupState([demo], [], tpl).demos).toHaveLength(0);
   });
 });
+
+describe('Health: Bewegung und Körperanalyse', () => {
+  it('liest Schlaf, Bewegung, Gewicht und Körperfett (auch als Anteil) aus dem Kurzbefehl', () => {
+    const [d] = parseHealthText('BYOT-HEALTH {"date":"2026-11-23","wake":"06:42","schlaf":"450","steps":"4.512","kcal":"380,4","training":"25","gewicht":"71,8","fett":"0,22"}');
+    expect(d).toMatchObject({ wake: '06:42', sleepHours: 7.5, steps: 4512, activeKcal: 380, exerciseMin: 25, weight: 71.8, bodyFat: 22 });
+    const [z] = parseHealthText('Gewicht: 70,2\nKörperfett: 21,5', '2026-11-23');
+    expect(z).toMatchObject({ weight: 70.2, bodyFat: 21.5 });
+  });
+  it('stellt die neuen Werte für Vergleich und Erkenntnisse bereit', () => {
+    const demo = generateDemo(30, at(21));
+    const h = healthAsTracker(demo.health)!;
+    expect(h.tracker.fields.map((f) => f.label)).toEqual(expect.arrayContaining(['Aktive Energie', 'Trainingsminuten', 'Gewicht', 'Körperfett']));
+    expect(h.entries.some((e) => typeof e.values['health-weight'] === 'number')).toBe(true);
+  });
+});

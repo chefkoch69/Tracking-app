@@ -22,7 +22,9 @@ export function generateDemo(days = 60, now = new Date()): { trackers: Tracker[]
   const pushups = tpl('pushups');
   const trackers = [me, pushups];
   const entries: Entry[] = [];
-  const health = demoHealth(days, now, rnd);
+  // Eigener Zufallsgenerator, damit Gesundheitswerte die übrigen Beispieldaten nicht verschieben.
+  let seedH = 7;
+  const health = demoHealth(days, now, () => ((seedH = (seedH * 16807) % 2147483647) / 2147483647));
   const id = (t: Tracker, l: string) => t.fields.find((f) => f.label === l)!.id;
   const push = (t: Tracker, when: Date, values: Record<string, FieldValue>) => {
     if (when <= now) entries.push({ id: uid(), trackerId: t.id, timestamp: when.toISOString(), values });
@@ -59,7 +61,7 @@ export function generateDemo(days = 60, now = new Date()): { trackers: Tracker[]
       const meds = rnd() > 0.65;
       const food = [pick(FOODS), pick(FOODS)];
       const coffee = food.includes('Milchkaffee');
-      const recent = i < 14 ? -0.7 : 0;
+      const recent = i < 14 ? -0.9 : 0.4; // Beispiel: in den letzten 2 Wochen deutlich besser
       const pain = clamp(Math.round(1 + (after ? 1 : 0) + (coffee ? 0.6 : 0) + recent + (slept < 6.5 ? 0.6 : 0) - (meds ? 0.8 : 0) + (rnd() - 0.5)), 0, 3);
       const start = 11 * 60 + Math.floor(rnd() * 8) * 60;
       const dur = Math.round((30 + pain * 40 + rnd() * 40) / 5) * 5;
