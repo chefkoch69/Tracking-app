@@ -46,6 +46,8 @@ export interface FieldConfig {
   polarity?: Polarity;
   /** Welches Lokalisationsschema (Feldtyp bodymap). */
   bodyMap?: BodyMapKind;
+  /** Name in Auswertungen, z. B. „Schmerzdauer“ für ein Feld „Uhrzeit von–bis“. */
+  metricName?: string;
   /** Text: mehrere Einträge mit Komma (z. B. Lebensmittel) – einzeln ausgewertet. */
   splitList?: boolean;
   /** Zeitraum: Beginn automatisch mit der Aufstehzeit vorbelegen. */

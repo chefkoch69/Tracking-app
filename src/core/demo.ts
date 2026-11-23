@@ -55,36 +55,59 @@ export function generateDemo(days = 60, now = new Date()): { trackers: Tracker[]
       push(me, atMinutes(day, (h?.wake ? Number(h.wake.slice(0, 2)) * 60 + Number(h.wake.slice(3)) : 400) + 15 + Math.floor(rnd() * 20)), v);
     }
 
-    // Bauch-Episode an ~60 % der Tage, meist nach dem Essen; in den letzten 2 Wochen besser.
-    if (rnd() > 0.4) {
-      const after = rnd() > 0.45;
-      const meds = rnd() > 0.65;
-      const food = [pick(FOODS), pick(FOODS)];
-      const coffee = food.includes('Milchkaffee');
-      const recent = i < 14 ? -0.9 : 0.4; // Beispiel: in den letzten 2 Wochen deutlich besser
-      const pain = clamp(Math.round(1 + (after ? 1 : 0) + (coffee ? 0.6 : 0) + recent + (slept < 6.5 ? 0.6 : 0) - (meds ? 0.8 : 0) + (rnd() - 0.5)), 0, 3);
-      const start = 11 * 60 + Math.floor(rnd() * 8) * 60;
-      const dur = Math.round((30 + pain * 40 + rnd() * 40) / 5) * 5;
-      const regions = rnd() > 0.5 ? ['6'] : rnd() > 0.5 ? ['1'] : ['1', '6'];
-      if (rnd() > 0.85) regions.push('4');
-      const nausea = clamp(Math.round(pain * 0.6 + (rnd() - 0.5)), 0, 3);
-      const v: Record<string, FieldValue> = {
-        [id(me, 'Bauchschmerz')]: pain,
-        [id(me, 'Uhrzeit von–bis')]: { from: hhmm(start), to: hhmm(start + dur) },
-        [id(me, 'Bezug zu Mahlzeiten')]: after ? 'nach der Mahlzeit' : rnd() > 0.5 ? 'während der Mahlzeit' : 'unabhängig',
-        [id(me, 'Lokalisation')]: regions,
-        [id(me, 'Übelkeit')]: nausea === 0 && rnd() > 0.6 ? 0.5 : nausea,
-        [id(me, 'Sodbrennen')]: clamp(Math.round(rnd() * 1.3), 0, 3),
-        [id(me, 'Erbrechen')]: pain === 3 && rnd() > 0.6 ? 1 : 0,
-        [id(me, 'Stuhlgang')]: clamp(Math.round(2 + (rnd() - 0.4) * 2), 0, 4),
-      };
-      if (after) {
-        v[id(me, 'Was ist passiert?')] = ['gegessen'];
-        v[id(me, 'Was gegessen?')] = food.join(', ');
+    // Mahlzeiten als eigene Einträge – Beschwerden kommen (wie im echten Leben) später
+    // als separater Eintrag. „Milchkaffee“ und „Linsensuppe“ sind im Beispiel Auslöser.
+    // In den letzten 2 Wochen sind die Beschwerden deutlich schwächer.
+    const recent = i < 14 ? -0.9 : 0.3;
+    const meals = [7 * 60 + 30 + Math.floor(rnd() * 60), 12 * 60 + Math.floor(rnd() * 90), 18 * 60 + Math.floor(rnd() * 90)];
+    for (const mealAt of meals) {
+      if (rnd() < 0.25) continue; // nicht jede Mahlzeit wird eingetragen
+      const food = [pick(FOODS), ...(rnd() > 0.5 ? [pick(FOODS)] : [])].filter((x, k, arr) => arr.indexOf(x) === k);
+      const trigger = food.some((f) => f === 'Milchkaffee' || f === 'Linsensuppe');
+      push(me, atMinutes(day, mealAt), {
+        [id(me, 'Was ist passiert?')]: ['gegessen'],
+        [id(me, 'Was gegessen?')]: food.join(', '),
+      });
+      // Danach: Bauch-Episode mit gewisser Wahrscheinlichkeit, nach Auslösern häufiger und stärker.
+      if (rnd() > (trigger ? 0.15 : 0.6)) {
+        const pain = clamp(Math.round(1 + (trigger ? 1.2 : 0) + recent + (slept < 6.5 ? 0.5 : 0) + (rnd() - 0.5)), 0, 3);
+        if (pain === 0) continue;
+        const start = mealAt + 45 + Math.floor(rnd() * 90);
+        const dur = Math.round((30 + pain * 35 + rnd() * 40) / 5) * 5;
+        const regions = rnd() > 0.5 ? ['6'] : rnd() > 0.5 ? ['1'] : ['1', '6'];
+        const nausea = clamp(Math.round(pain * 0.6 + (rnd() - 0.5)), 0, 3);
+        push(me, atMinutes(day, start), {
+          [id(me, 'Bauchschmerz')]: pain,
+          [id(me, 'Uhrzeit von–bis')]: { from: hhmm(start), to: hhmm(start + dur) },
+          [id(me, 'Bezug zu Mahlzeiten')]: 'nach der Mahlzeit',
+          [id(me, 'Lokalisation')]: regions,
+          [id(me, 'Übelkeit')]: nausea === 0 && rnd() > 0.6 ? 0.5 : nausea,
+          [id(me, 'Sodbrennen')]: clamp(Math.round(rnd() * 1.3), 0, 3),
+          [id(me, 'Erbrechen')]: pain === 3 && rnd() > 0.6 ? 1 : 0,
+          ...(rnd() > 0.9 ? { [id(me, 'Notiz')]: 'Stressiger Tag' } : {}),
+        });
+        // Bei stärkeren Schmerzen manchmal Buscopan – danach meist Besserung.
+        if (pain >= 2 && rnd() > 0.35) {
+          push(me, atMinutes(day, start + 15), {
+            [id(me, 'Was ist passiert?')]: ['Medikament genommen'],
+            [id(me, 'Medikamente')]: 'Buscopan 10 mg',
+            [id(me, 'Bauchschmerz')]: pain,
+          });
+          push(me, atMinutes(day, start + 100 + Math.floor(rnd() * 40)), {
+            [id(me, 'Bauchschmerz')]: clamp(pain - 1 - (rnd() > 0.5 ? 1 : 0), 0, 3),
+            [id(me, 'Übelkeit')]: clamp(nausea - 1, 0, 3),
+          });
+        }
       }
-      if (meds) v[id(me, 'Medikamente')] = 'Buscopan 10 mg';
-      if (rnd() > 0.9) v[id(me, 'Notiz')] = 'Stressiger Tag';
-      push(me, atMinutes(day, start + dur), v);
+    }
+    // Gelegentlich Beschwerden unabhängig vom Essen oder morgens nüchtern – schwächer.
+    if (rnd() > 0.75) {
+      const at = 10 * 60 + Math.floor(rnd() * 8 * 60);
+      push(me, atMinutes(day, at), {
+        [id(me, 'Bauchschmerz')]: clamp(Math.round(0.6 + recent * 0.5 + rnd() * 0.8), 0, 3),
+        [id(me, 'Bezug zu Mahlzeiten')]: rnd() > 0.5 ? 'unabhängig' : 'vor der Mahlzeit (noch nichts gegessen)',
+        [id(me, 'Stuhlgang')]: clamp(Math.round(2 + (rnd() - 0.4) * 2), 0, 4),
+      });
     }
 
     const sets = rnd() > 0.3 ? 1 + Math.floor(rnd() * 3) : 0;

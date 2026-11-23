@@ -332,6 +332,7 @@ export function severity(field: FieldDef, value: FieldValue | undefined): number
 
 /** Bezeichnung einer Messgröße in Auswertungen (Zeiträume werden als Dauer ausgewertet). */
 export function metricLabel(field: FieldDef): string {
+  if (field.config.metricName) return field.config.metricName;
   return field.type === 'timerange' ? `Dauer (${field.label})` : field.label;
 }
 

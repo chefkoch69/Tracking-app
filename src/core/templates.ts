@@ -76,7 +76,7 @@ export const TEMPLATES: TrackerTemplate[] = [
           g(EV, makeField('select', 'Bezug zu Mahlzeiten', { options: ['vor der Mahlzeit (noch nichts gegessen)', 'während der Mahlzeit', 'nach der Mahlzeit', 'unabhängig'] })),
           g(EV, { ...makeField('text', 'Medikamente', { splitList: true }), description: 'Name und Dosis, z. B. Buscopan 10 mg' }),
           g(BA, symptom('Bauchschmerz')),
-          g(BA, makeField('timerange', 'Uhrzeit von–bis', { aggregation: 'sum', polarity: 'higher-worse' })),
+          g(BA, makeField('timerange', 'Uhrzeit von–bis', { aggregation: 'sum', polarity: 'higher-worse', metricName: 'Schmerzdauer' })),
           g(BA, makeField('bodymap', 'Lokalisation', { bodyMap: 'abdomen' })),
           g(BA, symptom('Übelkeit')),
           g(BA, symptom('Würgen / Brechreiz')),
@@ -109,7 +109,7 @@ export const TEMPLATES: TrackerTemplate[] = [
     build: () => ({
       fields: [
         graded('Bauchschmerz'),
-        makeField('timerange', 'Uhrzeit von–bis', { aggregation: 'sum', polarity: 'higher-worse' }),
+        makeField('timerange', 'Uhrzeit von–bis', { aggregation: 'sum', polarity: 'higher-worse', metricName: 'Schmerzdauer' }),
         makeField('select', 'Bezug zu Mahlzeiten', { options: ['vor der Mahlzeit (noch nichts gegessen)', 'während der Mahlzeit', 'nach der Mahlzeit', 'unabhängig'] }),
         makeField('bodymap', 'Lokalisation', { bodyMap: 'abdomen' }),
         {

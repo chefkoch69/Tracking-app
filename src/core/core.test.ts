@@ -256,8 +256,14 @@ describe('Erkenntnisse', () => {
 
   it('findet Einflussfaktoren (Mahlzeit, Medikament)', () => {
     const f = factorInsights(belly, demo.entries);
-    expect(f.some((i) => i.title.includes('nach der Mahlzeit') && i.tone === 'bad')).toBe(true);
-    expect(f.some((i) => i.title.includes('Buscopan') && i.tone === 'good')).toBe(true);
+    expect(f.some((i) => /nach der Mahlzeit/i.test(i.title) && i.tone === 'bad')).toBe(true);
+    expect(f.some((i) => i.title.includes('Buscopan') && i.title.includes('danach schwächer') && i.tone === 'good')).toBe(true);
+    // Fairer Vergleich: Auslöser-Essen fällt gegenüber anderem Essen auf, „aufgestanden“ (Routine) nicht
+    expect(f.some((i) => /Milchkaffee|Linsensuppe/.test(i.title) && i.tone === 'bad')).toBe(true);
+    expect(f.some((i) => /Aufstehen|aufgestanden/.test(i.title))).toBe(false);
+    // Jede Ursache höchstens einmal
+    const causes = f.map((i) => i.title.split(':')[0]);
+    expect(new Set(causes).size).toBe(causes.length);
   });
 
   it('liefert eine begrenzte, sortierte Liste', () => {
@@ -574,16 +580,77 @@ describe('Erkenntnisse ohne Selbstverständlichkeiten', () => {
   it('zeigt keine Zusammenhänge innerhalb desselben Themas', () => {
     expect(all.some((i) => i.title.includes('Füße') && i.title.includes('Kälteempfinden'))).toBe(false);
     expect(all.some((i) => i.title.includes('Müdigkeit') && i.title.includes('Erschöpfung'))).toBe(false);
-    expect(all.some((i) => i.title.startsWith('Je höher Bauchschmerz, desto höher Dauer'))).toBe(false);
+    expect(all.some((i) => i.kind === 'correlation' && i.title.includes('Bauchschmerz') && i.title.includes('Schmerzdauer'))).toBe(false);
+    // Messwert als Ursache vorne
+    expect(all.some((i) => i.title.startsWith('Raumtemperatur höher → Kälteempfinden'))).toBe(true);
   });
   it('behält Einflüsse von Messwerten und anderen Themen', () => {
     expect(all.some((i) => i.title.includes('Raumtemperatur') && i.title.includes('Kälteempfinden'))).toBe(true);
-    expect(all.some((i) => i.kind === 'factor' && /Milchkaffee|nach der Mahlzeit/.test(i.title))).toBe(true);
+    expect(all.some((i) => i.kind === 'factor' && /Milchkaffee|Linsensuppe|nach der Mahlzeit/i.test(i.title))).toBe(true);
   });
   it('nennt auf Skalen Differenzen statt Prozente', () => {
     for (const i of all.filter((x) => x.kind !== 'correlation' && /Bauchschmerz|Übelkeit|Kälteempfinden/.test(x.title.split('→').pop() ?? ''))) {
       expect(i.metric).not.toMatch(/%/);
     }
+  });
+});
+
+describe('Was hilft wirklich? (fairer Vergleich)', () => {
+  // Kleines Tagebuch: Schmerz (0–3), Medikamente und Essen als Listen
+  function diary() {
+    const t: Tracker = {
+      ...trackerFromTemplate(TEMPLATES.find((x) => x.key === 'reading')!),
+      fields: [
+        { ...makeField('scale', 'Schmerz', { min: 0, max: 3, polarity: 'higher-worse' }), group: 'Bauch' },
+        { ...makeField('text', 'Medikamente', { splitList: true }), group: 'Ereignisse' },
+        { ...makeField('text', 'Was gegessen?', { splitList: true }), group: 'Ereignisse' },
+      ],
+    };
+    const [pain, med, food] = t.fields.map((f) => f.id);
+    return { t, pain, med, food };
+  }
+  const d0 = new Date(2026, 9, 1);
+  const dayN = (n: number) => new Date(2026, 9, 1 + n);
+
+  it('lobt kein Mittel, das nicht besser wirkt als Abwarten', () => {
+    const { t, pain, med } = diary();
+    const es: Entry[] = [];
+    for (let n = 0; n < 12; n++) {
+      const d = dayN(n);
+      // Beschwerden klingen von selbst ab: 2 → 1
+      es.push(entry(t, at(9, 0, d), { [pain]: 2 }), entry(t, at(11, 0, d), { [pain]: 1 }));
+      if (n % 2 === 0) {
+        // „Tee“: genauso wie ohne
+        es.push(entry(t, at(15, 0, d), { [pain]: 2, [med]: 'Tee' }), entry(t, at(17, 0, d), { [pain]: 1 }));
+      } else {
+        // „Ibu“: deutlich besser
+        es.push(entry(t, at(15, 0, d), { [pain]: 3, [med]: 'Ibu 400' }), entry(t, at(17, 0, d), { [pain]: 0 }));
+      }
+    }
+    const f = factorInsights(t, es);
+    expect(f.some((i) => i.title.includes('„Tee“'))).toBe(false);
+    const ibu = f.find((i) => i.title.includes('Ibu 400'));
+    expect(ibu?.tone).toBe('good');
+    expect(ibu?.title).toContain('danach schwächer');
+    expect(ibu?.detail).toContain('ohne:');
+    expect(d0 < dayN(1)).toBe(true);
+  });
+
+  it('meldet Auslöser, aber nicht „harmlose“ Lebensmittel als hilfreich', () => {
+    const { t, pain, food } = diary();
+    const es: Entry[] = [];
+    const foods = ['Reis', 'Apfel', 'Brot', 'Milchkaffee'];
+    for (let n = 0; n < 24; n++) {
+      const d = dayN(n);
+      const meal = foods[n % 4];
+      es.push(entry(t, at(12, 0, d), { [food]: meal }));
+      es.push(entry(t, at(13, 30, d), { [pain]: meal === 'Milchkaffee' ? 3 : 1 }));
+    }
+    const f = factorInsights(t, es);
+    const trigger = f.find((i) => i.title.includes('Milchkaffee'));
+    expect(trigger?.tone).toBe('bad');
+    expect(trigger?.title).toBe('Nach „Milchkaffee“: Schmerz danach stärker');
+    expect(f.some((i) => /Reis|Apfel|Brot/.test(i.title))).toBe(false);
   });
 });
 
