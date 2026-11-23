@@ -68,7 +68,10 @@ export function generateDemo(days = 60, now = new Date()): { trackers: Tracker[]
             [byLabel(belly, 'Uhrzeit von–bis')]: { from: hhmm(start), to: hhmm(start + dur) },
             [byLabel(belly, 'Bezug zu Mahlzeiten')]: after ? 'nach der Mahlzeit' : rnd() > 0.5 ? 'während der Mahlzeit' : 'unabhängig',
             [byLabel(belly, 'Lokalisation')]: regions,
-            [byLabel(belly, 'Übelkeit')]: clamp(Math.round(pain * 0.6 + (rnd() - 0.5)), 0, 3),
+            [byLabel(belly, 'Übelkeit')]: (() => {
+              const n = clamp(Math.round(pain * 0.6 + (rnd() - 0.5)), 0, 3);
+              return n === 0 && rnd() > 0.6 ? 0.5 : n; // gelegentlich "sehr leicht"
+            })(),
             [byLabel(belly, 'Sodbrennen')]: clamp(Math.round(rnd() * 1.3), 0, 3),
             [byLabel(belly, 'Erbrechen')]: pain === 3 && rnd() > 0.6 ? 1 : 0,
             [byLabel(belly, 'Stuhlgang')]: clamp(Math.round(2 + (rnd() - 0.4) * 2), 0, 4),

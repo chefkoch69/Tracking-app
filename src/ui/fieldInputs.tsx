@@ -2,8 +2,9 @@ import { useContext, useState, type ReactNode } from 'react';
 import { useStore } from '../state/store';
 import { EntryDayContext } from './entryContext';
 import { BODY_MAPS } from '../core/bodyMaps';
-import { AGGREGATION_LABELS, FIELD_TYPES, formatDuration, isTimeRange, rangeMinutes, severity } from '../core/fieldTypes';
-import type { Aggregation, BodyMapKind, FieldConfig, FieldDef, FieldType, FieldValue, Polarity } from '../core/types';
+import { AGGREGATION_LABELS, FIELD_TYPES, fmtLevel, formatDuration, isTimeRange, rangeMinutes, scaleLevels, severity, withLevels } from '../core/fieldTypes';
+import { useDragReorder } from './useDragReorder';
+import type { Aggregation, BodyMapKind, FieldConfig, FieldDef, FieldType, FieldValue, Polarity, ScaleLevel } from '../core/types';
 import { BodyMapSvg } from './BodyMap';
 
 /** Ampelfarbe für einen Schweregrad 0 (gut) … 1 (schlecht). */
@@ -59,28 +60,26 @@ function NumberInput({ field, value, onChange, id }: InputProps) {
 }
 
 function ScaleInput({ field, value, onChange, id }: InputProps) {
-  const min = field.config.min ?? 0;
-  const max = field.config.max ?? 3;
-  const labels = field.config.scaleLabels ?? [];
-  const steps = Array.from({ length: Math.max(0, max - min + 1) }, (_, i) => min + i);
+  const levels = scaleLevels(field.config);
   return (
-    <div className="scale" id={id} role="radiogroup">
-      {steps.map((s, i) => {
-        const sev = severity(field, s);
+    <div className="scale" id={id} role="radiogroup" style={{ '--n': levels.length } as React.CSSProperties}>
+      {levels.map((l) => {
+        const sev = severity(field, l.value);
         const style = sev !== null ? ({ '--step': severityColor(sev) } as React.CSSProperties) : undefined;
+        const on = value === l.value;
         return (
-        <button
-          key={s}
-          type="button"
-          role="radio"
-          aria-checked={value === s}
-          className={`scale-step ${value === s ? 'active' : ''} ${sev !== null ? 'graded' : ''}`}
-          style={style}
-          onClick={() => onChange(value === s ? null : s)}
-        >
-          <strong>{s}</strong>
-          {labels[i] && <small>{labels[i]}</small>}
-        </button>
+          <button
+            key={l.value}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            className={`scale-step ${on ? 'active' : ''} ${sev !== null ? 'graded' : ''} ${Number.isInteger(l.value) ? '' : 'half'}`}
+            style={style}
+            onClick={() => onChange(on ? null : l.value)}
+          >
+            <strong>{fmtLevel(l.value)}</strong>
+            {l.label && <small>{l.label}</small>}
+          </button>
         );
       })}
     </div>
@@ -304,28 +303,33 @@ function AggregationConfig({ config, onChange, type }: ConfigProps & { type: Fie
   );
 }
 
-/** Editor für Listen (Optionen / Skalenbeschriftungen), eine Zeile je Eintrag. */
+/** Editor für Auswahloptionen: umbenennen, entfernen, per Ziehen sortieren. */
 function ListEditor({ items, onChange, placeholder }: { items: string[]; onChange: (v: string[]) => void; placeholder: string }) {
   const [draft, setDraft] = useState('');
-  const title = <span className="muted">Optionen</span>;
+  const { item, handle } = useDragReorder(items, onChange);
   const add = () => {
     const v = draft.trim();
     if (v && !items.includes(v)) onChange([...items, v]);
     setDraft('');
   };
+  const dupes = new Set(items.filter((x, i) => x.trim() && items.indexOf(x) !== i));
   return (
     <div className="list-editor">
-      {title}
+      <span className="muted">Optionen <small>(ziehen ⠿ zum Sortieren · umbenennen ändert auch bestehende Einträge)</small></span>
       {items.map((it, i) => (
-        <div key={i} className="list-item">
-          <input value={it} onChange={(e) => onChange(items.map((x, j) => (j === i ? e.target.value : x)))} />
-          <button type="button" className="btn ghost small" onClick={() => onChange(items.filter((_, j) => j !== i))} aria-label="entfernen">✕</button>
+        <div key={i} className="list-item" {...item(i)}>
+          <button {...handle(i, `Option „${it}“`)}>⠿</button>
+          <input aria-label={`Option ${i + 1}`} value={it} onChange={(e) => onChange(items.map((x, j) => (j === i ? e.target.value : x)))} />
+          <button type="button" className="btn ghost small" onClick={() => onChange(items.filter((_, j) => j !== i))} aria-label={`Option „${it}“ entfernen`}>✕</button>
         </div>
       ))}
+      {dupes.size > 0 && <small className="error">Doppelte Option: {[...dupes].join(', ')}</small>}
       <div className="list-item">
+        <span className="drag-spacer" />
         <input
           value={draft}
           placeholder={placeholder}
+          aria-label="Neue Option"
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
@@ -340,40 +344,81 @@ function ListEditor({ items, onChange, placeholder }: { items: string[]; onChang
   );
 }
 
+const SCALE_PRESETS: { label: string; levels: ScaleLevel[] }[] = [
+  { label: '0–3 (keine … schwer)', levels: ['keine', 'leicht', 'mittel', 'schwer'].map((label, value) => ({ value, label })) },
+  { label: '0–3 mit „sehr leicht“', levels: [{ value: 0, label: 'keine' }, { value: 0.5, label: 'sehr leicht' }, { value: 1, label: 'leicht' }, { value: 2, label: 'mittel' }, { value: 3, label: 'schwer' }] },
+  { label: '1–5', levels: ['sehr schlecht', 'schlecht', 'mittel', 'gut', 'sehr gut'].map((label, i) => ({ value: i + 1, label })) },
+  { label: '0–10', levels: Array.from({ length: 11 }, (_, value) => ({ value, label: value === 0 ? 'keine' : value === 10 ? 'maximal' : '' })) },
+];
+
+/** Stufen-Editor: Wert + Bezeichnung je Stufe, Zwischenstufen, Schnellvorlagen. */
 function ScaleConfig({ config, onChange }: ConfigProps) {
-  const min = config.min ?? 0;
-  const max = config.max ?? 3;
-  const n = Math.max(0, max - min + 1);
-  const labels = Array.from({ length: n }, (_, i) => config.scaleLabels?.[i] ?? '');
+  const levels = config.levels?.length ? config.levels : scaleLevels(config);
+  const set = (next: ScaleLevel[]) => onChange(withLevels(next));
+  const values = levels.map((l) => l.value);
+  const dupes = values.some((v, i) => values.indexOf(v) !== i);
+  const sorted = [...levels].sort((a, b) => a.value - b.value);
+  const insertBetween = (i: number) => {
+    const a = sorted[i].value;
+    const b = sorted[i + 1].value;
+    const mid = Math.round(((a + b) / 2) * 100) / 100;
+    if (values.includes(mid)) return;
+    set([...sorted.slice(0, i + 1), { value: mid, label: '' }, ...sorted.slice(i + 1)]);
+  };
   return (
     <>
-      <div className="cfg-grid">
-        <Row label="Von">
-          <input type="number" value={min} onChange={(e) => onChange({ min: Number(e.target.value) })} />
-        </Row>
-        <Row label="Bis">
-          <input type="number" value={max} onChange={(e) => onChange({ max: Number(e.target.value) })} />
-        </Row>
+      <div className="cfg-presets">
+        <span className="muted small">Schnellvorlage:</span>
+        {SCALE_PRESETS.map((p) => (
+          <button key={p.label} type="button" className="chip small" onClick={() => set(p.levels)}>{p.label}</button>
+        ))}
       </div>
-      {n > 0 && n <= 11 && (
-        <div className="cfg-labels">
-          <span className="muted">Beschriftungen (optional)</span>
-          {labels.map((l, i) => (
-            <div key={i} className="list-item">
-              <span className="scale-num">{min + i}</span>
+      <div className="levels-editor">
+        <div className="level-row head muted small">
+          <span>Wert</span>
+          <span>Bezeichnung</span>
+          <span />
+        </div>
+        {sorted.map((l, i) => (
+          <div key={`${i}-${l.value}`} className="level-group">
+            <div className="level-row">
               <input
-                value={l}
-                onChange={(e) => {
-                  const next = labels.slice();
-                  next[i] = e.target.value;
-                  onChange({ scaleLabels: next });
+                type="number"
+                step="any"
+                inputMode="decimal"
+                aria-label={`Wert der Stufe ${i + 1}`}
+                defaultValue={l.value}
+                onBlur={(e) => {
+                  const v = Number(e.target.value.replace(',', '.'));
+                  if (Number.isFinite(v) && v !== l.value) set(sorted.map((x, j) => (j === i ? { ...x, value: v } : x)));
                 }}
               />
+              <input
+                aria-label={`Bezeichnung der Stufe ${fmtLevel(l.value)}`}
+                value={l.label}
+                placeholder="z. B. leicht"
+                onChange={(e) => set(sorted.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))}
+              />
+              <button type="button" className="btn ghost small" disabled={sorted.length <= 2} onClick={() => set(sorted.filter((_, j) => j !== i))} aria-label={`Stufe ${fmtLevel(l.value)} entfernen`}>✕</button>
             </div>
-          ))}
-        </div>
-      )}
-      {n > 11 && <p className="error">Eine Skala kann höchstens 11 Stufen haben.</p>}
+            {i < sorted.length - 1 && (
+              <button type="button" className="between" onClick={() => insertBetween(i)}>
+                ＋ Zwischenstufe {fmtLevel(Math.round(((l.value + sorted[i + 1].value) / 2) * 100) / 100)}
+              </button>
+            )}
+          </div>
+        ))}
+        <button
+          type="button"
+          className="btn small"
+          disabled={sorted.length >= 11}
+          onClick={() => set([...sorted, { value: (sorted[sorted.length - 1]?.value ?? -1) + 1, label: '' }])}
+        >
+          ＋ Stufe am Ende
+        </button>
+      </div>
+      {dupes && <p className="error">Jeder Wert darf nur einmal vorkommen.</p>}
+      {sorted.length > 11 && <p className="error">Eine Skala kann höchstens 11 Stufen haben.</p>}
     </>
   );
 }

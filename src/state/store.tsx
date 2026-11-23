@@ -11,6 +11,7 @@ export type Action =
   | { type: 'tracker/reorder'; ids: string[] }
   | { type: 'entry/save'; entry: Entry }
   | { type: 'entry/delete'; id: string }
+  | { type: 'entries/renameOption'; trackerId: string; fieldId: string; from: string; to: string }
   | { type: 'reminder/update'; trackerId: string; patch: Partial<ReminderState> }
   | { type: 'profile/update'; patch: Partial<Profile> }
   | { type: 'data/replace'; data: AppData }
@@ -54,6 +55,19 @@ export function reducer(state: AppData, action: Action): AppData {
     }
     case 'entry/save':
       return { ...state, entries: upsert(state.entries, action.entry) };
+    case 'entries/renameOption': {
+      const { trackerId, fieldId, from, to } = action;
+      return {
+        ...state,
+        entries: state.entries.map((e) => {
+          if (e.trackerId !== trackerId) return e;
+          const v = e.values[fieldId];
+          if (v === from) return { ...e, values: { ...e.values, [fieldId]: to } };
+          if (Array.isArray(v) && v.includes(from)) return { ...e, values: { ...e.values, [fieldId]: v.map((x) => (x === from ? to : x)) } };
+          return e;
+        }),
+      };
+    }
     case 'entry/delete':
       return { ...state, entries: state.entries.filter((e) => e.id !== action.id) };
     case 'reminder/update':

@@ -34,8 +34,13 @@ export interface FieldConfig {
   unit?: string;
   /** Auswahloptionen für select / multiselect. */
   options?: string[];
-  /** Beschriftungen der Skalenstufen (Index 0 = min). */
+  /** Beschriftungen der Skalenstufen (Index 0 = min). Ältere Form, siehe levels. */
   scaleLabels?: string[];
+  /**
+   * Frei definierte Skalenstufen (aufsteigend), z. B. 0 keine, 0,5 sehr leicht, 1 leicht …
+   * Hat Vorrang vor min/max/scaleLabels; min/max werden synchron gehalten.
+   */
+  levels?: ScaleLevel[];
   multiline?: boolean;
   aggregation?: Aggregation;
   polarity?: Polarity;
@@ -45,6 +50,11 @@ export interface FieldConfig {
   fromWake?: boolean;
 }
 
+export interface ScaleLevel {
+  value: number;
+  label: string;
+}
+
 export interface FieldDef {
   id: string;
   label: string;
@@ -52,6 +62,8 @@ export interface FieldDef {
   required: boolean;
   description?: string;
   config: FieldConfig;
+  /** Ausgeblendet: erscheint nicht mehr im Eingabeformular, Daten bleiben erhalten. */
+  hidden?: boolean;
 }
 
 /** Zeitraum "HH:MM"–"HH:MM" (Feldtyp timerange). */

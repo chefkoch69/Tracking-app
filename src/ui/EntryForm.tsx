@@ -29,7 +29,9 @@ export function EntryForm({ tracker, entry, date }: { tracker: Tracker; entry?: 
     return toLocalInput(new Date());
   });
   const [tried, setTried] = useState(false);
-  const errors = validateValues(tracker.fields, values);
+  // Ausgeblendete Felder erscheinen nicht im Formular; ihre alten Werte bleiben erhalten.
+  const visible = tracker.fields.filter((f) => !f.hidden);
+  const errors = validateValues(visible, values);
   const hasErrors = Object.keys(errors).length > 0;
 
   const submit = (again: boolean) => {
@@ -72,13 +74,13 @@ export function EntryForm({ tracker, entry, date }: { tracker: Tracker; entry?: 
         }}
       >
         <EntryDayContext.Provider value={when.slice(0, 10)}>
-        {tracker.fields.map((f, i) => (
+        {visible.map((f, i) => (
           <div key={f.id} className={`field ${tried && errors[f.id] ? 'invalid' : ''}`}>
             <label htmlFor={`f-${f.id}`}>
               {f.label}
               {f.required && <b className="req">*</b>}
             </label>
-            {f.description && !tracker.fields.slice(0, i).some((p) => p.description === f.description) && (
+            {f.description && !visible.slice(0, i).some((p) => p.description === f.description) && (
               <small className="muted">{f.description}</small>
             )}
             <FieldInput id={`f-${f.id}`} field={f} value={values[f.id] ?? null} onChange={(v) => setValues((s) => ({ ...s, [f.id]: v }))} />

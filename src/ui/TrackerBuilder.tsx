@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { askConfirm } from './confirm';
-import { FIELD_TYPE_LIST, FIELD_TYPES, validateValues } from '../core/fieldTypes';
+import { FIELD_TYPE_LIST, FIELD_TYPES, fmtLevel, scaleLevels } from '../core/fieldTypes';
+import { uid } from '../core/id';
+import { optionRenames } from '../core/trackerEdit';
+import { useDragReorder } from './useDragReorder';
 import { WEEKDAY_SHORT } from '../core/dates';
 import { describeSchedule, slotMinutesForDay } from '../core/schedule';
 import { TEMPLATES, emptyTracker, makeField, trackerFromTemplate } from '../core/templates';
-import type { FieldDef, FieldType, FieldValue, Schedule, Tracker, ViewType } from '../core/types';
+import type { FieldDef, FieldValue, Schedule, Tracker, ViewType } from '../core/types';
 import { useStore } from '../state/store';
 import { FieldConfigEditor, FieldInput } from './fieldInputs';
 import { navigate } from './router';
@@ -42,8 +45,17 @@ export function TrackerBuilder({ existing }: { existing?: Tracker }) {
       if (tracker.fields.some((f) => !f.label.trim())) return 'Jedes Feld braucht eine Bezeichnung.';
       if (tracker.fields.some((f) => (f.type === 'select' || f.type === 'multiselect') && !(f.config.options ?? []).length))
         return 'Auswahlfelder brauchen mindestens eine Option.';
-      if (tracker.fields.some((f) => f.type === 'scale' && ((f.config.max ?? 0) <= (f.config.min ?? 0) || (f.config.max ?? 0) - (f.config.min ?? 0) > 10)))
-        return 'Eine Skala braucht 2–11 Stufen.';
+      for (const f of tracker.fields.filter((x) => x.type === 'scale')) {
+        const vals = scaleLevels(f.config).map((l) => l.value);
+        if (vals.length < 2 || vals.length > 11) return `„${f.label}“: Eine Skala braucht 2–11 Stufen.`;
+        if (new Set(vals).size !== vals.length) return `„${f.label}“: Jeder Stufenwert darf nur einmal vorkommen.`;
+      }
+      for (const f of tracker.fields.filter((x) => x.type === 'select' || x.type === 'multiselect')) {
+        const opts = (f.config.options ?? []).map((o) => o.trim());
+        if (opts.some((o) => !o)) return `„${f.label}“: Leere Option entfernen oder benennen.`;
+        if (new Set(opts).size !== opts.length) return `„${f.label}“: Jede Option darf nur einmal vorkommen.`;
+      }
+      if (tracker.fields.every((f) => f.hidden)) return 'Mindestens ein Feld muss im Formular sichtbar sein.';
     }
     if (s === 2 && tracker.schedule.mode !== 'manual') {
       if (!tracker.schedule.weekdays.length) return 'Wähle mindestens einen Wochentag.';
@@ -64,7 +76,15 @@ export function TrackerBuilder({ existing }: { existing?: Tracker }) {
       }
     }
     if (tracker.schedule.mode !== 'manual') await requestNotificationPermission();
-    dispatch({ type: 'tracker/save', tracker: { ...tracker, name: tracker.name.trim() } });
+    const clean: Tracker = {
+      ...tracker,
+      name: tracker.name.trim(),
+      fields: tracker.fields.map((f) => (f.config.options ? { ...f, config: { ...f.config, options: f.config.options.map((o) => o.trim()) } } : f)),
+    };
+    if (existing) {
+      for (const r of optionRenames(existing, clean)) dispatch({ type: 'entries/renameOption', trackerId: clean.id, ...r });
+    }
+    dispatch({ type: 'tracker/save', tracker: clean });
     navigate(`/t/${tracker.id}`);
   };
 
@@ -182,100 +202,197 @@ function StepBasics({ tracker, update }: { tracker: Tracker; update: (p: Partial
   );
 }
 
+/** Fertige Felder aus allen Vorlagen – als Bibliothek zum schnellen Hinzufügen. */
+function fieldLibrary(): { group: string; fields: FieldDef[] }[] {
+  const seen = new Set<string>();
+  return TEMPLATES.map((t) => ({
+    group: `${t.icon} ${t.name}`,
+    fields: t.build().fields.filter((f) => {
+      const k = `${f.label}|${f.type}`;
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    }),
+  })).filter((g) => g.fields.length);
+}
+
+function fieldSummary(f: FieldDef): string {
+  const spec = FIELD_TYPES[f.type];
+  const parts = [spec.label];
+  if (f.config.unit && f.type !== 'timerange') parts.push(f.config.unit);
+  if (f.type === 'scale') parts.push(scaleLevels(f.config).map((l) => fmtLevel(l.value)).join(' · '));
+  if (f.type === 'select' || f.type === 'multiselect') parts.push(`${f.config.options?.length ?? 0} Optionen`);
+  if (f.required) parts.push('Pflicht');
+  return parts.join(' · ');
+}
+
 function StepFields({ fields, onChange, warnRemoval }: { fields: FieldDef[]; onChange: (f: FieldDef[]) => void; warnRemoval: boolean }) {
   const [open, setOpen] = useState<string | null>(null);
-  const [picking, setPicking] = useState(fields.length === 0);
+  const [picking, setPicking] = useState<false | 'types' | 'library'>(fields.length === 0 ? 'types' : false);
+  const [showPreview, setShowPreview] = useState(false);
+  const { item, handle, dragging } = useDragReorder(fields, onChange);
 
   const set = (id: string, patch: Partial<FieldDef>) => onChange(fields.map((f) => (f.id === id ? { ...f, ...patch } : f)));
-  const move = (i: number, d: number) => {
-    const j = i + d;
-    if (j < 0 || j >= fields.length) return;
-    const next = fields.slice();
-    [next[i], next[j]] = [next[j], next[i]];
-    onChange(next);
-  };
-  const add = (type: FieldType) => {
-    const f = makeField(type, '');
+  const addField = (f: FieldDef) => {
     onChange([...fields, f]);
     setOpen(f.id);
     setPicking(false);
   };
+  const duplicate = (f: FieldDef) => {
+    const copy: FieldDef = { ...structuredClone(f), id: uid(), label: `${f.label} (Kopie)`, hidden: false };
+    const i = fields.findIndex((x) => x.id === f.id);
+    onChange([...fields.slice(0, i + 1), copy, ...fields.slice(i + 1)]);
+    setOpen(copy.id);
+  };
   const remove = async (f: FieldDef) => {
-    if (warnRemoval && !(await askConfirm(`Feld „${f.label || 'ohne Namen'}“ entfernen? Bereits erfasste Werte dieses Feldes werden nicht mehr angezeigt.`, { okLabel: 'Feld entfernen' }))) return;
+    const msg = warnRemoval
+      ? `Feld „${f.label || 'ohne Namen'}“ entfernen? Bereits erfasste Werte werden dann nicht mehr angezeigt. Tipp: „Ausblenden“ behält sie.`
+      : `Feld „${f.label || 'ohne Namen'}“ entfernen?`;
+    if (!(await askConfirm(msg, { okLabel: 'Feld entfernen' }))) return;
     onChange(fields.filter((x) => x.id !== f.id));
   };
 
   return (
-    <>
-      <h2>Welche Daten möchtest du erfassen?</h2>
-      <p className="muted">Jeder Eintrag bekommt automatisch Datum und Uhrzeit. Füge beliebig viele Felder hinzu.</p>
-      <div className="field-list">
-        {fields.map((f, i) => {
-          const spec = FIELD_TYPES[f.type];
-          const isOpen = open === f.id;
-          return (
-            <div key={f.id} className={`field-card ${isOpen ? 'open' : ''}`}>
-              <div className="field-card-head">
-                <span className="type-badge" title={spec.label}>{spec.icon}</span>
-                <button className="field-card-title" onClick={() => setOpen(isOpen ? null : f.id)}>
-                  <strong>{f.label || <em className="muted">Ohne Bezeichnung</em>}</strong>
-                  <small className="muted">
-                    {spec.label}
-                    {f.config.unit ? ` · ${f.config.unit}` : ''}
-                    {f.type === 'scale' ? ` · ${f.config.min ?? 0}–${f.config.max ?? 3}` : ''}
-                    {f.required ? ' · Pflicht' : ''}
-                  </small>
-                </button>
-                <div className="field-card-actions">
-                  <button className="btn ghost small" disabled={i === 0} onClick={() => move(i, -1)} aria-label="nach oben">↑</button>
-                  <button className="btn ghost small" disabled={i === fields.length - 1} onClick={() => move(i, 1)} aria-label="nach unten">↓</button>
-                  <button className="btn ghost small danger" onClick={() => remove(f)} aria-label="entfernen">✕</button>
+    <div className={`fields-step ${showPreview ? 'with-preview' : ''}`}>
+      <div className="fields-main">
+        <div className="section-head">
+          <h2>Welche Daten möchtest du erfassen?</h2>
+          <button type="button" className={`chip small ${showPreview ? 'active' : ''}`} onClick={() => setShowPreview(!showPreview)}>
+            👁 Vorschau {showPreview ? 'ausblenden' : 'anzeigen'}
+          </button>
+        </div>
+        <p className="muted">
+          Jeder Eintrag bekommt automatisch Datum und Uhrzeit. Felder mit ⠿ ziehen, um sie zu verschieben. Ausgeblendete Felder
+          erscheinen nicht mehr im Formular, ihre Daten bleiben erhalten.
+        </p>
+        <div className={`field-list ${dragging ? 'is-dragging' : ''}`}>
+          {fields.map((f, i) => {
+            const spec = FIELD_TYPES[f.type];
+            const isOpen = open === f.id;
+            return (
+              <div key={f.id} className={`field-card ${isOpen ? 'open' : ''} ${f.hidden ? 'is-hidden' : ''}`} {...item(i)}>
+                <div className="field-card-head">
+                  <button {...handle(i, `Feld „${f.label}“`)}>⠿</button>
+                  <span className="type-badge" title={spec.label}>{spec.icon}</span>
+                  <button className="field-card-title" onClick={() => setOpen(isOpen ? null : f.id)} aria-expanded={isOpen}>
+                    <strong>
+                      {f.label || <em className="muted">Ohne Bezeichnung</em>}
+                      {f.hidden && <span className="pill">ausgeblendet</span>}
+                    </strong>
+                    <small className="muted">{fieldSummary(f)}</small>
+                  </button>
+                  <div className="field-card-actions">
+                    <button
+                      className="btn ghost small"
+                      onClick={() => set(f.id, { hidden: !f.hidden })}
+                      aria-label={f.hidden ? `„${f.label}“ wieder anzeigen` : `„${f.label}“ ausblenden`}
+                      title={f.hidden ? 'Wieder anzeigen' : 'Ausblenden (Daten bleiben)'}
+                    >
+                      {f.hidden ? '🙈' : '👁'}
+                    </button>
+                    <button className="btn ghost small" onClick={() => duplicate(f)} aria-label={`„${f.label}“ duplizieren`} title="Duplizieren">⧉</button>
+                    <button className="btn ghost small danger" onClick={() => remove(f)} aria-label={`„${f.label}“ entfernen`} title="Entfernen">✕</button>
+                  </div>
                 </div>
-              </div>
-              {isOpen && (
-                <div className="field-card-body">
-                  <label className="field">
-                    <span>Bezeichnung</span>
-                    <input autoFocus value={f.label} placeholder={spec.hint} onChange={(e) => set(f.id, { label: e.target.value })} />
-                  </label>
-                  <label className="field">
-                    <span>Hinweis beim Ausfüllen (optional)</span>
-                    <input value={f.description ?? ''} onChange={(e) => set(f.id, { description: e.target.value || undefined })} />
-                  </label>
-                  <FieldConfigEditor type={f.type} config={f.config} onChange={(patch) => set(f.id, { config: { ...f.config, ...patch } })} />
-                  {f.type !== 'checkbox' && (
-                    <label className="switch">
-                      <input type="checkbox" checked={f.required} onChange={(e) => set(f.id, { required: e.target.checked })} />
-                      <span>Pflichtfeld</span>
+                {isOpen && (
+                  <div className="field-card-body">
+                    <label className="field">
+                      <span>Bezeichnung</span>
+                      <input autoFocus value={f.label} placeholder={spec.hint} onChange={(e) => set(f.id, { label: e.target.value })} />
                     </label>
-                  )}
-                </div>
-              )}
+                    <label className="field">
+                      <span>Hinweis beim Ausfüllen (optional)</span>
+                      <input value={f.description ?? ''} onChange={(e) => set(f.id, { description: e.target.value || undefined })} />
+                    </label>
+                    <FieldConfigEditor type={f.type} config={f.config} onChange={(patch) => set(f.id, { config: { ...f.config, ...patch } })} />
+                    <div className="inline">
+                      {f.type !== 'checkbox' && (
+                        <label className="switch">
+                          <input type="checkbox" checked={f.required} onChange={(e) => set(f.id, { required: e.target.checked })} />
+                          <span>Pflichtfeld</span>
+                        </label>
+                      )}
+                      <label className="switch">
+                        <input type="checkbox" checked={!f.hidden} onChange={(e) => set(f.id, { hidden: !e.target.checked })} />
+                        <span>Im Formular anzeigen</span>
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {picking ? (
+          <div className="type-picker">
+            <div className="seg" role="tablist">
+              <button role="tab" aria-selected={picking === 'types'} className={picking === 'types' ? 'active' : ''} onClick={() => setPicking('types')}>Leere Bausteine</button>
+              <button role="tab" aria-selected={picking === 'library'} className={picking === 'library' ? 'active' : ''} onClick={() => setPicking('library')}>Fertige Felder</button>
             </div>
-          );
-        })}
+            {picking === 'types' ? (
+              <div className="type-grid">
+                {FIELD_TYPE_LIST.map((t) => (
+                  <button key={t.type} className="type-option" onClick={() => addField(makeField(t.type, ''))}>
+                    <span className="type-badge">{t.icon}</span>
+                    <span>
+                      <strong>{t.label}</strong>
+                      <small>{t.hint}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="library">
+                {fieldLibrary().map((g) => (
+                  <div key={g.group}>
+                    <h4>{g.group}</h4>
+                    <div className="chips">
+                      {g.fields.map((f) => (
+                        <button key={f.id} className="chip small" title={fieldSummary(f)} onClick={() => addField({ ...structuredClone(f), id: uid() })}>
+                          {FIELD_TYPES[f.type].icon} {f.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {fields.length > 0 && <button className="btn ghost" onClick={() => setPicking(false)}>Abbrechen</button>}
+          </div>
+        ) : (
+          <button className="btn add-field" onClick={() => setPicking('types')}>＋ Feld hinzufügen</button>
+        )}
       </div>
 
-      {picking ? (
-        <div className="type-picker">
-          <h3>Baustein wählen</h3>
-          <div className="type-grid">
-            {FIELD_TYPE_LIST.map((t) => (
-              <button key={t.type} className="type-option" onClick={() => add(t.type)}>
-                <span className="type-badge">{t.icon}</span>
-                <span>
-                  <strong>{t.label}</strong>
-                  <small>{t.hint}</small>
-                </span>
-              </button>
-            ))}
-          </div>
-          {fields.length > 0 && <button className="btn ghost" onClick={() => setPicking(false)}>Abbrechen</button>}
-        </div>
-      ) : (
-        <button className="btn add-field" onClick={() => setPicking(true)}>＋ Feld hinzufügen</button>
+      {showPreview && (
+        <aside className="fields-preview" aria-label="Vorschau des Eingabeformulars">
+          <h3>So sieht dein Formular aus</h3>
+          <FormPreview fields={fields} />
+        </aside>
       )}
-    </>
+    </div>
+  );
+}
+
+/** Live-Vorschau des Eingabeformulars (zum Ausprobieren, speichert nichts). */
+function FormPreview({ fields }: { fields: FieldDef[] }) {
+  const [values, setValues] = useState<Record<string, FieldValue>>({});
+  const visible = fields.filter((f) => !f.hidden);
+  if (!visible.length) return <p className="muted">Noch keine sichtbaren Felder.</p>;
+  return (
+    <div className="preview">
+      {visible.map((f, i) => (
+        <div key={f.id} className="field">
+          <span>
+            {f.label || <em className="muted">Ohne Bezeichnung</em>}
+            {f.required && <b className="req">*</b>}
+          </span>
+          {f.description && !visible.slice(0, i).some((p) => p.description === f.description) && <small className="muted">{f.description}</small>}
+          <FieldInput id={`pv-${f.id}`} field={f} value={values[f.id] ?? FIELD_TYPES[f.type].emptyValue(f)} onChange={(v) => setValues((s) => ({ ...s, [f.id]: v }))} />
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -413,10 +530,6 @@ function StepViews({ tracker, onChange }: { tracker: Tracker; onChange: (v: View
 }
 
 function StepSummary({ tracker }: { tracker: Tracker }) {
-  const [values, setValues] = useState<Record<string, FieldValue>>(() =>
-    Object.fromEntries(tracker.fields.map((f) => [f.id, FIELD_TYPES[f.type].emptyValue(f)])),
-  );
-  const errors = validateValues(tracker.fields, values);
   return (
     <>
       <h2>
@@ -424,26 +537,18 @@ function StepSummary({ tracker }: { tracker: Tracker }) {
       </h2>
       <dl className="summary">
         <dt>Felder</dt>
-        <dd>{tracker.fields.map((f) => f.label).join(', ')}</dd>
+        <dd>
+          {tracker.fields.filter((f) => !f.hidden).map((f) => f.label).join(', ')}
+          {tracker.fields.some((f) => f.hidden) && <span className="muted"> · ausgeblendet: {tracker.fields.filter((f) => f.hidden).map((f) => f.label).join(', ')}</span>}
+        </dd>
         <dt>Erinnerung</dt>
         <dd>{describeSchedule(tracker.schedule)}</dd>
         <dt>Ansichten</dt>
         <dd>{tracker.views.map((v) => VIEW_INFO[v].label).join(', ')}</dd>
       </dl>
       <h3>Vorschau der Eingabe</h3>
-      <div className="preview">
-        {tracker.fields.map((f) => (
-          <div key={f.id} className="field">
-            <span>
-              {f.label}
-              {f.required && <b className="req">*</b>}
-            </span>
-            {f.description && <small className="muted">{f.description}</small>}
-            <FieldInput id={`pv-${f.id}`} field={f} value={values[f.id] ?? null} onChange={(v) => setValues((s) => ({ ...s, [f.id]: v }))} />
-            {errors[f.id] && values[f.id] !== null && <small className="error">{errors[f.id]}</small>}
-          </div>
-        ))}
-      </div>
+      <FormPreview fields={tracker.fields} />
     </>
   );
 }
+

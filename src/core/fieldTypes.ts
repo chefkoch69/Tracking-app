@@ -1,5 +1,5 @@
 import { BODY_MAPS, regionLabel } from './bodyMaps';
-import type { Aggregation, FieldConfig, FieldDef, FieldType, FieldValue, Polarity, TimeRange } from './types';
+import type { Aggregation, FieldConfig, FieldDef, FieldType, FieldValue, Polarity, ScaleLevel, TimeRange } from './types';
 
 /**
  * Registry aller Feldtypen (Bausteine).
@@ -52,6 +52,28 @@ const numberToNumber = (_f: FieldDef, v: FieldValue) =>
   typeof v === 'number' && !Number.isNaN(v) ? v : null;
 
 const none = () => [] as string[];
+
+export const fmtLevel = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 2 });
+
+/** Stufen einer Skala – aus levels oder (ältere Form) aus min/max/scaleLabels abgeleitet. */
+export function scaleLevels(config: FieldConfig): ScaleLevel[] {
+  if (config.levels?.length) return [...config.levels].sort((a, b) => a.value - b.value);
+  const min = config.min ?? 0;
+  const max = config.max ?? 3;
+  const n = Math.max(0, Math.min(21, Math.round(max - min) + 1));
+  return Array.from({ length: n }, (_, i) => ({ value: min + i, label: config.scaleLabels?.[i] ?? '' }));
+}
+
+/** Setzt Stufen und hält min/max für Auswertungen synchron. */
+export function withLevels(levels: ScaleLevel[]): Partial<FieldConfig> {
+  const sorted = [...levels].sort((a, b) => a.value - b.value);
+  return {
+    levels: sorted,
+    min: sorted.length ? sorted[0].value : 0,
+    max: sorted.length ? sorted[sorted.length - 1].value : 0,
+    scaleLabels: undefined,
+  };
+}
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -114,11 +136,14 @@ export const FIELD_TYPES: Record<FieldType, FieldTypeSpec> = {
     defaultAggregation: 'avg',
     defaultConfig: () => ({ min: 0, max: 3, scaleLabels: ['keine', 'leicht', 'mittel', 'stark'] }),
     emptyValue: () => null,
-    validate: validateRange,
+    validate: (f, v) => {
+      if (typeof v !== 'number' || Number.isNaN(v)) return 'Bitte eine Stufe wählen.';
+      return scaleLevels(f.config).some((l) => l.value === v) ? null : 'Diese Stufe gibt es auf der Skala nicht.';
+    },
     format: (f, v) => {
       if (typeof v !== 'number') return '–';
-      const label = f.config.scaleLabels?.[v - (f.config.min ?? 0)];
-      return label ? `${v} (${label})` : String(v);
+      const label = scaleLevels(f.config).find((l) => l.value === v)?.label;
+      return label ? `${fmtLevel(v)} (${label})` : fmtLevel(v);
     },
     toNumber: numberToNumber,
     categories: none,
@@ -265,7 +290,7 @@ export function polarityOf(field: FieldDef): Polarity {
 /** Kurzform für Tabellen/Pills (Skalen nur als Zahl, Zeiträume als Dauer). */
 export function formatShort(field: FieldDef, value: FieldValue | undefined): string {
   if (value === undefined || isEmptyValue(value)) return '';
-  if (field.type === 'scale' && typeof value === 'number') return String(value);
+  if (field.type === 'scale' && typeof value === 'number') return fmtLevel(value);
   if (field.type === 'bodymap' && Array.isArray(value)) return value.join(', ');
   if (field.type === 'timerange' && isTimeRange(value)) return `${value.from}–${value.to}`;
   const s = formatValue(field, value);

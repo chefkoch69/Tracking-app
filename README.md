@@ -58,6 +58,15 @@ CSV-Export der gefilterten Daten) und Tab „Tabelle“ in jedem Tracker.
 | Im Kalender nachtragen | Table Habit (mhabit) | Tag im Erfüllungskalender antippen → „Eintrag für diesen Tag“ |
 | Gruppen | Table Habit (mhabit) | Dashboard gruppiert Tracker nach Kategorie |
 
+## Baukasten-Werkzeuge
+
+- **Felder ziehen** (⠿, mit Finger oder Maus; Pfeiltasten auf dem Griff), ebenso Auswahloptionen.
+- **Ausblenden statt löschen**: Feld verschwindet aus dem Formular, die Daten bleiben (Tabelle, Bericht, Statistik).
+- **Duplizieren**, **Feld-Bibliothek** („Fertige Felder“ aus allen Vorlagen) und **Live-Vorschau** des Formulars.
+- **Freie Skalenstufen**: Wert + Bezeichnung je Stufe, „Zwischenstufe einfügen“ (z. B. 0,5 = sehr leicht),
+  Schnellvorlagen (0–3, 0–3 mit „sehr leicht“, 1–5, 0–10).
+- **Optionen umbenennen**: bestehende Einträge werden beim Speichern automatisch mit umbenannt.
+
 ## Apple Health & „seit dem Aufstehen“
 
 Eine Web-App kann Apple Health nicht direkt lesen. Die Brücke ist ein **iPhone-Kurzbefehl**, der Aufwachzeit

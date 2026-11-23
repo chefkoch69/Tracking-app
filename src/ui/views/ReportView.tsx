@@ -3,7 +3,7 @@ import { CAN_PRINT } from '../env';
 import { entriesOf, frequencies } from '../../core/analytics';
 import { BODY_MAPS } from '../../core/bodyMaps';
 import { addDays, dayKey, formatClock, parseDayKey, startOfDay } from '../../core/dates';
-import { formatShort, isEmptyValue } from '../../core/fieldTypes';
+import { fmtLevel, formatShort, isEmptyValue, scaleLevels } from '../../core/fieldTypes';
 import type { Entry, FieldDef, Tracker } from '../../core/types';
 import { useStore } from '../../state/store';
 import { BodyMapSvg } from '../BodyMap';
@@ -27,17 +27,19 @@ export function ReportView({ tracker }: { tracker: Tracker }) {
     const k = dayKey(new Date(e.timestamp));
     return k >= from && k <= to;
   });
-  const rows = tracker.fields.filter((f) => !(f.type === 'text' && f.config.multiline));
-  const notes = tracker.fields.filter((f) => f.type === 'text' && f.config.multiline);
+  // Ausgeblendete Felder nur zeigen, wenn es im Zeitraum Werte dafür gibt.
+  const shownFields = tracker.fields.filter((f) => !f.hidden || entries.some((e) => !isEmptyValue(e.values[f.id])));
+  const rows = shownFields.filter((f) => !(f.type === 'text' && f.config.multiline));
+  const notes = shownFields.filter((f) => f.type === 'text' && f.config.multiline);
   const chunks: Entry[][] = [];
   for (let i = 0; i < entries.length; i += COLS) chunks.push(entries.slice(i, i + COLS));
-  const scales = tracker.fields.filter((f) => f.type === 'scale' && f.config.scaleLabels?.some(Boolean));
+  const scales = shownFields.filter((f) => f.type === 'scale' && scaleLevels(f.config).some((l) => l.label));
   const legendKeys = new Map<string, FieldDef>();
   for (const f of scales) {
-    const key = `${f.config.min}|${f.config.scaleLabels?.join('|')}`;
+    const key = `${f.description ?? ''}|${scaleLevels(f.config).map((l) => `${l.value}=${l.label}`).join('|')}`;
     if (!legendKeys.has(key)) legendKeys.set(key, f);
   }
-  const maps = tracker.fields.filter((f) => f.type === 'bodymap');
+  const maps = shownFields.filter((f) => f.type === 'bodymap');
   const preset = (days: number) => {
     setFrom(dayKey(addDays(startOfDay(new Date()), -(days - 1))));
     setTo(today);
@@ -111,7 +113,7 @@ export function ReportView({ tracker }: { tracker: Tracker }) {
                   <tr key={f.id}>
                     <th>
                       {f.label}
-                      {f.type === 'scale' && <small> ({f.config.min ?? 0}–{f.config.max})</small>}
+                      {f.type === 'scale' && <small> ({fmtLevel(f.config.min ?? 0)}–{fmtLevel(f.config.max ?? 0)})</small>}
                       {f.config.unit && f.type !== 'timerange' && <small> ({f.config.unit})</small>}
                     </th>
                     {chunk.map((e) => (
@@ -143,7 +145,7 @@ export function ReportView({ tracker }: { tracker: Tracker }) {
               <ul>
                 {f.description?.startsWith('Stärkegrade')
                   ? f.description.replace('Stärkegrade: ', '').split(' · ').map((l) => <li key={l}>{l}</li>)
-                  : f.config.scaleLabels!.map((l, i) => <li key={i}>{(f.config.min ?? 0) + i} = {l}</li>)}
+                  : scaleLevels(f.config).map((l) => <li key={l.value}>{fmtLevel(l.value)} = {l.label || '–'}</li>)}
               </ul>
             </div>
           ))}

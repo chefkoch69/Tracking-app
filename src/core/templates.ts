@@ -1,4 +1,4 @@
-import { FIELD_TYPES } from './fieldTypes';
+import { FIELD_TYPES, withLevels } from './fieldTypes';
 import { uid } from './id';
 import { defaultSchedule } from './schedule';
 import type { FieldConfig, FieldDef, FieldType, Schedule, Tracker, ViewType } from './types';
@@ -55,9 +55,21 @@ export const TEMPLATES: TrackerTemplate[] = [
       fields: [
         graded('Bauchschmerz'),
         makeField('timerange', 'Uhrzeit von–bis', { aggregation: 'sum', polarity: 'higher-worse' }),
-        makeField('select', 'Bezug zu Mahlzeiten', { options: ['vor der Mahlzeit', 'während der Mahlzeit', 'nach der Mahlzeit', 'unabhängig'] }),
+        makeField('select', 'Bezug zu Mahlzeiten', { options: ['vor der Mahlzeit (noch nichts gegessen)', 'während der Mahlzeit', 'nach der Mahlzeit', 'unabhängig'] }),
         makeField('bodymap', 'Lokalisation', { bodyMap: 'abdomen' }),
-        graded('Übelkeit'),
+        {
+          ...makeField('scale', 'Übelkeit', {
+            ...withLevels([
+              { value: 0, label: 'keine' },
+              { value: 0.5, label: 'sehr leicht' },
+              { value: 1, label: 'leicht' },
+              { value: 2, label: 'mittel' },
+              { value: 3, label: 'schwer' },
+            ]),
+            polarity: 'higher-worse',
+          }),
+          description: 'Wie Stärkegrade, zusätzlich 0,5 = sehr leicht (kaum spürbar, nur bei Aufmerksamkeit)',
+        },
         graded('Sodbrennen'),
         graded('Erbrechen'),
         {

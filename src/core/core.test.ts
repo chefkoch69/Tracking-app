@@ -15,7 +15,9 @@ import {
 } from './analytics';
 import { atMinutes, weekKey } from './dates';
 import { generateDemo } from './demo';
-import { formatShort, formatValue, rangeMinutes, severity, validateValues } from './fieldTypes';
+import { formatShort, formatValue, rangeMinutes, scaleLevels, severity, validateValues, withLevels } from './fieldTypes';
+import { optionRenames } from './trackerEdit';
+import { reducer } from '../state/store';
 import { computeInsights, factorInsights, trendInsights } from './insights';
 import { healthAsTracker, minutesSinceWake, parseHealthText, sinceWakeDistribution } from './health';
 import { daySlotStatus, dueSlot, nextSlot, reminderToFire, slotKey, slotMinutesForDay } from './schedule';
@@ -329,5 +331,42 @@ describe('Gesundheitsdaten & seit dem Aufstehen', () => {
     const pairs = pairMetrics([belly, h.tracker], [...demo.entries, ...h.entries], { trackerId: h.tracker.id, fieldId: 'health-sleep' }, { trackerId: belly.id, fieldId: pain.id });
     expect(pairs.basis).toBe('day');
     expect(pairs.pairs.length).toBeGreaterThan(15);
+  });
+});
+
+describe('Baukasten: freie Skalenstufen & Umbenennen', () => {
+  it('Übelkeit hat die Zwischenstufe 0,5 „sehr leicht“', () => {
+    const belly = trackerFromTemplate(TEMPLATES.find((x) => x.key === 'abdominal')!);
+    const n = belly.fields.find((f) => f.label === 'Übelkeit')!;
+    expect(scaleLevels(n.config).map((l) => l.value)).toEqual([0, 0.5, 1, 2, 3]);
+    expect(formatValue(n, 0.5)).toBe('0,5 (sehr leicht)');
+    expect(validateValues([n], { [n.id]: 0.5 })).toEqual({});
+    expect(validateValues([n], { [n.id]: 1.5 })[n.id]).toBeTruthy();
+    expect(severity(n, 0.5)).toBeCloseTo(1 / 6);
+    const meal = belly.fields.find((f) => f.label === 'Bezug zu Mahlzeiten')!;
+    expect(meal.config.options![0]).toBe('vor der Mahlzeit (noch nichts gegessen)');
+  });
+
+  it('ältere Skalen ohne Stufenliste funktionieren weiter', () => {
+    const old = makeField('scale', 'Alt', { min: 1, max: 5, scaleLabels: ['a', 'b', 'c', 'd', 'e'] });
+    expect(scaleLevels(old.config).map((l) => `${l.value}${l.label}`)).toEqual(['1a', '2b', '3c', '4d', '5e']);
+    expect(withLevels([{ value: 2, label: 'x' }, { value: 0, label: 'y' }])).toMatchObject({ min: 0, max: 2 });
+  });
+
+  it('erkennt umbenannte Optionen und zieht Einträge mit', () => {
+    const t = trackerFromTemplate(TEMPLATES.find((x) => x.key === 'abdominal')!);
+    const meal = t.fields.find((f) => f.label === 'Bezug zu Mahlzeiten')!;
+    const renamed = {
+      ...t,
+      fields: t.fields.map((f) => (f.id === meal.id ? { ...f, config: { ...f.config, options: ['nüchtern', 'während der Mahlzeit', 'nach der Mahlzeit', 'unabhängig'] } } : f)),
+    };
+    expect(optionRenames(t, renamed)).toEqual([{ fieldId: meal.id, from: 'vor der Mahlzeit (noch nichts gegessen)', to: 'nüchtern' }]);
+    // Nur Umsortieren ist keine Umbenennung
+    const reordered = { ...t, fields: t.fields.map((f) => (f.id === meal.id ? { ...f, config: { ...f.config, options: [...meal.config.options!].reverse() } } : f)) };
+    expect(optionRenames(t, reordered)).toEqual([]);
+
+    const state = { version: 1 as const, trackers: [t], reminders: {}, entries: [entry(t, at(8), { [meal.id]: 'vor der Mahlzeit (noch nichts gegessen)' })] };
+    const next = reducer(state, { type: 'entries/renameOption', trackerId: t.id, fieldId: meal.id, from: 'vor der Mahlzeit (noch nichts gegessen)', to: 'nüchtern' });
+    expect(next.entries[0].values[meal.id]).toBe('nüchtern');
   });
 });
