@@ -55,7 +55,7 @@ export const TEMPLATES: TrackerTemplate[] = [
       fields: [
         graded('Bauchschmerz'),
         makeField('timerange', 'Uhrzeit von–bis', { aggregation: 'sum', polarity: 'higher-worse' }),
-        makeField('select', 'Bezug zu Mahlzeiten', { options: ['während der Mahlzeit', 'nach der Mahlzeit', 'unabhängig'] }),
+        makeField('select', 'Bezug zu Mahlzeiten', { options: ['vor der Mahlzeit', 'während der Mahlzeit', 'nach der Mahlzeit', 'unabhängig'] }),
         makeField('bodymap', 'Lokalisation', { bodyMap: 'abdomen' }),
         graded('Übelkeit'),
         graded('Sodbrennen'),

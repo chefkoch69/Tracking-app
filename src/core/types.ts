@@ -41,6 +41,8 @@ export interface FieldConfig {
   polarity?: Polarity;
   /** Welches Lokalisationsschema (Feldtyp bodymap). */
   bodyMap?: BodyMapKind;
+  /** Zeitraum: Beginn automatisch mit der Aufstehzeit vorbelegen. */
+  fromWake?: boolean;
 }
 
 export interface FieldDef {
@@ -115,6 +117,20 @@ export interface ReminderState {
   skippedSlot?: string;
 }
 
+/** Tageswerte aus Apple Health (per Kurzbefehl) oder manuell. */
+export interface HealthDay {
+  /** YYYY-MM-DD */
+  date: string;
+  /** Aufstehzeit "HH:MM". */
+  wake?: string;
+  /** Einschlafzeit "HH:MM" (Vorabend). */
+  sleepStart?: string;
+  sleepHours?: number;
+  steps?: number;
+  restingHr?: number;
+  source: 'manual' | 'health' | 'demo';
+}
+
 /** Optionale Angaben für Berichte (z. B. Arztbogen). */
 export interface Profile {
   name?: string;
@@ -127,4 +143,6 @@ export interface AppData {
   entries: Entry[];
   reminders: Record<string, ReminderState>;
   profile?: Profile;
+  /** Gesundheitsdaten je Tag (Schlüssel YYYY-MM-DD). */
+  health?: Record<string, HealthDay>;
 }

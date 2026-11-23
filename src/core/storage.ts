@@ -55,7 +55,7 @@ export function normalize(raw: unknown): AppData {
   }) as Tracker);
   const ids = new Set(trackers.map((t) => t.id));
   const entries: Entry[] = r.entries.filter((e) => ids.has(e.trackerId) && typeof e.timestamp === 'string');
-  return { version: 1, trackers, entries, reminders: r.reminders ?? {}, profile: r.profile };
+  return { version: 1, trackers, entries, reminders: r.reminders ?? {}, profile: r.profile, health: r.health ?? {} };
 }
 
 export function exportJson(data: AppData): string {

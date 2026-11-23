@@ -1,4 +1,5 @@
 import { useStore } from '../state/store';
+import { HealthImportPage } from './HealthPanel';
 import { ConfirmHost } from './confirm';
 import { Dashboard } from './Dashboard';
 import { EntryForm } from './EntryForm';
@@ -54,6 +55,9 @@ export function App() {
             <DataTable />
           </div>
         );
+        break;
+      case 'health':
+        page = <HealthImportPage payload={route.payload} />;
         break;
       case 'settings':
         page = <Settings />;

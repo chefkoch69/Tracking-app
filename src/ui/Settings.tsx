@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { HealthSettings } from './HealthPanel';
 import { CAN_DOWNLOAD } from './env';
 import { askConfirm } from './confirm';
 import { generateDemo } from '../core/demo';
@@ -46,6 +47,8 @@ export function Settings() {
           </button>
         )}
       </section>
+
+      <HealthSettings />
 
       <section className="card">
         <h2>Für Berichte</h2>

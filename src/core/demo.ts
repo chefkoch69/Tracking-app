@@ -1,10 +1,11 @@
-import { addDays, atMinutes, startOfDay } from './dates';
+import { addDays, atMinutes, dayKey, startOfDay } from './dates';
 import { uid } from './id';
 import { TEMPLATES, trackerFromTemplate } from './templates';
-import type { Entry, FieldValue, Tracker } from './types';
+import { demoHealth } from './health';
+import type { Entry, FieldValue, HealthDay, Tracker } from './types';
 
 /** Erzeugt plausible Beispieldaten, um die Auswertungen auszuprobieren. */
-export function generateDemo(days = 60, now = new Date()): { trackers: Tracker[]; entries: Entry[] } {
+export function generateDemo(days = 60, now = new Date()): { trackers: Tracker[]; entries: Entry[]; health: Record<string, HealthDay> } {
   let seed = 42;
   const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
@@ -15,6 +16,7 @@ export function generateDemo(days = 60, now = new Date()): { trackers: Tracker[]
   const belly = tpl('abdominal');
   const trackers = [belly, morning, pushups];
   const entries: Entry[] = [];
+  const health = demoHealth(days, now, rnd);
   const byLabel = (t: Tracker, l: string) => t.fields.find((f) => f.label === l)!.id;
 
   for (let i = days - 1; i >= 0; i--) {
@@ -47,7 +49,9 @@ export function generateDemo(days = 60, now = new Date()): { trackers: Tracker[]
       const after = rnd() > 0.45;
       const meds = rnd() > 0.65;
       const recent = i < 14 ? -0.7 : 0;
-      const pain = clamp(Math.round(1 + (after ? 1 : 0) + recent - (meds ? 0.8 : 0) + (rnd() - 0.5)), 0, 3);
+      const slept = health[dayKey(day)]?.sleepHours ?? 7;
+      const tired = slept < 6.5 ? 0.6 : 0;
+      const pain = clamp(Math.round(1 + (after ? 1 : 0) + recent + tired - (meds ? 0.8 : 0) + (rnd() - 0.5)), 0, 3);
       const start = 11 * 60 + Math.floor(rnd() * 8) * 60;
       const dur = Math.round((30 + pain * 40 + rnd() * 40) / 5) * 5;
       const hhmm = (m: number) => `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
@@ -96,5 +100,5 @@ export function generateDemo(days = 60, now = new Date()): { trackers: Tracker[]
   belly.name = 'Bauchschmerztagebuch (Demo)';
   morning.name = 'Morgen-Check-in (Demo)';
   pushups.name = 'Liegestütze (Demo)';
-  return { trackers, entries };
+  return { trackers, entries, health };
 }

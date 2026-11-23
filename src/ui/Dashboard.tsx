@@ -1,4 +1,6 @@
 import { useMemo } from 'react';
+import { WakeChip } from './HealthPanel';
+import { withHealth } from '../core/health';
 import { askConfirm } from './confirm';
 import { bucketize, consistencyScore, currentStreak, entriesOf, numericFields, series } from '../core/analytics';
 import { ConsistencyRing } from './ConsistencyRing';
@@ -26,7 +28,10 @@ export function Dashboard() {
   const due = useDueTrackers(now);
   const active = data.trackers.filter((t) => !t.archived);
   const archived = data.trackers.filter((t) => t.archived);
-  const insights = useMemo(() => computeInsights(data.trackers, data.entries, new Date()), [data.trackers, data.entries]);
+  const insights = useMemo(() => {
+    const all = withHealth(data);
+    return computeInsights(all.trackers, all.entries, new Date());
+  }, [data]);
 
   if (!data.trackers.length) {
     return (
@@ -76,6 +81,7 @@ export function Dashboard() {
               ? `${doneToday} von ${allSlots.length} geplanten Einträgen heute erledigt`
               : `${active.length} ${active.length === 1 ? 'Tracker' : 'Tracker'} aktiv`}
           </p>
+          <WakeChip now={now} />
           <WeekStrip now={now} state={(d) => combinedDayState(active, data.entries, d, now)} />
         </div>
       </section>

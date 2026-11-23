@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { averageGapMinutes, bucketize, categoricalFields, consistencySeries, currentStreak, entriesOf, fieldStats, frequencies, longestStreak, numericFields, series, timeDistribution } from '../../core/analytics';
-import { formatDuration, metricLabel } from '../../core/fieldTypes';
+import { fieldSpec, formatDuration, metricLabel } from '../../core/fieldTypes';
+import { sinceWakeDistribution } from '../../core/health';
 import { BarChart, LineChart } from '../charts/Charts';
 import { dayKey, formatDateTime, formatDay, parseDayKey } from '../../core/dates';
 import { AGGREGATION_LABELS, aggregationOf } from '../../core/fieldTypes';
-import type { FieldDef, Tracker } from '../../core/types';
+import type { Entry, FieldDef, Tracker } from '../../core/types';
 import { useStore } from '../../state/store';
 import { BODY_MAPS } from '../../core/bodyMaps';
 import { factorInsights, trendInsights } from '../../core/insights';
@@ -195,45 +196,72 @@ function NumericStats({ field, tracker }: { field: FieldDef; tracker: Tracker })
 
 const WEEKDAYS = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
-/** "Wann tritt es auf?" – Verteilung nach Uhrzeit und Wochentag. */
+/** "Wann tritt es auf?" – Verteilung nach Uhrzeit, Wochentag oder Zeit seit dem Aufstehen. */
 function TimeOfDay({ tracker }: { tracker: Tracker }) {
   const { data } = useStore();
   const entries = entriesOf(tracker, data.entries);
   const weights = numericFields(tracker).filter((f) => f.type !== 'checkbox');
   const [w, setW] = useState('__count');
+  const [mode, setMode] = useState<'clock' | 'wake'>('clock');
   const field = weights.find((f) => f.id === w);
+  if (entries.length < 3) return null;
   const dist = timeDistribution(entries, field);
+  const weight = field ? (e: Entry) => fieldSpec(field).toNumber(field, e.values[field.id] ?? null) : undefined;
+  const wake = sinceWakeDistribution(entries, data.health, weight);
   const peakHour = dist.byHour.indexOf(Math.max(...dist.byHour));
   const peakDay = dist.byWeekday.indexOf(Math.max(...dist.byWeekday));
-  if (entries.length < 3) return null;
+  const peakWake = wake.hours.indexOf(Math.max(...wake.hours));
   const unit = field ? 'Summe' : 'Einträge';
   return (
     <section className="card">
       <div className="section-head">
         <h3>Wann tritt es auf?</h3>
-        <label className="cfg-row inline-select">
-          <select value={w} onChange={(e) => setW(e.target.value)}>
-            <option value="__count">nach Anzahl Einträge</option>
-            {weights.map((f) => (
-              <option key={f.id} value={f.id}>gewichtet nach {metricLabel(f)}</option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <p className="muted small">
-        Am häufigsten um <b>{peakHour}–{peakHour + 1} Uhr</b> und am <b>{['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'][peakDay]}</b>
-        {field ? ` (gewichtet nach ${metricLabel(field)})` : ''}. Maßgeblich ist der Zeitpunkt des Eintrags.
-      </p>
-      <div className="two-col">
-        <div>
-          <h4>Tageszeit</h4>
-          <BarChart bars={dist.byHour.map((v, h) => ({ label: `${h}–${h + 1} Uhr`, short: h % 3 === 0 ? `${h}h` : '', v }))} color={tracker.color} unit={unit} />
-        </div>
-        <div>
-          <h4>Wochentag</h4>
-          <BarChart bars={dist.byWeekday.map((v, i) => ({ label: WEEKDAYS[i], short: WEEKDAYS[i], v }))} color={tracker.color} unit={unit} />
+        <div className="inline">
+          <div className="seg" role="tablist" aria-label="Bezugspunkt">
+            <button role="tab" aria-selected={mode === 'clock'} className={mode === 'clock' ? 'active' : ''} onClick={() => setMode('clock')}>Uhrzeit</button>
+            <button role="tab" aria-selected={mode === 'wake'} className={mode === 'wake' ? 'active' : ''} onClick={() => setMode('wake')}>seit dem Aufstehen</button>
+          </div>
+          <label className="cfg-row inline-select">
+            <select aria-label="Gewichtung" value={w} onChange={(e) => setW(e.target.value)}>
+              <option value="__count">nach Anzahl Einträge</option>
+              {weights.map((f) => (
+                <option key={f.id} value={f.id}>gewichtet nach {metricLabel(f)}</option>
+              ))}
+            </select>
+          </label>
         </div>
       </div>
+      {mode === 'clock' ? (
+        <>
+          <p className="muted small">
+            Am häufigsten um <b>{peakHour}–{peakHour + 1} Uhr</b> und am <b>{['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'][peakDay]}</b>
+            {field ? ` (gewichtet nach ${metricLabel(field)})` : ''}. Maßgeblich ist der Zeitpunkt des Eintrags.
+          </p>
+          <div className="two-col">
+            <div>
+              <h4>Tageszeit</h4>
+              <BarChart bars={dist.byHour.map((v, h) => ({ label: `${h}–${h + 1} Uhr`, short: h % 3 === 0 ? `${h}h` : '', v }))} color={tracker.color} unit={unit} />
+            </div>
+            <div>
+              <h4>Wochentag</h4>
+              <BarChart bars={dist.byWeekday.map((v, i) => ({ label: WEEKDAYS[i], short: WEEKDAYS[i], v }))} color={tracker.color} unit={unit} />
+            </div>
+          </div>
+        </>
+      ) : wake.used === 0 ? (
+        <div className="empty-chart">
+          Noch keine Aufstehzeiten. Tippe morgens auf der Übersicht auf „Ich bin aufgestanden“ oder übernimm die Daten aus Apple Health (Einstellungen).
+        </div>
+      ) : (
+        <>
+          <p className="muted small">
+            Am häufigsten <b>{peakWake}–{peakWake + 1} Stunden nach dem Aufstehen</b>
+            {field ? ` (gewichtet nach ${metricLabel(field)})` : ''}. {wake.used} Einträge mit bekannter Aufstehzeit
+            {wake.skipped ? `, ${wake.skipped} ohne` : ''}.
+          </p>
+          <BarChart bars={wake.hours.map((v, h) => ({ label: `${h}–${h + 1} h nach dem Aufstehen`, short: h % 2 === 0 ? `+${h}h` : '', v }))} color={tracker.color} unit={unit} />
+        </>
+      )}
     </section>
   );
 }

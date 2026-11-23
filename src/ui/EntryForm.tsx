@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { toLocalInput } from '../core/dates';
+import { dayKey, toLocalInput } from '../core/dates';
+import { EntryDayContext } from './entryContext';
 import { FIELD_TYPES, validateValues } from '../core/fieldTypes';
 import { uid } from '../core/id';
 import type { Entry, FieldValue, Tracker } from '../core/types';
@@ -9,10 +10,16 @@ import { navigate } from './router';
 
 /** Generisches Eingabeformular – vollständig aus der Feldkonfiguration erzeugt. */
 export function EntryForm({ tracker, entry, date }: { tracker: Tracker; entry?: Entry; date?: string }) {
-  const { dispatch } = useStore();
+  const { data, dispatch } = useStore();
   const [values, setValues] = useState<Record<string, FieldValue>>(() =>
     Object.fromEntries(
-      tracker.fields.map((f) => [f.id, entry && f.id in entry.values ? entry.values[f.id] : FIELD_TYPES[f.type].emptyValue(f)]),
+      tracker.fields.map((f) => {
+        if (entry && f.id in entry.values) return [f.id, entry.values[f.id]];
+        // Zeitraum "seit dem Aufstehen": Beginn mit der Aufstehzeit des Tages vorbelegen.
+        const wake = data.health?.[date ?? dayKey(new Date())]?.wake;
+        if (!entry && f.type === 'timerange' && f.config.fromWake && wake) return [f.id, { from: wake, to: '' }];
+        return [f.id, FIELD_TYPES[f.type].emptyValue(f)];
+      }),
     ),
   );
   const [when, setWhen] = useState(() => {
@@ -64,6 +71,7 @@ export function EntryForm({ tracker, entry, date }: { tracker: Tracker; entry?: 
           submit(false);
         }}
       >
+        <EntryDayContext.Provider value={when.slice(0, 10)}>
         {tracker.fields.map((f, i) => (
           <div key={f.id} className={`field ${tried && errors[f.id] ? 'invalid' : ''}`}>
             <label htmlFor={`f-${f.id}`}>
@@ -77,6 +85,7 @@ export function EntryForm({ tracker, entry, date }: { tracker: Tracker; entry?: 
             {tried && errors[f.id] && <small className="error">{errors[f.id]}</small>}
           </div>
         ))}
+        </EntryDayContext.Provider>
         <div className="field">
           <label htmlFor="when">Datum & Uhrzeit</label>
           <input id="when" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />

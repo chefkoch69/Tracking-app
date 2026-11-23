@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
 import { generateDemo } from '../core/demo';
 import { emptyData, localStorageAdapter, type StorageAdapter } from '../core/storage';
-import type { AppData, Entry, Profile, ReminderState, Tracker } from '../core/types';
+import { mergeHealth } from '../core/health';
+import type { AppData, Entry, HealthDay, Profile, ReminderState, Tracker } from '../core/types';
 
 export type Action =
   | { type: 'tracker/save'; tracker: Tracker }
@@ -13,7 +14,9 @@ export type Action =
   | { type: 'reminder/update'; trackerId: string; patch: Partial<ReminderState> }
   | { type: 'profile/update'; patch: Partial<Profile> }
   | { type: 'data/replace'; data: AppData }
-  | { type: 'data/merge'; trackers: Tracker[]; entries: Entry[] }
+  | { type: 'data/merge'; trackers: Tracker[]; entries: Entry[]; health?: Record<string, HealthDay> }
+  | { type: 'health/upsert'; days: HealthDay[] }
+  | { type: 'health/delete'; date: string }
   | { type: 'demo/remove' };
 
 function upsert<T extends { id: string }>(list: T[], item: T): T[] {
@@ -71,6 +74,7 @@ export function reducer(state: AppData, action: Action): AppData {
         ...state,
         trackers: state.trackers.filter((t) => !ids.has(t.id)),
         entries: state.entries.filter((e) => !ids.has(e.trackerId)),
+        health: Object.fromEntries(Object.entries(state.health ?? {}).filter(([, d]) => d.source !== 'demo')),
       };
     }
     case 'data/merge':
@@ -78,7 +82,15 @@ export function reducer(state: AppData, action: Action): AppData {
         ...state,
         trackers: [...state.trackers, ...action.trackers],
         entries: [...state.entries, ...action.entries],
+        // Eigene (nicht-Demo) Health-Werte haben Vorrang.
+        health: action.health ? { ...action.health, ...state.health } : state.health,
       };
+    case 'health/upsert':
+      return { ...state, health: mergeHealth(state.health, action.days) };
+    case 'health/delete': {
+      const { [action.date]: _gone, ...rest } = state.health ?? {};
+      return { ...state, health: rest };
+    }
   }
 }
 

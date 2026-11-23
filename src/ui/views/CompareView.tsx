@@ -3,6 +3,7 @@ import { describeCorrelation, numericFields, pairMetrics, pearson, type MetricRe
 import { formatDateTime, formatDay, parseDayKey } from '../../core/dates';
 import type { Tracker } from '../../core/types';
 import { useStore } from '../../state/store';
+import { withHealth } from '../../core/health';
 import { ScatterChart } from '../charts/Charts';
 import { NeedsNumeric } from './shared';
 
@@ -18,7 +19,8 @@ const dec = (s: string): MetricRef => {
  * (z. B. Schlafdauer aus "Schlaf" ↔ Erschöpfung aus "Morgen-Check-in").
  */
 export function CompareView({ tracker }: { tracker: Tracker }) {
-  const { data } = useStore();
+  const { data: raw } = useStore();
+  const data = withHealth(raw);
   const own = numericFields(tracker);
   const all = data.trackers.flatMap((t) => numericFields(t).map((f) => ({ t, f })));
   // Standard: ein Messwert (z. B. Temperatur, Schlafdauer) gegen eine Skala/Zahl.

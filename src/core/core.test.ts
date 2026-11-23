@@ -17,6 +17,7 @@ import { atMinutes, weekKey } from './dates';
 import { generateDemo } from './demo';
 import { formatShort, formatValue, rangeMinutes, severity, validateValues } from './fieldTypes';
 import { computeInsights, factorInsights, trendInsights } from './insights';
+import { healthAsTracker, minutesSinceWake, parseHealthText, sinceWakeDistribution } from './health';
 import { daySlotStatus, dueSlot, nextSlot, reminderToFire, slotKey, slotMinutesForDay } from './schedule';
 import { exportCsv, normalize } from './storage';
 import { TEMPLATES, makeField, trackerFromTemplate } from './templates';
@@ -290,5 +291,43 @@ describe('Regelmäßigkeit & Zeitverteilung', () => {
     expect(plain.byWeekday[6]).toBe(1); // Sonntag
     expect(timeDistribution(es, pain).byHour[14]).toBe(4);
     expect(averageGapMinutes(es)).toBeCloseTo((24 * 60 + 5 * 60 + 50) / 2);
+  });
+});
+
+describe('Gesundheitsdaten & seit dem Aufstehen', () => {
+  it('liest JSON aus einem Kurzbefehl (auch mit Präfix, Minuten und deutschen Zahlen)', () => {
+    const [d] = parseHealthText('BYOT-HEALTH {"date":"2026-11-23","wake":"6:42","sleep":"450","steps":"4.512","ruhepuls":"58"}');
+    expect(d).toEqual({ date: '2026-11-23', wake: '06:42', sleepHours: 7.5, steps: 4512, restingHr: 58, source: 'health' });
+  });
+
+  it('liest Zeilenformat und ISO-Zeitpunkte, Datum fällt auf heute zurück', () => {
+    const [d] = parseHealthText('Aufgestanden: 2026-11-23T06:05:00\nSchritte 3200\nSchlaf: 6,5', '2026-11-23');
+    expect(d.wake).toBe('06:05');
+    expect(d.steps).toBe(3200);
+    expect(d.sleepHours).toBe(6.5);
+    expect(d.date).toBe('2026-11-23');
+    expect(parseHealthText('hallo welt')).toEqual([]);
+  });
+
+  it('rechnet Minuten seit dem Aufstehen und verteilt Einträge danach', () => {
+    const health = { '2026-11-23': { date: '2026-11-23', wake: '06:30', source: 'manual' as const } };
+    expect(minutesSinceWake(health, at(9, 0))).toBe(150);
+    expect(minutesSinceWake(health, at(6, 0))).toBeNull();
+    expect(minutesSinceWake(health, at(9, 0, new Date(2026, 10, 22)))).toBeNull();
+    const t = morning();
+    const dist = sinceWakeDistribution([entry(t, at(9, 0)), entry(t, at(9, 20)), entry(t, at(13, 0))], health);
+    expect(dist.hours[2]).toBe(2);
+    expect(dist.hours[6]).toBe(1);
+  });
+
+  it('macht Health-Werte für Vergleiche nutzbar (virtueller Tracker)', () => {
+    const demo = generateDemo(60, at(21));
+    const h = healthAsTracker(demo.health)!;
+    expect(h.tracker.fields.map((f) => f.label)).toContain('Schlafdauer');
+    const [belly] = demo.trackers;
+    const pain = belly.fields.find((f) => f.label === 'Bauchschmerz')!;
+    const pairs = pairMetrics([belly, h.tracker], [...demo.entries, ...h.entries], { trackerId: h.tracker.id, fieldId: 'health-sleep' }, { trackerId: belly.id, fieldId: pain.id });
+    expect(pairs.basis).toBe('day');
+    expect(pairs.pairs.length).toBeGreaterThan(15);
   });
 });

@@ -58,6 +58,21 @@ CSV-Export der gefilterten Daten) und Tab „Tabelle“ in jedem Tracker.
 | Im Kalender nachtragen | Table Habit (mhabit) | Tag im Erfüllungskalender antippen → „Eintrag für diesen Tag“ |
 | Gruppen | Table Habit (mhabit) | Dashboard gruppiert Tracker nach Kategorie |
 
+## Apple Health & „seit dem Aufstehen“
+
+Eine Web-App kann Apple Health nicht direkt lesen. Die Brücke ist ein **iPhone-Kurzbefehl**, der Aufwachzeit
+(Ende der letzten Schlafanalyse), Schlafdauer, Schritte und Ruhepuls aus Health liest und als Text kopiert, z. B.
+`BYOT-HEALTH {"date":"2026-11-23","wake":"06:42","sleep":450,"steps":4512,"ruhepuls":58}`. In den Einstellungen
+einfügen – fertig (Anleitung in der App). Der Parser versteht auch Zeilenformat, Minuten, Tausenderpunkte und
+ISO-Zeitstempel. In der installierten App kann der Kurzbefehl stattdessen `#/health?data=…` öffnen.
+
+Ohne Health: „Ich bin aufgestanden“ auf der Übersicht. Genutzt wird die Aufstehzeit für
+- den Baustein **Zeitraum**: Knopf „seit dem Aufstehen“ bzw. automatische Vorbelegung (Option im Baukasten),
+- **„Wann tritt es auf?“** relativ zum Aufstehen (z. B. „meist 3–4 h nach dem Aufstehen“),
+- **Vergleich und Erkenntnisse**: Health-Werte erscheinen als eigener Tracker „Gesundheitsdaten“.
+
+Echtes, automatisches Lesen aus HealthKit erfordert eine native Hülle (z. B. Capacitor + HealthKit-Plugin).
+
 ## Vorschau als claude.ai-Artifact
 
 `npm run build:artifact` erzeugt `dist-artifact/tracker.html` – die ganze App als eine Seite. Dort sind Drucken,

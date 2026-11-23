@@ -1,4 +1,6 @@
-import { useState, type ReactNode } from 'react';
+import { useContext, useState, type ReactNode } from 'react';
+import { useStore } from '../state/store';
+import { EntryDayContext } from './entryContext';
 import { BODY_MAPS } from '../core/bodyMaps';
 import { AGGREGATION_LABELS, FIELD_TYPES, formatDuration, isTimeRange, rangeMinutes, severity } from '../core/fieldTypes';
 import type { Aggregation, BodyMapKind, FieldConfig, FieldDef, FieldType, FieldValue, Polarity } from '../core/types';
@@ -89,7 +91,17 @@ function TimeRangeInput({ value, onChange, id }: InputProps) {
   const v = isTimeRange(value) ? value : { from: '', to: '' };
   const now = () => new Date().toTimeString().slice(0, 5);
   const d = rangeMinutes(v);
+  const { data, dispatch } = useStore();
+  const day = useContext(EntryDayContext);
+  const wake = data.health?.[day]?.wake;
+  const [askWake, setAskWake] = useState(false);
+  const [wakeDraft, setWakeDraft] = useState('07:00');
+  const useWake = () => {
+    if (wake) onChange({ ...v, from: wake });
+    else setAskWake(true);
+  };
   return (
+    <div className="timerange-wrap">
     <div className="timerange" id={id}>
       <label>
         <small>von</small>
@@ -106,6 +118,29 @@ function TimeRangeInput({ value, onChange, id }: InputProps) {
         </span>
       </label>
       {d !== null && <span className="pill">Dauer {formatDuration(d)}</span>}
+    </div>
+      <div className="inline">
+        <button type="button" className={`chip small ${wake && v.from === wake ? 'active' : ''}`} onClick={useWake}>
+          ☀ seit dem Aufstehen{wake ? ` (${wake})` : ''}
+        </button>
+        {askWake && !wake && (
+          <span className="inline wake-ask">
+            <label htmlFor={`${id}-wake`} className="muted small">Wann bist du aufgestanden?</label>
+            <input id={`${id}-wake`} type="time" value={wakeDraft} onChange={(e) => setWakeDraft(e.target.value)} />
+            <button
+              type="button"
+              className="btn small primary"
+              onClick={() => {
+                dispatch({ type: 'health/upsert', days: [{ date: day, wake: wakeDraft, source: 'manual' }] });
+                onChange({ ...v, from: wakeDraft });
+                setAskWake(false);
+              }}
+            >
+              Übernehmen
+            </button>
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -411,6 +446,10 @@ export const FIELD_UI: Record<
     Config: (p) => (
       <>
         <p className="muted">Ausgewertet wird die Dauer in Minuten.</p>
+        <label className="switch">
+          <input type="checkbox" checked={!!p.config.fromWake} onChange={(e) => p.onChange({ fromWake: e.target.checked })} />
+          <span>Beginn automatisch „seit dem Aufstehen“ (Aufstehzeit aus Health bzw. „Ich bin aufgestanden“)</span>
+        </label>
         <div className="cfg-grid">
           <AggregationConfig {...p} type="timerange" />
           <PolarityConfig {...p} type="timerange" />
