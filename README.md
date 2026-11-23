@@ -71,6 +71,17 @@ CSV-Export der gefilterten Daten) und Tab „Tabelle“ in jedem Tracker.
   (`diary/meta` + `entries/<Kalenderwoche>`), nur für die Eigentümerin/den Eigentümer lesbar. Erstes Öffnen lädt die
   lokalen Daten hoch, danach gleichen sich alle Geräte ab. Claude kann die Daten auf Wunsch auslesen.
 
+## Ein Tracker für alles: „Mein Befinden“
+
+Die Vorlage „Mein Befinden“ bündelt, was vorher getrennt war (Check-in, Bauchschmerztagebuch, Kälteempfinden) in
+Abschnitten: Ereignisse & Essen · Bauch & Verdauung · Allgemein · Kälte · Notiz. Abschnitte sind ein normales
+Feld-Attribut (`group`) und im Baukasten frei vergebbar; auf der Jetzt-Seite lassen sie sich auf- und zuklappen.
+„Tracker zusammenführen“ (im Tracker unten oder als Hinweis auf der Jetzt-Seite) legt gleiche Felder zusammen,
+vereinigt Optionen und Skalenstufen, hängt den Rest als Abschnitt an und verschiebt alle Einträge.
+
+Design: ein heller Look (kein Dunkelmodus) mit kräftigem Blau, Serifen-Titeln (Playfair Display) und Montserrat;
+die Schriften sind lokal eingebunden (keine Anfrage an Google).
+
 ## Erzählen statt tippen
 
 Auf der Jetzt-Seite (`#/now/talk` direkt) frei erzählen – gesprochen oder getippt. In claude.ai wandelt Claude den

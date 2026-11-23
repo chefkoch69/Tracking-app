@@ -66,6 +66,8 @@ export interface FieldDef {
   config: FieldConfig;
   /** Ausgeblendet: erscheint nicht mehr im Eingabeformular, Daten bleiben erhalten. */
   hidden?: boolean;
+  /** Abschnitt im Formular (z. B. „Bauch & Verdauung“); Felder ohne Abschnitt stehen unter „Weitere“. */
+  group?: string;
 }
 
 /** Zeitraum "HH:MM"–"HH:MM" (Feldtyp timerange). */

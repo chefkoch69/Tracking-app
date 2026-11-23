@@ -57,8 +57,8 @@ export function EntryForm({ tracker, entry, date }: { tracker: Tracker; entry?: 
   };
 
   return (
-    <div className="page" style={{ '--accent': tracker.color } as React.CSSProperties}>
-      <section className="hero-band tinted compact">
+    <div className="page">
+      <section className="hero-band compact">
         <div className="hero-inner">
           <button className="back linkish" onClick={() => navigate(`/t/${tracker.id}`)}>‹ {tracker.name}</button>
           <h1>
@@ -75,7 +75,9 @@ export function EntryForm({ tracker, entry, date }: { tracker: Tracker; entry?: 
       >
         <EntryDayContext.Provider value={when.slice(0, 10)}>
         {visible.map((f, i) => (
-          <div key={f.id} className={`field ${tried && errors[f.id] ? 'invalid' : ''}`}>
+          <div key={f.id} className="field-wrap">
+          {(i === 0 ? !!f.group : (f.group ?? '') !== (visible[i - 1].group ?? '')) && <h3 className="form-group-title">{f.group || 'Weitere'}</h3>}
+          <div className={`field ${tried && errors[f.id] ? 'invalid' : ''}`}>
             <label htmlFor={`f-${f.id}`}>
               {f.label}
               {f.required && <b className="req">*</b>}
@@ -85,6 +87,7 @@ export function EntryForm({ tracker, entry, date }: { tracker: Tracker; entry?: 
             )}
             <FieldInput id={`f-${f.id}`} field={f} value={values[f.id] ?? null} onChange={(v) => setValues((s) => ({ ...s, [f.id]: v }))} />
             {tried && errors[f.id] && <small className="error">{errors[f.id]}</small>}
+          </div>
           </div>
         ))}
         </EntryDayContext.Provider>

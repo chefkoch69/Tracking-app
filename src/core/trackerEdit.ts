@@ -1,5 +1,6 @@
 import { uid } from './id';
-import type { FieldDef, Tracker } from './types';
+import { scaleLevels, withLevels } from './fieldTypes';
+import type { Entry, FieldDef, FieldValue, Tracker } from './types';
 
 /**
  * Erkennt umbenannte Auswahloptionen (gleiche Position, alter Name verschwunden,
@@ -23,7 +24,14 @@ export function optionRenames(before: Tracker, after: Tracker): { fieldId: strin
  * Neue Felder/Optionen einer Vorlage, die in einem bestehenden Tracker fehlen
  * (Vergleich über die Bezeichnung). Bestehende Felder und Daten bleiben unberührt.
  */
-export function templateUpgrades(tracker: Tracker, template: Pick<Tracker, 'fields'>): { fields: FieldDef[]; options: { fieldId: string; label: string; add: string[] }[] } {
+export interface Upgrades {
+  fields: FieldDef[];
+  options: { fieldId: string; label: string; add: string[] }[];
+  /** Abschnitte aus der Vorlage für bestehende Felder ohne Abschnitt. */
+  groups?: { fieldId: string; group: string }[];
+}
+
+export function templateUpgrades(tracker: Tracker, template: Pick<Tracker, 'fields'>): Upgrades {
   const norm = (s: string) => s.trim().toLocaleLowerCase('de-DE');
   const fields = template.fields.filter((tf) => !tracker.fields.some((f) => norm(f.label) === norm(tf.label)));
   const options = tracker.fields.flatMap((f) => {
@@ -33,18 +41,26 @@ export function templateUpgrades(tracker: Tracker, template: Pick<Tracker, 'fiel
     const add = (tf.config.options ?? []).filter((o) => !have.includes(norm(o)));
     return add.length ? [{ fieldId: f.id, label: f.label, add }] : [];
   });
-  return { fields, options };
+  const groups = tracker.fields.flatMap((f) => {
+    const tf = template.fields.find((x) => norm(x.label) === norm(f.label));
+    return tf?.group && !f.group ? [{ fieldId: f.id, group: tf.group }] : [];
+  });
+  return groups.length ? { fields, options, groups } : { fields, options };
 }
+
+export const hasUpgrades = (u: Upgrades) => u.fields.length > 0 || u.options.length > 0 || (u.groups?.length ?? 0) > 0;
 
 /**
  * Wendet templateUpgrades an: neue Felder an ihren Platz aus der Vorlage
  * (hinter das Feld, das dort davor steht), sonst vor die Notiz; Optionen anhängen.
  */
-export function applyUpgrades(tracker: Tracker, up: ReturnType<typeof templateUpgrades>, template?: Pick<Tracker, 'fields'>): Tracker {
+export function applyUpgrades(tracker: Tracker, up: Upgrades, template?: Pick<Tracker, 'fields'>): Tracker {
   const norm = (s: string) => s.trim().toLocaleLowerCase('de-DE');
   let fields = tracker.fields.map((f) => {
     const o = up.options.find((x) => x.fieldId === f.id);
-    return o ? { ...f, config: { ...f.config, options: [...(f.config.options ?? []), ...o.add] } } : f;
+    const g = up.groups?.find((x) => x.fieldId === f.id);
+    const withOpts = o ? { ...f, config: { ...f.config, options: [...(f.config.options ?? []), ...o.add] } } : f;
+    return g ? { ...withOpts, group: g.group } : withOpts;
   });
   for (const nf of up.fields) {
     const fresh = { ...structuredClone(nf), id: uid() };
@@ -56,4 +72,49 @@ export function applyUpgrades(tracker: Tracker, up: ReturnType<typeof templateUp
     fields = [...fields.slice(0, at), fresh, ...fields.slice(at)];
   }
   return { ...tracker, fields };
+}
+
+/**
+ * Führt einen Tracker in einen anderen über. Felder mit gleicher Bezeichnung
+ * und gleichem Typ werden zusammengelegt (Optionen und Skalenstufen vereinigt),
+ * alle anderen werden als eigener Abschnitt angehängt. Einträge wandern mit.
+ */
+export function mergeTrackers(target: Tracker, source: Tracker, entries: Entry[]): { tracker: Tracker; entries: Entry[] } {
+  const norm = (s: string) => s.trim().toLocaleLowerCase('de-DE');
+  const map = new Map<string, string>();
+  let fields = target.fields.slice();
+  const noteIdx = () => fields.findIndex((f) => f.type === 'text' && f.config.multiline);
+  for (const sf of source.fields) {
+    let i = fields.findIndex((f) => norm(f.label) === norm(sf.label) && f.type === sf.type);
+    // Freitext-Notizen (z. B. „Besonderheiten“) landen in der vorhandenen Notiz.
+    if (i === -1 && sf.type === 'text' && sf.config.multiline) i = fields.findIndex((f) => f.type === 'text' && !!f.config.multiline);
+    if (i !== -1) {
+      const tf = fields[i];
+      map.set(sf.id, tf.id);
+      let config = tf.config;
+      if (tf.type === 'select' || tf.type === 'multiselect') {
+        const have = new Set((config.options ?? []).map(norm));
+        config = { ...config, options: [...(config.options ?? []), ...(sf.config.options ?? []).filter((o) => !have.has(norm(o)))] };
+      }
+      if (tf.type === 'scale') {
+        const levels = [...scaleLevels(config)];
+        for (const l of scaleLevels(sf.config)) if (!levels.some((x) => x.value === l.value)) levels.push(l);
+        config = { ...config, ...withLevels(levels) };
+      }
+      fields[i] = { ...tf, config };
+    } else {
+      const nf: FieldDef = { ...structuredClone(sf), id: uid(), group: sf.group ?? source.name.replace(/\s*\(Demo\)$/, '') };
+      map.set(sf.id, nf.id);
+      // Mehrzeilige Notizen gleichen Namens wurden oben schon zusammengelegt; sonst vor die Notiz.
+      const at = noteIdx() === -1 ? fields.length : noteIdx();
+      fields = [...fields.slice(0, at), nf, ...fields.slice(at)];
+    }
+  }
+  const moved = entries.map((e) => {
+    if (e.trackerId !== source.id) return e;
+    const values: Record<string, FieldValue> = {};
+    for (const [k, v] of Object.entries(e.values)) values[map.get(k) ?? k] = v;
+    return { ...e, trackerId: target.id, values };
+  });
+  return { tracker: { ...target, fields }, entries: moved };
 }

@@ -265,6 +265,11 @@ function StepFields({ fields, onChange, warnRemoval }: { fields: FieldDef[]; onC
           Jeder Eintrag bekommt automatisch Datum und Uhrzeit. Felder mit ⠿ ziehen, um sie zu verschieben. Ausgeblendete Felder
           erscheinen nicht mehr im Formular, ihre Daten bleiben erhalten.
         </p>
+        <datalist id="group-names">
+          {[...new Set(fields.map((f) => f.group).filter(Boolean))].map((g) => (
+            <option key={g} value={g} />
+          ))}
+        </datalist>
         <div className={`field-list ${dragging ? 'is-dragging' : ''}`}>
           {fields.map((f, i) => {
             const spec = FIELD_TYPES[f.type];
@@ -278,6 +283,7 @@ function StepFields({ fields, onChange, warnRemoval }: { fields: FieldDef[]; onC
                     <strong>
                       {f.label || <em className="muted">Ohne Bezeichnung</em>}
                       {f.hidden && <span className="pill">ausgeblendet</span>}
+                      {f.group && <span className="pill group-pill">{f.group}</span>}
                     </strong>
                     <small className="muted">{fieldSummary(f)}</small>
                   </button>
@@ -303,6 +309,16 @@ function StepFields({ fields, onChange, warnRemoval }: { fields: FieldDef[]; onC
                     <label className="field">
                       <span>Hinweis beim Ausfüllen (optional)</span>
                       <input value={f.description ?? ''} onChange={(e) => set(f.id, { description: e.target.value || undefined })} />
+                    </label>
+                    <label className="field">
+                      <span>Abschnitt (optional)</span>
+                      <input
+                        list="group-names"
+                        value={f.group ?? ''}
+                        placeholder="z. B. Bauch & Verdauung"
+                        onChange={(e) => set(f.id, { group: e.target.value || undefined })}
+                      />
+                      <small className="muted">Felder mit gleichem Abschnitt stehen im Formular zusammen und lassen sich auf- und zuklappen.</small>
                     </label>
                     <FieldConfigEditor type={f.type} config={f.config} onChange={(patch) => set(f.id, { config: { ...f.config, ...patch } })} />
                     <div className="inline">
@@ -383,13 +399,16 @@ function FormPreview({ fields }: { fields: FieldDef[] }) {
   return (
     <div className="preview">
       {visible.map((f, i) => (
-        <div key={f.id} className="field">
+        <div key={f.id} className="field-wrap">
+        {(i === 0 ? !!f.group : (f.group ?? '') !== (visible[i - 1].group ?? '')) && <h3 className="form-group-title">{f.group || 'Weitere'}</h3>}
+        <div className="field">
           <span>
             {f.label || <em className="muted">Ohne Bezeichnung</em>}
             {f.required && <b className="req">*</b>}
           </span>
           {f.description && !visible.slice(0, i).some((p) => p.description === f.description) && <small className="muted">{f.description}</small>}
           <FieldInput id={`pv-${f.id}`} field={f} value={values[f.id] ?? FIELD_TYPES[f.type].emptyValue(f)} onChange={(v) => setValues((s) => ({ ...s, [f.id]: v }))} />
+        </div>
         </div>
       ))}
     </div>

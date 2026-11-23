@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
 import { emptyData, localStorageAdapter, type StorageAdapter } from '../core/storage';
 import { mergeHealth } from '../core/health';
+import { mergeTrackers } from '../core/trackerEdit';
 import type { AppData, Entry, HealthDay, Profile, ReminderState, Tracker } from '../core/types';
 
 export type Action =
@@ -8,6 +9,7 @@ export type Action =
   | { type: 'tracker/delete'; id: string }
   | { type: 'tracker/archive'; id: string; archived: boolean }
   | { type: 'tracker/reorder'; ids: string[] }
+  | { type: 'tracker/merge'; sourceId: string; targetId: string }
   | { type: 'entry/save'; entry: Entry }
   | { type: 'entry/delete'; id: string }
   | { type: 'entries/renameOption'; trackerId: string; fieldId: string; from: string; to: string }
@@ -37,6 +39,19 @@ export function reducer(state: AppData, action: Action): AppData {
         ...state,
         trackers: state.trackers.filter((t) => t.id !== action.id),
         entries: state.entries.filter((e) => e.trackerId !== action.id),
+        reminders,
+      };
+    }
+    case 'tracker/merge': {
+      const source = state.trackers.find((t) => t.id === action.sourceId);
+      const target = state.trackers.find((t) => t.id === action.targetId);
+      if (!source || !target || source.id === target.id) return state;
+      const merged = mergeTrackers(target, source, state.entries);
+      const { [source.id]: _gone, ...reminders } = state.reminders;
+      return {
+        ...state,
+        trackers: state.trackers.filter((t) => t.id !== source.id).map((t) => (t.id === target.id ? merged.tracker : t)),
+        entries: merged.entries,
         reminders,
       };
     }

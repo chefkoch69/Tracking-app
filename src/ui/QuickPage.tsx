@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { TalkCard } from './TalkCard';
-import { applyUpgrades, templateUpgrades } from '../core/trackerEdit';
+import { askConfirm } from './confirm';
+import { applyUpgrades, hasUpgrades, templateUpgrades } from '../core/trackerEdit';
 import { entriesOf } from '../core/analytics';
 import { dayKey, formatClock, toLocalInput } from '../core/dates';
-import { FIELD_TYPES, fmtLevel, formatValue, isEmptyValue, validateValues } from '../core/fieldTypes';
+import { FIELD_TYPES, fmtLevel, formatValue, groupFields, isEmptyValue, validateValues } from '../core/fieldTypes';
 import { uid } from '../core/id';
 import { TEMPLATES, trackerFromTemplate } from '../core/templates';
 import type { Entry, FieldDef, FieldValue, Tracker } from '../core/types';
@@ -37,8 +38,8 @@ export function QuickPage({ talk }: { talk?: boolean }) {
         <div className="card empty">
           <div className="empty-icon">⚡</div>
           <p>
-            Richte deinen Schnell-Check-in ein. Er startet mit Ereignissen (gegessen, Medikament, aufgestanden …) und Befinden
-            (Bauchschmerz, Übelkeit, Müdigkeit, Tinnitus, Erschöpfung) – alles danach frei änderbar.
+            Richte „Mein Befinden“ ein – ein Tracker für alles: Ereignisse und Essen, Bauch und Verdauung, Übelkeit, Müdigkeit,
+            Tinnitus, Kälteempfinden und Notizen. Alles danach frei änderbar.
           </p>
           <button
             className="btn primary"
@@ -47,7 +48,7 @@ export function QuickPage({ talk }: { talk?: boolean }) {
               dispatch({ type: 'tracker/save', tracker: t });
             }}
           >
-            Schnell-Check-in einrichten
+            „Mein Befinden“ einrichten
           </button>
           <small className="muted">Oder einen eigenen Tracker bauen und dort „Auf der Jetzt-Seite zeigen“ einschalten.</small>
         </div>
@@ -66,24 +67,90 @@ function UpgradeHint({ tracker }: { tracker: Tracker }) {
   // Nur für Check-ins, die erkennbar aus der Vorlage stammen.
   const related = tracker.fields.filter((f) => tpl.fields.some((tf) => norm(tf.label) === norm(f.label))).length >= 3;
   const up = templateUpgrades(tracker, tpl);
-  if (hidden || !related || (!up.fields.length && !up.options.length)) return null;
+  const rename = tracker.name === 'Befinden jetzt';
+  if (hidden || !related || (!hasUpgrades(up) && !rename)) return null;
   const items = [...up.fields.map((f) => f.label), ...up.options.flatMap((o) => o.add.map((a) => `„${a}“`))];
   return (
     <div className="demo-banner">
       <span>
-        <b>Neu für deinen Check-in:</b> {items.join(', ')}. Deine bisherigen Einträge bleiben unverändert.
+        <b>„Mein Befinden“: alles in einem.</b>{' '}
+        {items.length ? `Dazu kommen: ${items.join(', ')}. ` : ''}
+        Felder werden in Abschnitte sortiert (Ereignisse & Essen, Bauch, Allgemein, Kälte). Deine bisherigen Einträge bleiben unverändert.
       </span>
       <span className="inline">
         <button className="btn small ghost" onClick={() => setHidden(true)}>Nicht jetzt</button>
-        <button className="btn small primary" onClick={() => dispatch({ type: 'tracker/save', tracker: applyUpgrades(tracker, up, tpl) })}>Hinzufügen</button>
+        <button
+          className="btn small primary"
+          onClick={() => {
+            const next = applyUpgrades(tracker, up, tpl);
+            dispatch({ type: 'tracker/save', tracker: rename ? { ...next, name: 'Mein Befinden', icon: tracker.icon === '⚡' ? '💙' : tracker.icon, color: '#2f63f0' } : next });
+          }}
+        >
+          Übernehmen
+        </button>
       </span>
     </div>
+  );
+}
+
+/** Eigene Tracker, die inhaltlich zu „Mein Befinden“ gehören, zum Zusammenführen anbieten. */
+function MergeHint({ tracker }: { tracker: Tracker }) {
+  const { data, dispatch } = useStore();
+  const [hidden, setHidden] = useState<string[]>([]);
+  const norm = (s: string) => s.trim().toLocaleLowerCase('de-DE');
+  const candidates = data.trackers.filter(
+    (t) =>
+      t.id !== tracker.id && !t.demo && !t.archived && !hidden.includes(t.id) &&
+      t.fields.filter((f) => tracker.fields.some((x) => norm(x.label) === norm(f.label))).length >= 1,
+  );
+  if (!candidates.length) return null;
+  return (
+    <>
+      {candidates.map((c) => (
+        <div key={c.id} className="demo-banner">
+          <span>
+            <b>{c.icon} {c.name}</b> ist noch ein eigener Tracker. In „{tracker.name}“ übernehmen? Gleiche Felder werden zusammengelegt, alle {data.entries.filter((e) => e.trackerId === c.id).length} Einträge wandern mit.
+          </span>
+          <span className="inline">
+            <button className="btn small ghost" onClick={() => setHidden((h) => [...h, c.id])}>Getrennt lassen</button>
+            <button
+              className="btn small primary"
+              onClick={async () => {
+                if (await askConfirm(`„${c.name}“ in „${tracker.name}“ übernehmen? Danach gibt es nur noch einen Tracker.`, { okLabel: 'Zusammenführen', danger: false }))
+                  dispatch({ type: 'tracker/merge', sourceId: c.id, targetId: tracker.id });
+              }}
+            >
+              Zusammenführen
+            </button>
+          </span>
+        </div>
+      ))}
+    </>
   );
 }
 
 function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; others: Tracker[]; onSwitch: (id: string) => void; talk?: boolean }) {
   const { data, dispatch } = useStore();
   const visible = tracker.fields.filter((f) => !f.hidden);
+  const groups = groupFields(visible);
+  const OPEN_KEY = `byot:open:${tracker.id}`;
+  const [open, setOpen] = useState<Record<string, boolean>>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(OPEN_KEY) ?? '{}');
+    } catch {
+      return {};
+    }
+  });
+  const toggleGroup = (name: string, v: boolean) =>
+    setOpen((s) => {
+      const next = { ...s, [name]: v };
+      try {
+        localStorage.setItem(OPEN_KEY, JSON.stringify(next));
+      } catch {
+        /* egal */
+      }
+      return next;
+    });
   const empty = () => Object.fromEntries(visible.map((f) => [f.id, FIELD_TYPES[f.type].emptyValue(f)]));
   const [values, setValues] = useState<Record<string, FieldValue>>(empty);
   const [when, setWhen] = useState(() => toLocalInput(new Date()));
@@ -131,8 +198,8 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
   };
 
   return (
-    <div className="page" style={{ '--accent': tracker.color } as React.CSSProperties}>
-      <section className="hero-band tinted compact">
+    <div className="page">
+      <section className="hero-band compact">
         <div className="hero-inner">
           <h1>Wie geht’s dir gerade?</h1>
           <div className="quick-time">
@@ -161,6 +228,7 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
       </section>
 
       <UpgradeHint tracker={tracker} />
+      <MergeHint tracker={tracker} />
       <TalkCard quick={tracker} autoFocus={talk} />
 
       {saved && (
@@ -172,41 +240,57 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
 
       <h2 className="quick-or">… oder antippen</h2>
       <form
-        className="card entry-form quick-form"
+        className="entry-form quick-form"
         onSubmit={(e) => {
           e.preventDefault();
           save();
         }}
       >
         <EntryDayContext.Provider value={when.slice(0, 10)}>
-          {visible.map((f, i) => {
-            const prev = last(f);
-            const now = values[f.id];
-            const delta = typeof now === 'number' && prev && typeof prev.v === 'number' ? now - prev.v : null;
+          {groups.map((g, gi) => {
+            const isOpen = open[g.name] ?? (gi === 0 || g.fields.length <= 2);
+            const count = g.fields.filter((f) => filled.includes(f)).length;
             return (
-              <div key={f.id} className="field quick-field">
-                <div className="quick-label">
-                  <label htmlFor={`q-${f.id}`}>{f.label}</label>
-                  {prev && (
-                    <small className="muted">
-                      zuletzt {short(f, prev.v)} um {formatClock(prev.t)}
-                      {delta !== null && delta !== 0 && (
-                        <b className={`delta ${(delta < 0) === (f.config.polarity !== 'higher-better') ? 'good' : 'bad'}`}>
-                          {(delta < 0) === (f.config.polarity !== 'higher-better') ? ' ▼ besser' : ' ▲ schlechter'}
-                        </b>
-                      )}
-                      {delta === 0 && <b className="delta"> = gleich</b>}
-                    </small>
-                  )}
-                </div>
-                {f.description && !visible.slice(0, i).some((p) => p.description === f.description) && <small className="muted">{f.description}</small>}
-                <FieldInput id={`q-${f.id}`} field={f} value={values[f.id] ?? null} onChange={(v) => setValues((s) => ({ ...s, [f.id]: v }))} />
-                {errors[f.id] && <small className="error">{errors[f.id]}</small>}
-              </div>
+              <section key={g.name} className={`card quick-group ${isOpen ? 'open' : ''}`}>
+                <button type="button" className="quick-group-head" aria-expanded={isOpen} onClick={() => toggleGroup(g.name, !isOpen)}>
+                  <span className="qg-title">{g.name}</span>
+                  {count > 0 && <span className="pill good">{count} ausgefüllt</span>}
+                  <span className="qg-chevron" aria-hidden>{isOpen ? '−' : '+'}</span>
+                </button>
+                {isOpen &&
+                  g.fields.map((f) => {
+                    const i = visible.indexOf(f);
+                    const prev = last(f);
+                    const now = values[f.id];
+                    const delta = typeof now === 'number' && prev && typeof prev.v === 'number' ? now - prev.v : null;
+                    return (
+                      <div key={f.id} className="field quick-field">
+                        <div className="quick-label">
+                          {/* Abschnitt mit nur einem gleichnamigen Feld: Bezeichnung nicht doppelt zeigen */}
+                          <label htmlFor={`q-${f.id}`} className={g.fields.length === 1 && g.name === f.label ? 'sr-only' : ''}>{f.label}</label>
+                          {prev && (
+                            <small className="muted">
+                              zuletzt {short(f, prev.v)} um {formatClock(prev.t)}
+                              {delta !== null && delta !== 0 && (
+                                <b className={`delta ${(delta < 0) === (f.config.polarity !== 'higher-better') ? 'good' : 'bad'}`}>
+                                  {(delta < 0) === (f.config.polarity !== 'higher-better') ? ' ▼ besser' : ' ▲ schlechter'}
+                                </b>
+                              )}
+                              {delta === 0 && <b className="delta"> = gleich</b>}
+                            </small>
+                          )}
+                        </div>
+                        {f.description && !visible.slice(0, i).some((p) => p.description === f.description) && <small className="muted">{f.description}</small>}
+                        <FieldInput id={`q-${f.id}`} field={f} value={values[f.id] ?? null} onChange={(v) => setValues((s) => ({ ...s, [f.id]: v }))} />
+                        {errors[f.id] && <small className="error">{errors[f.id]}</small>}
+                      </div>
+                    );
+                  })}
+              </section>
             );
           })}
         </EntryDayContext.Provider>
-        <div className="actions sticky">
+        <div className="actions sticky quick-save">
           <span className="muted small quick-count">{filled.length ? `${filled.length} ausgefüllt` : 'Tippe an, was gerade ist'}</span>
           <button type="submit" className="btn primary" disabled={!filled.length}>
             Speichern{timeTouched ? '' : ` · ${formatClock(new Date())}`}

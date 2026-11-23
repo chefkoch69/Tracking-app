@@ -18,7 +18,7 @@ import { cloudDiff, fromCloud, sameData, stableStringify, toCloud } from './clou
 import { dayColumns, dayValue, reportText, symptomSummary } from './report';
 import { generateDemo } from './demo';
 import { formatShort, formatValue, itemName, listItems, rangeMinutes, scaleLevels, severity, validateValues, withLevels } from './fieldTypes';
-import { applyUpgrades, optionRenames, templateUpgrades } from './trackerEdit';
+import { applyUpgrades, hasUpgrades, mergeTrackers, optionRenames, templateUpgrades } from './trackerEdit';
 import { interpretNarrative, narrativePrompt } from './narrative';
 import { reducer } from '../state/store';
 import { computeInsights, factorInsights, trendInsights } from './insights';
@@ -173,16 +173,18 @@ describe('Auswertungen', () => {
     expect(pearson([1, 2], [1, 2])).toBeNull();
 
     const demo = generateDemo(60, at(12));
-    const [, m] = demo.trackers;
+    const [m, p] = demo.trackers;
     const id = (l: string) => m.fields.find((f) => f.label === l)!.id;
-    const same = pairMetrics(demo.trackers, demo.entries, { trackerId: m.id, fieldId: id('Schlafdauer') }, { trackerId: m.id, fieldId: id('Erschöpfung') });
+    // gleicher Tracker, je Eintrag: wärmer → weniger Kälteempfinden
+    const same = pairMetrics(demo.trackers, demo.entries, { trackerId: m.id, fieldId: id('Raumtemperatur') }, { trackerId: m.id, fieldId: id('Kälteempfinden') });
     expect(same.basis).toBe('entry');
-    expect(pearson(same.pairs.map((p) => p.x), same.pairs.map((p) => p.y))!).toBeLessThan(-0.3);
-
-    const [, , p] = demo.trackers;
-    const cross = pairMetrics(demo.trackers, demo.entries, { trackerId: m.id, fieldId: id('Raumtemperatur') }, { trackerId: p.id, fieldId: p.fields[0].id });
+    expect(pearson(same.pairs.map((x) => x.x), same.pairs.map((x) => x.y))!).toBeLessThan(-0.3);
+    // über Tracker hinweg, je Tag: Schlaf (Health) ↔ Erschöpfung
+    const h = healthAsTracker(demo.health)!;
+    const cross = pairMetrics([...demo.trackers, h.tracker], [...demo.entries, ...h.entries], { trackerId: h.tracker.id, fieldId: 'health-sleep' }, { trackerId: m.id, fieldId: id('Erschöpfung') });
     expect(cross.basis).toBe('day');
-    expect(cross.pairs.length).toBeGreaterThan(10);
+    expect(pearson(cross.pairs.map((x) => x.x), cross.pairs.map((x) => x.y))!).toBeLessThan(-0.3);
+    expect(pairMetrics(demo.trackers, demo.entries, { trackerId: m.id, fieldId: id('Raumtemperatur') }, { trackerId: p.id, fieldId: p.fields[0].id }).pairs.length).toBeGreaterThan(10);
   });
 });
 
@@ -510,5 +512,56 @@ describe('Erzählen: Text → Einträge', () => {
     expect(applyUpgrades(old, up).fields.at(-1)!.label).toBe('Notiz'); // ohne Vorlage: vor die Notiz
     expect(next.fields.filter((f) => old.fields.some((o) => o.id === f.id)).length).toBe(old.fields.length);
     expect(templateUpgrades(next, quick)).toEqual({ fields: [], options: [] });
+  });
+});
+
+describe('Ein Tracker für alles: Zusammenführen und Abschnitte', () => {
+  it('„Mein Befinden“ enthält Bauch, Kälte und Allgemeines in Abschnitten', () => {
+    const t = trackerFromTemplate(TEMPLATES.find((x) => x.key === 'now')!);
+    expect(t.name).toBe('Mein Befinden');
+    expect(t.quick).toBe(true);
+    const groups = [...new Set(t.fields.map((f) => f.group))];
+    expect(groups).toEqual(['Ereignisse & Essen', 'Bauch & Verdauung', 'Allgemein', 'Kälte', 'Notiz']);
+    for (const l of ['Bauchschmerz', 'Lokalisation', 'Kälteempfinden', 'Raumtemperatur', 'Was gegessen?', 'Würgen / Brechreiz']) {
+      expect(t.fields.some((f) => f.label === l)).toBe(true);
+    }
+    expect(TEMPLATES.some((x) => x.key === 'cold')).toBe(false);
+  });
+
+  it('führt Tracker zusammen: gleiche Felder werden eins, Einträge wandern mit', () => {
+    const me = trackerFromTemplate(TEMPLATES.find((x) => x.key === 'now')!);
+    const belly = trackerFromTemplate(TEMPLATES.find((x) => x.key === 'abdominal')!);
+    const painB = belly.fields.find((f) => f.label === 'Bauchschmerz')!;
+    const notesB = belly.fields.find((f) => f.label === 'Besonderheiten')!;
+    const mealB = belly.fields.find((f) => f.label === 'Bezug zu Mahlzeiten')!;
+    const es = [entry(belly, at(14), { [painB.id]: 2, [notesB.id]: 'Stress', [mealB.id]: 'unabhängig' }), entry(me, at(9), {})];
+    const { tracker, entries } = mergeTrackers(me, belly, es);
+    const painM = me.fields.find((f) => f.label === 'Bauchschmerz')!;
+    const moved = entries.find((e) => e.values[painM.id] === 2)!;
+    expect(moved.trackerId).toBe(me.id);
+    expect(moved.values[me.fields.find((f) => f.label === 'Bezug zu Mahlzeiten')!.id]).toBe('unabhängig');
+    // „Besonderheiten“ (Freitext) wandert in die vorhandene Notiz
+    expect(tracker.fields.some((f) => f.label === 'Besonderheiten')).toBe(false);
+    expect(moved.values[me.fields.find((f) => f.label === 'Notiz')!.id]).toBe('Stress');
+    expect(tracker.fields.length).toBe(me.fields.length); // alles Übrige gab es schon
+    expect(tracker.fields.filter((f) => f.label === 'Bauchschmerz')).toHaveLength(1);
+    expect(tracker.fields.at(-1)!.label).toBe('Notiz');
+
+    const state = { version: 1 as const, trackers: [me, belly], entries: es, reminders: {} };
+    const next = reducer(state, { type: 'tracker/merge', sourceId: belly.id, targetId: me.id });
+    expect(next.trackers.map((t) => t.id)).toEqual([me.id]);
+    expect(next.entries.every((e) => e.trackerId === me.id)).toBe(true);
+  });
+
+  it('erweitert einen alten Check-in zu „Mein Befinden“ inkl. Abschnitten', () => {
+    const tpl = TEMPLATES.find((x) => x.key === 'now')!.build();
+    const old = trackerFromTemplate(TEMPLATES.find((x) => x.key === 'now')!);
+    const legacy = { ...old, name: 'Befinden jetzt', fields: old.fields.filter((f) => ['Was ist passiert?', 'Bauchschmerz', 'Übelkeit', 'Müdigkeit', 'Notiz'].includes(f.label)).map((f) => ({ ...f, group: undefined })) };
+    const up = templateUpgrades(legacy, tpl);
+    expect(hasUpgrades(up)).toBe(true);
+    const next = applyUpgrades(legacy, up, tpl);
+    expect(next.fields.map((f) => f.label)).toEqual(tpl.fields.map((f) => f.label));
+    expect(next.fields.every((f) => !!f.group)).toBe(true);
+    expect(hasUpgrades(templateUpgrades(next, tpl))).toBe(false);
   });
 });

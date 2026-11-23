@@ -370,3 +370,15 @@ export const AGGREGATION_LABELS: Record<Aggregation, string> = {
   last: 'Letzter Wert',
   count: 'Anzahl',
 };
+
+/** Felder nach Abschnitt gruppieren (Reihenfolge bleibt; Felder ohne Abschnitt unter „Weitere“). */
+export function groupFields(fields: FieldDef[]): { name: string; fields: FieldDef[] }[] {
+  const out: { name: string; fields: FieldDef[] }[] = [];
+  for (const f of fields) {
+    const name = f.group?.trim() || 'Weitere';
+    const g = out.find((x) => x.name === name);
+    if (g) g.fields.push(f);
+    else out.push({ name, fields: [f] });
+  }
+  return out;
+}

@@ -56,28 +56,48 @@ const symptom = (label: string) => makeField('scale', label, { ...fiveStep(), po
 export const TEMPLATES: TrackerTemplate[] = [
   {
     key: 'now',
-    name: 'Befinden jetzt',
-    category: 'Schnell-Check-in',
-    icon: '⚡',
-    color: '#7048e8',
-    description: 'Mehrmals täglich in Sekunden festhalten, was gerade ist: Ereignisse und Befinden.',
-    build: () => ({
-      fields: [
-        makeField('multiselect', 'Was ist passiert?', {
-          options: ['aufgestanden', 'gegessen', 'getrunken', 'Medikament genommen', 'Toilette', 'Bewegung', 'Pause / hingelegt', 'geschlafen', 'Stress'],
-        }),
-        { ...makeField('text', 'Was gegessen?', { splitList: true }), description: 'mit Mengen, durch Komma getrennt – z. B. 3 Eier, 3 Scheiben Toast, Käse, Hummus' },
-        symptom('Bauchschmerz'),
-        symptom('Übelkeit'),
-        symptom('Würgen / Brechreiz'),
-        symptom('Müdigkeit'),
-        symptom('Tinnitus'),
-        { ...symptom('Erschöpfung'), description: '„fertig“, ausgelaugt' },
-        makeField('text', 'Notiz', { multiline: true }),
-      ],
-      schedule: sched({ mode: 'manual' }),
-      views: ['history', 'table', 'chart', 'stats', 'report', 'calendar', 'compare'],
-    }),
+    name: 'Mein Befinden',
+    category: 'Tagebuch',
+    icon: '💙',
+    color: '#2f63f0',
+    description: 'Alles an einem Ort: was passiert ist, Essen, Bauch, Übelkeit, Kälte, Müdigkeit – schnell antippen oder erzählen.',
+    build: () => {
+      const g = (group: string, f: FieldDef): FieldDef => ({ ...f, group });
+      const EV = 'Ereignisse & Essen';
+      const BA = 'Bauch & Verdauung';
+      const AL = 'Allgemein';
+      const KA = 'Kälte';
+      return {
+        fields: [
+          g(EV, makeField('multiselect', 'Was ist passiert?', {
+            options: ['aufgestanden', 'gegessen', 'getrunken', 'Medikament genommen', 'Toilette', 'Bewegung', 'Pause / hingelegt', 'geschlafen', 'Stress'],
+          })),
+          g(EV, { ...makeField('text', 'Was gegessen?', { splitList: true }), description: 'mit Mengen, durch Komma getrennt – z. B. 3 Eier, 3 Scheiben Toast, Käse, Hummus' }),
+          g(EV, makeField('select', 'Bezug zu Mahlzeiten', { options: ['vor der Mahlzeit (noch nichts gegessen)', 'während der Mahlzeit', 'nach der Mahlzeit', 'unabhängig'] })),
+          g(EV, { ...makeField('text', 'Medikamente', { splitList: true }), description: 'Name und Dosis, z. B. Buscopan 10 mg' }),
+          g(BA, symptom('Bauchschmerz')),
+          g(BA, makeField('timerange', 'Uhrzeit von–bis', { aggregation: 'sum', polarity: 'higher-worse' })),
+          g(BA, makeField('bodymap', 'Lokalisation', { bodyMap: 'abdomen' })),
+          g(BA, symptom('Übelkeit')),
+          g(BA, symptom('Würgen / Brechreiz')),
+          g(BA, symptom('Sodbrennen')),
+          g(BA, symptom('Erbrechen')),
+          g(BA, {
+            ...makeField('scale', 'Stuhlgang', { ...withLevels(['kein', 'hart', 'geformt', 'weich', 'flüssig'].map((label, value) => ({ value, label }))), polarity: 'neutral' }),
+            description: '0 = kein, 1 = hart, 2 = geformt, 3 = weich, 4 = flüssig',
+          }),
+          g(AL, symptom('Müdigkeit')),
+          g(AL, { ...symptom('Erschöpfung'), description: '„fertig“, ausgelaugt' }),
+          g(AL, symptom('Tinnitus')),
+          g(KA, symptom('Kälteempfinden')),
+          g(KA, makeField('multiselect', 'Wo kalt?', { options: ['Hände', 'Füße', 'ganzer Körper'] })),
+          g(KA, makeField('measurement', 'Raumtemperatur', { unit: '°C', step: 0.5, aggregation: 'avg' })),
+          g('Notiz', makeField('text', 'Notiz', { multiline: true })),
+        ],
+        schedule: sched({ mode: 'times', times: ['20:00'], repeatMinutes: 30, maxRepeats: 2 }),
+        views: ['history', 'table', 'report', 'calendar', 'stats', 'chart', 'compare'],
+      };
+    },
   },
   {
     key: 'abdominal',
@@ -215,23 +235,6 @@ export const TEMPLATES: TrackerTemplate[] = [
       ],
       schedule: sched({ mode: 'times', times: ['07:30'] }),
       views: ['history', 'chart', 'calendar', 'stats', 'compare', 'table'],
-    }),
-  },
-  {
-    key: 'cold',
-    name: 'Kälteempfinden',
-    category: 'Symptomtracking',
-    icon: '🥶',
-    color: '#1098ad',
-    description: 'Kälteempfinden mehrmals täglich erfassen.',
-    build: () => ({
-      fields: [
-        severity('Kälteempfinden'),
-        makeField('multiselect', 'Wo?', { options: ['Hände', 'Füße', 'ganzer Körper'] }),
-        makeField('measurement', 'Raumtemperatur', { unit: '°C', step: 0.5, aggregation: 'avg' }),
-      ],
-      schedule: sched({ mode: 'interval', intervalMinutes: 180, intervalStart: '09:00', intervalEnd: '21:00' }),
-      views: ['history', 'chart', 'daily', 'stats', 'compare', 'table'],
     }),
   },
   {

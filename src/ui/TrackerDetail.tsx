@@ -35,6 +35,7 @@ export function TrackerDetail({ tracker, view }: { tracker: Tracker; view?: stri
   const views = base.includes('table') ? base : [...base, 'table' as ViewType];
   const active = (views.includes(view as ViewType) ? view : views[0]) as ViewType;
   const View = VIEW_COMPONENTS[active];
+  const others = data.trackers.filter((t) => t.id !== tracker.id && !t.archived);
 
   const remove = async () => {
     if (await askConfirm(`Tracker „${tracker.name}“ und alle ${entries.length} Einträge endgültig löschen?`, { okLabel: 'Tracker löschen' })) {
@@ -44,8 +45,8 @@ export function TrackerDetail({ tracker, view }: { tracker: Tracker; view?: stri
   };
 
   return (
-    <div className="page" style={{ '--accent': tracker.color } as React.CSSProperties}>
-      <section className="hero-band tinted no-print">
+    <div className="page">
+      <section className="hero-band no-print">
         <div className="hero-inner">
           <button className="back linkish" onClick={() => navigate('/')}>‹ Übersicht</button>
           <div className="detail-head">
@@ -80,6 +81,28 @@ export function TrackerDetail({ tracker, view }: { tracker: Tracker; view?: stri
         <button className="btn ghost" onClick={() => dispatch({ type: 'tracker/archive', id: tracker.id, archived: !tracker.archived })}>
           {tracker.archived ? 'Wiederherstellen' : 'Archivieren'}
         </button>
+        {others.length > 0 && (
+          <label className="merge-select">
+            <span className="muted small">Zusammenführen mit</span>
+            <select
+              value=""
+              onChange={async (e) => {
+                const target = data.trackers.find((t) => t.id === e.target.value);
+                e.target.value = '';
+                if (!target) return;
+                if (await askConfirm(`„${tracker.name}“ in „${target.name}“ übernehmen? Gleiche Felder werden zusammengelegt, alle ${entries.length} Einträge wandern mit, danach gibt es nur noch „${target.name}“.`, { okLabel: 'Zusammenführen', danger: false })) {
+                  dispatch({ type: 'tracker/merge', sourceId: tracker.id, targetId: target.id });
+                  navigate(`/t/${target.id}`);
+                }
+              }}
+            >
+              <option value="">Tracker wählen …</option>
+              {others.map((t) => (
+                <option key={t.id} value={t.id}>{t.icon} {t.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
         <button className="btn ghost danger" onClick={remove}>Löschen</button>
       </div>
     </div>
