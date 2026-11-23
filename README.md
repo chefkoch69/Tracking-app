@@ -71,6 +71,18 @@ CSV-Export der gefilterten Daten) und Tab „Tabelle“ in jedem Tracker.
   (`diary/meta` + `entries/<Kalenderwoche>`), nur für die Eigentümerin/den Eigentümer lesbar. Erstes Öffnen lädt die
   lokalen Daten hoch, danach gleichen sich alle Geräte ab. Claude kann die Daten auf Wunsch auslesen.
 
+## Erzählen statt tippen
+
+Auf der Jetzt-Seite (`#/now/talk` direkt) frei erzählen – gesprochen oder getippt. In claude.ai wandelt Claude den
+Text über den Baustein `sample` in Vorschläge für Einträge um (mit aufgelösten Zeitangaben wie „danach“, „vor 2
+Stunden“); `core/narrative.ts` prüft jede Antwort streng gegen die Tracker-Felder (nur bekannte Felder, nur erlaubte
+Werte, keine Zukunft) und zeigt alles zur Kontrolle, bevor gespeichert wird. Nicht Zuordenbares landet in der Notiz,
+auf Wunsch zusätzlich der Originaltext. Ohne Claude: „Als Notiz speichern“.
+
+Sprache: Baustein `dictation` (Chrome/Desktop), in der installierten App die Browser-Spracherkennung, auf dem iPhone
+das Mikrofon der Tastatur. Essen wird als Liste erfasst („3 Eier, 3 Scheiben Toast, Hummus“) und für Auswertungen
+ohne Mengen gezählt. Bestehende Check-ins können neue Vorlagen-Felder per Hinweis übernehmen.
+
 ## Baukasten-Werkzeuge
 
 - **Felder ziehen** (⠿, mit Finger oder Maus; Pfeiltasten auf dem Griff), ebenso Auswahloptionen.

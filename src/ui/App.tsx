@@ -47,7 +47,7 @@ export function App() {
         break;
       }
       case 'now':
-        page = <QuickPage />;
+        page = <QuickPage talk={route.talk} />;
         break;
       case 'doctor':
         page = <DoctorReport />;

@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { TalkCard } from './TalkCard';
+import { applyUpgrades, templateUpgrades } from '../core/trackerEdit';
 import { entriesOf } from '../core/analytics';
 import { dayKey, formatClock, toLocalInput } from '../core/dates';
 import { FIELD_TYPES, fmtLevel, formatValue, isEmptyValue, validateValues } from '../core/fieldTypes';
@@ -16,7 +18,7 @@ import { ValuePills } from './views/shared';
  * gespeichert; neben jeder Bewertung steht der letzte Wert, damit man
  * „besser/schlechter“ sofort sieht.
  */
-export function QuickPage() {
+export function QuickPage({ talk }: { talk?: boolean }) {
   const { data, dispatch } = useStore();
   const quick = data.trackers.filter((t) => t.quick && !t.archived);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -52,10 +54,34 @@ export function QuickPage() {
       </div>
     );
   }
-  return <QuickForm key={tracker.id} tracker={tracker} others={quick} onSwitch={setActiveId} />;
+  return <QuickForm key={tracker.id} tracker={tracker} others={quick} onSwitch={setActiveId} talk={talk} />;
 }
 
-function QuickForm({ tracker, others, onSwitch }: { tracker: Tracker; others: Tracker[]; onSwitch: (id: string) => void }) {
+/** Hinweis, wenn die Vorlage neue Felder hat, die dem eigenen Check-in fehlen. */
+function UpgradeHint({ tracker }: { tracker: Tracker }) {
+  const { dispatch } = useStore();
+  const [hidden, setHidden] = useState(false);
+  const tpl = TEMPLATES.find((t) => t.key === 'now')!.build();
+  const norm = (s: string) => s.trim().toLocaleLowerCase('de-DE');
+  // Nur für Check-ins, die erkennbar aus der Vorlage stammen.
+  const related = tracker.fields.filter((f) => tpl.fields.some((tf) => norm(tf.label) === norm(f.label))).length >= 3;
+  const up = templateUpgrades(tracker, tpl);
+  if (hidden || !related || (!up.fields.length && !up.options.length)) return null;
+  const items = [...up.fields.map((f) => f.label), ...up.options.flatMap((o) => o.add.map((a) => `„${a}“`))];
+  return (
+    <div className="demo-banner">
+      <span>
+        <b>Neu für deinen Check-in:</b> {items.join(', ')}. Deine bisherigen Einträge bleiben unverändert.
+      </span>
+      <span className="inline">
+        <button className="btn small ghost" onClick={() => setHidden(true)}>Nicht jetzt</button>
+        <button className="btn small primary" onClick={() => dispatch({ type: 'tracker/save', tracker: applyUpgrades(tracker, up, tpl) })}>Hinzufügen</button>
+      </span>
+    </div>
+  );
+}
+
+function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; others: Tracker[]; onSwitch: (id: string) => void; talk?: boolean }) {
   const { data, dispatch } = useStore();
   const visible = tracker.fields.filter((f) => !f.hidden);
   const empty = () => Object.fromEntries(visible.map((f) => [f.id, FIELD_TYPES[f.type].emptyValue(f)]));
@@ -134,6 +160,9 @@ function QuickForm({ tracker, others, onSwitch }: { tracker: Tracker; others: Tr
         </div>
       </section>
 
+      <UpgradeHint tracker={tracker} />
+      <TalkCard quick={tracker} autoFocus={talk} />
+
       {saved && (
         <div className="saved-toast" role="status">
           <span>✓ {saved}</span>
@@ -141,6 +170,7 @@ function QuickForm({ tracker, others, onSwitch }: { tracker: Tracker; others: Tr
         </div>
       )}
 
+      <h2 className="quick-or">… oder antippen</h2>
       <form
         className="card entry-form quick-form"
         onSubmit={(e) => {

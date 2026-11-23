@@ -46,6 +46,8 @@ export interface FieldConfig {
   polarity?: Polarity;
   /** Welches Lokalisationsschema (Feldtyp bodymap). */
   bodyMap?: BodyMapKind;
+  /** Text: mehrere Einträge mit Komma (z. B. Lebensmittel) – einzeln ausgewertet. */
+  splitList?: boolean;
   /** Zeitraum: Beginn automatisch mit der Aufstehzeit vorbelegen. */
   fromWake?: boolean;
 }

@@ -64,10 +64,12 @@ export const TEMPLATES: TrackerTemplate[] = [
     build: () => ({
       fields: [
         makeField('multiselect', 'Was ist passiert?', {
-          options: ['aufgestanden', 'gegessen', 'getrunken', 'Medikament genommen', 'Toilette', 'Bewegung', 'Pause / hingelegt', 'Stress'],
+          options: ['aufgestanden', 'gegessen', 'getrunken', 'Medikament genommen', 'Toilette', 'Bewegung', 'Pause / hingelegt', 'geschlafen', 'Stress'],
         }),
+        { ...makeField('text', 'Was gegessen?', { splitList: true }), description: 'mit Mengen, durch Komma getrennt – z. B. 3 Eier, 3 Scheiben Toast, Käse, Hummus' },
         symptom('Bauchschmerz'),
         symptom('Übelkeit'),
+        symptom('Würgen / Brechreiz'),
         symptom('Müdigkeit'),
         symptom('Tinnitus'),
         { ...symptom('Erschöpfung'), description: '„fertig“, ausgelaugt' },
@@ -166,7 +168,7 @@ export const TEMPLATES: TrackerTemplate[] = [
     description: 'Lebensmittel und deren Auswirkungen dokumentieren.',
     build: () => ({
       fields: [
-        makeField('text', 'Lebensmittel', {}, true),
+        makeField('text', 'Lebensmittel', { splitList: true }, true),
         makeField('select', 'Mahlzeit', { options: ['Frühstück', 'Mittagessen', 'Abendessen', 'Snack'] }),
         makeField('measurement', 'Menge', { unit: 'g', min: 0, step: 10, aggregation: 'sum' }),
         makeField('scale', 'Beschwerden nach dem Essen', { min: 0, max: 3, scaleLabels: ['keine', 'leicht', 'mittel', 'stark'] }),

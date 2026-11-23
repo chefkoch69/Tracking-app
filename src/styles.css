@@ -632,6 +632,28 @@ input[type="checkbox"], input[type="radio"] { width: auto; accent-color: var(--a
 }
 .report-table th { overflow-wrap: anywhere; hyphens: auto; }
 
+/* ---------- Erzählen ---------- */
+.talk-card { border: 1.5px solid color-mix(in srgb, var(--accent) 35%, var(--border)); }
+.talk-card h2 { margin: 0; }
+.talk-text { font-size: 1rem; line-height: 1.45; min-height: 7.5rem; }
+.btn.mic.on { background: var(--bad); color: #fff; border-color: transparent; animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--bad) 25%, transparent); } }
+.thinking { font-weight: 650; color: var(--muted); }
+.thinking::after { content: ' ●'; animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.proposals { display: flex; flex-direction: column; gap: 0.6rem; }
+.proposal { border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: var(--radius-sm); padding: 0.7rem 0.8rem; display: flex; flex-direction: column; gap: 0.4rem; }
+.proposal.off { opacity: 0.5; }
+.proposal-head { display: flex; gap: 0.6rem; align-items: flex-start; cursor: pointer; }
+.proposal-head input { margin-top: 0.25rem; width: 1.15rem; height: 1.15rem; }
+.proposal-title { display: flex; flex-direction: column; }
+.proposal-time { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.proposal-time input { width: auto; max-width: 15rem; padding-block: 0.35rem; }
+.proposal-values { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.warn-pill { background: var(--warn-bg); color: var(--warn); }
+.quick-or { font-size: 1rem; color: var(--muted); margin: 0.2rem 0 -0.4rem; }
+@media (prefers-reduced-motion: reduce) { .btn.mic.on, .thinking::after { animation: none; } }
+
 /* ---------- Dialog & Hinweise ---------- */
 .dialog-backdrop {
   position: fixed; inset: 0; z-index: 50; display: grid; place-items: center;

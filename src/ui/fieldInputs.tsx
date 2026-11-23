@@ -466,10 +466,18 @@ export const FIELD_UI: Record<
   text: {
     Input: TextInput,
     Config: ({ config, onChange }) => (
+      <>
       <label className="switch">
         <input type="checkbox" checked={!!config.multiline} onChange={(e) => onChange({ multiline: e.target.checked })} />
         <span>Mehrzeilig (Freitext – wird nicht als Kategorie gezählt)</span>
       </label>
+      {!config.multiline && (
+        <label className="switch">
+          <input type="checkbox" checked={!!config.splitList} onChange={(e) => onChange({ splitList: e.target.checked })} />
+          <span>Liste (mehrere Einträge mit Komma, z. B. Lebensmittel – einzeln ausgewertet)</span>
+        </label>
+      )}
+      </>
     ),
   },
   select: {

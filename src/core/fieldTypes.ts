@@ -53,6 +53,23 @@ const numberToNumber = (_f: FieldDef, v: FieldValue) =>
 
 const none = () => [] as string[];
 
+/** Text-Liste in Einträge zerlegen (Komma, Semikolon, Zeilenumbruch, „und“). */
+export function listItems(text: string): string[] {
+  return text
+    .split(/[,;\n]+|\s+und\s+|\s+\+\s+/i)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+/** Mengenangabe vorne entfernen: "3 Scheiben Toast" → "Toast", "100 g Hummus" → "Hummus". */
+export function itemName(item: string): string {
+  const s = item
+    .replace(/^\s*(ein(e|en|er)?|zwei|drei|vier|fünf|halbe?s?|\d+([.,]\d+)?)\s*(x|×)?\s*/i, '')
+    .replace(/^(g|kg|ml|l|stk\.?|stück|scheiben?|portion(en)?|tassen?|gläser|glas|el|tl|becher|schalen?|handvoll|stücke?)\s+/i, '')
+    .trim();
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : item.trim();
+}
+
 export const fmtLevel = (n: number) => n.toLocaleString('de-DE', { maximumFractionDigits: 2 });
 
 /** Stufen einer Skala – aus levels oder (ältere Form) aus min/max/scaleLabels abgeleitet. */
@@ -162,8 +179,11 @@ export const FIELD_TYPES: Record<FieldType, FieldTypeSpec> = {
     format: (_f, v) => (typeof v === 'string' && v ? v : '–'),
     toNumber: () => null,
     // Nur einzeilige Texte sind sinnvolle Kategorien (z. B. "Lebensmittel").
-    categories: (f, v) =>
-      !f.config.multiline && typeof v === 'string' && v.trim() ? [v.trim()] : [],
+    // Als Liste markiert: jeder Eintrag einzeln, ohne Mengenangabe ("3 Eier" → "Eier").
+    categories: (f, v) => {
+      if (f.config.multiline || typeof v !== 'string' || !v.trim()) return [];
+      return f.config.splitList ? listItems(v).map(itemName) : [v.trim()];
+    },
   },
   select: {
     type: 'select',

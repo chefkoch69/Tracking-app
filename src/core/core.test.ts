@@ -17,8 +17,9 @@ import { atMinutes, weekKey } from './dates';
 import { cloudDiff, fromCloud, sameData, stableStringify, toCloud } from './cloudModel';
 import { dayColumns, dayValue, reportText, symptomSummary } from './report';
 import { generateDemo } from './demo';
-import { formatShort, formatValue, rangeMinutes, scaleLevels, severity, validateValues, withLevels } from './fieldTypes';
-import { optionRenames } from './trackerEdit';
+import { formatShort, formatValue, itemName, listItems, rangeMinutes, scaleLevels, severity, validateValues, withLevels } from './fieldTypes';
+import { applyUpgrades, optionRenames, templateUpgrades } from './trackerEdit';
+import { interpretNarrative, narrativePrompt } from './narrative';
 import { reducer } from '../state/store';
 import { computeInsights, factorInsights, trendInsights } from './insights';
 import { healthAsTracker, minutesSinceWake, parseHealthText, sinceWakeDistribution } from './health';
@@ -439,5 +440,75 @@ describe('Arztbericht', () => {
     expect(text).toContain('Name: Test Person');
     expect(text).toContain('ÜBERSICHT');
     expect(text).toMatch(/Bauchschmerz \d/);
+  });
+});
+
+describe('Erzählen: Text → Einträge', () => {
+  const quick = trackerFromTemplate(TEMPLATES.find((x) => x.key === 'now')!);
+  const id = (l: string) => quick.fields.find((f) => f.label === l)!.id;
+  const now = new Date(2026, 10, 23, 11, 40);
+
+  it('baut einen Auftrag mit Feldern, erlaubten Werten und der aktuellen Zeit', () => {
+    const p = narrativePrompt('Ich habe gefrühstückt', [quick], now, { '2026-11-23': { date: '2026-11-23', wake: '06:10', source: 'manual' } });
+    expect(p).toContain(id('Übelkeit'));
+    expect(p).toContain('0.5=sehr leicht');
+    expect(p).toContain('2026-11-23T11:40');
+    expect(p).toContain('Heute aufgestanden um 06:10');
+    expect(p).toContain('Ich habe gefrühstückt');
+  });
+
+  it('übernimmt nur gültige Werte (Beispiel: Frühstück, fertig, Schlaf, jetzt übel und Würgen)', () => {
+    const reply = {
+      entries: [
+        { trackerId: quick.id, time: '2026-11-23T08:30', timeUncertain: true, summary: 'Frühstück nach Termin',
+          values: { [id('Was ist passiert?')]: ['gegessen'], [id('Was gegessen?')]: '3 Eier, 3 Scheiben Toast, Käse, Hummus', [id('Notiz')]: 'nach einem Termin in der Früh' } },
+        { trackerId: quick.id, time: '2026-11-23T09:15', summary: 'danach sehr fertig', values: { [id('Erschöpfung')]: 3 } },
+        { trackerId: quick.id, time: '2026-11-23T09:30', summary: '2 Stunden geschlafen', values: { [id('Was ist passiert?')]: ['geschlafen', 'Mittagsschlaf'] } },
+        { trackerId: quick.id, time: '2026-11-23T11:40', summary: 'jetzt übel, würgen',
+          values: { [id('Übelkeit')]: 2, [id('Würgen / Brechreiz')]: '2', [id('Müdigkeit')]: 7, unbekannt: 'x' } },
+        { trackerId: 'gibt-es-nicht', time: '2026-11-23T11:40', values: { a: 1 } },
+        { trackerId: quick.id, time: '2026-11-23T18:00', values: { [id('Bauchschmerz')]: 1 } },
+      ],
+      wake: '6:05',
+      unmapped: ['Termin'],
+    };
+    const r = interpretNarrative(reply, [quick], now);
+    expect(r.proposals).toHaveLength(5);
+    const [breakfast, tired, nap, current, future] = r.proposals;
+    expect(breakfast.values[id('Was gegessen?')]).toBe('3 Eier, 3 Scheiben Toast, Käse, Hummus');
+    expect(breakfast.timeUncertain).toBe(true);
+    expect(tired.values[id('Erschöpfung')]).toBe(3);
+    expect(nap.values[id('Was ist passiert?')]).toEqual(['geschlafen']); // „Mittagsschlaf“ ist keine Option
+    expect(current.values[id('Übelkeit')]).toBe(2);
+    expect(current.values[id('Würgen / Brechreiz')]).toBe(2);
+    expect(current.values[id('Müdigkeit')]).toBeUndefined(); // 7 gibt es auf der Skala nicht
+    expect(current.dropped.join(' ')).toMatch(/Müdigkeit: 7/);
+    expect(future.time.getTime()).toBe(now.getTime()); // Zukunft → jetzt, unsicher
+    expect(future.timeUncertain).toBe(true);
+    expect(r.wake).toBe('06:05');
+    expect(r.unmapped).toEqual(['Termin']);
+  });
+
+  it('wertet Essens-Listen einzeln und ohne Mengen aus', () => {
+    expect(listItems('3 Eier, 3 Scheiben Toast mit Käse und Hummus')).toEqual(['3 Eier', '3 Scheiben Toast mit Käse', 'Hummus']);
+    expect(itemName('3 Scheiben Toast')).toBe('Toast');
+    expect(itemName('100 g Hummus')).toBe('Hummus');
+    expect(itemName('zwei Eier')).toBe('Eier');
+    const food = quick.fields.find((f) => f.label === 'Was gegessen?')!;
+    const f = frequencies(food, [entry(quick, at(8), { [food.id]: '3 Eier, Hummus' }), entry(quick, at(12), { [food.id]: '2 Eier, 1 Scheibe Brot' })]);
+    expect(f[0]).toEqual({ label: 'Eier', count: 2 });
+  });
+
+  it('ergänzt neue Vorlagen-Felder in einem bestehenden Check-in, ohne Daten anzufassen', () => {
+    const old = { ...quick, fields: quick.fields.filter((f) => f.label !== 'Was gegessen?' && !f.label.startsWith('Würgen')).map((f) => (f.label === 'Was ist passiert?' ? { ...f, config: { ...f.config, options: ['gegessen', 'aufgestanden'] } } : f)) };
+    const up = templateUpgrades(old, quick);
+    expect(up.fields.map((f) => f.label)).toEqual(['Was gegessen?', 'Würgen / Brechreiz']);
+    expect(up.options[0].add).toContain('geschlafen');
+    const next = applyUpgrades(old, up, quick);
+    expect(next.fields.length).toBe(old.fields.length + 2);
+    expect(next.fields.map((f) => f.label)).toEqual(quick.fields.map((f) => f.label)); // an ihrem Platz aus der Vorlage
+    expect(applyUpgrades(old, up).fields.at(-1)!.label).toBe('Notiz'); // ohne Vorlage: vor die Notiz
+    expect(next.fields.filter((f) => old.fields.some((o) => o.id === f.id)).length).toBe(old.fields.length);
+    expect(templateUpgrades(next, quick)).toEqual({ fields: [], options: [] });
   });
 });

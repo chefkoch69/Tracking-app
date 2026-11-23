@@ -84,6 +84,7 @@ export function Dashboard() {
           </p>
           <div className="hero-cta">
             <button className="btn white" onClick={() => navigate('/now')}>⚡ Wie geht’s dir gerade?</button>
+            <button className="btn outline-white" onClick={() => navigate('/now/talk')}>🎙 Erzählen</button>
             <button className="btn outline-white" onClick={() => navigate('/arzt')}>🩺 Arztbericht</button>
           </div>
           <WakeChip now={now} />
