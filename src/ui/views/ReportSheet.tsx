@@ -13,9 +13,10 @@ const COLS = 7;
  */
 export function ReportSheet({ tracker, entries, mode }: { tracker: Tracker; entries: Entry[]; mode: 'entries' | 'days' }) {
   const shown = tracker.fields.filter((f) => !f.hidden || entries.some((e) => !isEmptyValue(e.values[f.id])));
-  const rows = shown.filter((f) => !(f.type === 'text' && f.config.multiline));
-  const notes = shown.filter((f) => f.type === 'text' && f.config.multiline);
   const cols = mode === 'days' ? dayColumns(tracker, entries) : entryColumns(tracker, entries);
+  // Nur Zeilen, zu denen es im Zeitraum mindestens einen Wert gibt – das hält das Blatt kurz.
+  const rows = shown.filter((f) => !(f.type === 'text' && f.config.multiline) && cols.some((c) => c.values[f.id]));
+  const notes = shown.filter((f) => f.type === 'text' && f.config.multiline && cols.some((c) => c.notes[f.id]?.length));
   const chunks: ReportColumn[][] = [];
   for (let i = 0; i < cols.length; i += COLS) chunks.push(cols.slice(i, i + COLS));
 
@@ -49,7 +50,7 @@ export function ReportSheet({ tracker, entries, mode }: { tracker: Tracker; entr
                 <tr key={f.id}>
                   <th>
                     {f.label}
-                    {f.type === 'scale' && <small> ({fmtLevel(f.config.min ?? 0)}–{fmtLevel(f.config.max ?? 0)}{mode === 'days' ? ', Tagesmax.' : ''})</small>}
+                    {f.type === 'scale' && <small> ({fmtLevel(f.config.min ?? 0)}–{fmtLevel(f.config.max ?? 0)})</small>}
                     {f.config.unit && f.type !== 'timerange' && <small> ({f.config.unit})</small>}
                   </th>
                   {chunk.map((c) => (
@@ -74,6 +75,7 @@ export function ReportSheet({ tracker, entries, mode }: { tracker: Tracker; entr
         </div>
       ))}
 
+      {mode === 'days' && <p className="muted small report-hint">Bewertungen: Höchstwert des Tages, bei mehreren Einträgen in Klammern die Spanne. Felder ohne Angaben im Zeitraum sind ausgeblendet.</p>}
       {(legend.size > 0 || maps.length > 0) && (
         <footer className="report-legend">
           {[...legend.values()].map((f) => (

@@ -282,3 +282,77 @@ export function Sparkline({ values, color }: { values: number[]; color: string }
 function Empty() {
   return <div className="empty-chart">Noch keine Daten für diese Auswertung.</div>;
 }
+
+export const SERIES_COLORS = ['#2b5ff0', '#e0464e', '#e3920c', '#2e9e52', '#7c5cd6', '#0e9fbf', '#c2410c', '#64748b'];
+
+/** Mehrere Tagesreihen als Linien (Lücken bleiben Lücken). */
+export function MultiLineChart({
+  days,
+  series,
+  max,
+}: {
+  days: string[];
+  series: { key: string; label: string; color: string; values: (number | null)[] }[];
+  max: number;
+}) {
+  const [tip, setTip] = useState<Tip | null>(null);
+  if (!series.length) return <Empty />;
+  const top = Math.max(1, max);
+  const ticks = Array.from({ length: Math.floor(top) + 1 }, (_, i) => i);
+  const sx = (i: number) => PAD.l + (days.length === 1 ? 0.5 : i / (days.length - 1)) * (W - PAD.l - PAD.r);
+  const sy = (v: number) => H - PAD.b - (v / top) * (H - PAD.t - PAD.b);
+  // Höchstens ~5 Beschriftungen, die letzte nur, wenn sie der vorigen nicht zu nahe kommt.
+  const every = Math.max(1, Math.ceil(days.length / 5));
+  const lastLabeled = Math.floor((days.length - 1) / every) * every;
+  const showLabel = (i: number) => i % every === 0 ? !(i === lastLabeled && days.length - 1 - i < every / 2 && i !== days.length - 1) : i === days.length - 1 && days.length - 1 - lastLabeled >= every / 2;
+  const label = (k: string) => {
+    const d = new Date(`${k}T12:00:00`);
+    return d.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric' });
+  };
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="chart" role="img" aria-label="Beschwerden im Verlauf" onMouseLeave={() => setTip(null)}>
+      <YAxis ticks={ticks} y={sy} />
+      {days.map((k, i) =>
+        showLabel(i) ? (
+          <text key={k} x={sx(i)} y={H - 8} textAnchor={i === 0 ? 'start' : i === days.length - 1 ? 'end' : 'middle'} className="axis">
+            {label(k)}
+          </text>
+        ) : null,
+      )}
+      {series.map((s) => {
+        // Pfad mit Unterbrechungen an Tagen ohne Wert
+        let d = '';
+        let pen = false;
+        s.values.forEach((v, i) => {
+          if (v === null) {
+            pen = false;
+            return;
+          }
+          d += `${pen ? 'L' : 'M'}${sx(i).toFixed(1)},${sy(v).toFixed(1)}`;
+          pen = true;
+        });
+        return (
+          <g key={s.key}>
+            <path d={d} fill="none" stroke={s.color} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+            {s.values.map((v, i) =>
+              v === null ? null : (
+                <circle
+                  key={i}
+                  cx={sx(i)}
+                  cy={sy(v)}
+                  r={i === s.values.length - 1 ? 5 : 3}
+                  fill={i === s.values.length - 1 ? s.color : '#fff'}
+                  stroke={s.color}
+                  strokeWidth={2}
+                  onMouseEnter={() => setTip({ x: sx(i), y: sy(v), text: `${s.label} ${label(days[i])}: ${v.toLocaleString('de-DE')}` })}
+                  onClick={() => setTip({ x: sx(i), y: sy(v), text: `${s.label} ${label(days[i])}: ${v.toLocaleString('de-DE')}` })}
+                />
+              ),
+            )}
+          </g>
+        );
+      })}
+      <Tooltip tip={tip} />
+    </svg>
+  );
+}

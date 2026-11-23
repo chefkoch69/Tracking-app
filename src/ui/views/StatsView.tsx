@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { averageGapMinutes, bucketize, categoricalFields, consistencySeries, currentStreak, entriesOf, fieldStats, frequencies, longestStreak, numericFields, series, timeDistribution } from '../../core/analytics';
-import { fieldSpec, formatDuration, metricLabel } from '../../core/fieldTypes';
+import { fieldSpec, formatDuration, metricLabel, polarityOf } from '../../core/fieldTypes';
 import { sinceWakeDistribution } from '../../core/health';
 import { BarChart, LineChart } from '../charts/Charts';
 import { dayKey, formatDateTime, formatDay, parseDayKey } from '../../core/dates';
@@ -13,6 +13,7 @@ import { BodyMapSvg } from '../BodyMap';
 import { FrequencyBars } from '../charts/Charts';
 import { ConsistencyRing } from '../ConsistencyRing';
 import { InsightList } from '../Insights';
+import { SymptomTrendCard } from '../SymptomTrendCard';
 import { NoData } from './shared';
 
 const n = (v: number | null | undefined, unit?: string) =>
@@ -36,10 +37,11 @@ export function StatsView({ tracker }: { tracker: Tracker }) {
         <Kpi label="Einträge" value={String(entries.length)} />
         <Kpi label="Tage mit Einträgen" value={String(days)} />
         <Kpi label="Aktuelle Serie" value={`${currentStreak(entries)} Tage`} />
-        <Kpi label="Längste Serie" value={`${longestStreak(entries)} Tage`} />
-        <Kpi label="Erster Eintrag" value={first.toLocaleDateString('de-DE')} />
+        <Kpi label="Längste Serie" value={`${longestStreak(entries)} Tage`} sub={`seit ${first.toLocaleDateString('de-DE')}`} />
         {gap !== null && <Kpi label="Ø Abstand zwischen Einträgen" value={gap >= 1440 ? `${(gap / 1440).toLocaleString('de-DE', { maximumFractionDigits: 1 })} Tage` : formatDuration(gap)} />}
       </div>
+
+      <SymptomTrendCard tracker={tracker} />
 
       {(() => {
         const ins = [...trendInsights(tracker, data.entries, new Date()), ...factorInsights(tracker, data.entries)].slice(0, 6);
@@ -76,9 +78,7 @@ export function StatsView({ tracker }: { tracker: Tracker }) {
 
       <TimeOfDay tracker={tracker} />
 
-      {nums.map((f) => (
-        <NumericStats key={f.id} field={f} tracker={tracker} />
-      ))}
+      {nums.length > 0 && <MeasureOverview tracker={tracker} fields={nums} />}
 
 
       {cats.map((f) => {
@@ -263,5 +263,58 @@ function TimeOfDay({ tracker }: { tracker: Tracker }) {
         </>
       )}
     </section>
+  );
+}
+
+/** Alle Messgrößen in einer Tabelle; Tipp auf eine Zeile zeigt die Details. */
+function MeasureOverview({ tracker, fields }: { tracker: Tracker; fields: FieldDef[] }) {
+  const { data } = useStore();
+  const entries = entriesOf(tracker, data.entries);
+  const [open, setOpen] = useState<string | null>(null);
+  const rows = fields
+    .map((f) => ({ f, s: fieldStats(f, entries) }))
+    .filter((r) => r.s.count > 0);
+  const fmt = (v: number | null, f: FieldDef) =>
+    v === null ? '–' : `${v.toLocaleString('de-DE', { maximumFractionDigits: 1 })}${f.config.unit && f.type !== 'scale' ? ' ' + f.config.unit : ''}`;
+  const sel = rows.find((r) => r.f.id === open);
+  return (
+    <>
+      <section className="card">
+        <h3>Alle Messwerte</h3>
+        <p className="muted small">Ø und Trend beziehen sich auf Tageswerte. Zeile antippen für Details.</p>
+        <div className="table-scroll">
+          <table className="table measure-table">
+            <thead>
+              <tr>
+                <th>Messgröße</th>
+                <th className="num">Ø</th>
+                <th className="num">Max</th>
+                <th className="num">7 Tage</th>
+                <th className="num">Werte</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(({ f, s }) => {
+                const d = s.trend.recent !== null && s.trend.previous !== null ? s.trend.recent - s.trend.previous : null;
+                const pol = polarityOf(f);
+                const good = d !== null && d !== 0 && pol !== 'neutral' && (d < 0) === (pol === 'higher-worse');
+                return (
+                  <tr key={f.id} className={open === f.id ? 'selected' : ''} onClick={() => setOpen(open === f.id ? null : f.id)}>
+                    <td>{metricLabel(f)}</td>
+                    <td className="num">{fmt(s.avg, f)}</td>
+                    <td className="num">{fmt(s.max, f)}</td>
+                    <td className={`num trend ${d === null || Math.abs(d) < 0.05 ? '' : good ? 'better' : pol === 'neutral' ? '' : 'worse'}`}>
+                      {d === null ? '–' : Math.abs(d) < 0.05 ? '=' : `${d > 0 ? '▲' : '▼'} ${Math.abs(d).toLocaleString('de-DE', { maximumFractionDigits: 1 })}`}
+                    </td>
+                    <td className="num">{s.count}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+      {sel && <NumericStats field={sel.f} tracker={tracker} />}
+    </>
   );
 }

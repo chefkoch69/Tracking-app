@@ -1,8 +1,8 @@
-import { useContext, useState, type ReactNode } from 'react';
+import { useContext, useMemo, useState, type ReactNode } from 'react';
 import { useStore } from '../state/store';
 import { EntryDayContext } from './entryContext';
 import { BODY_MAPS } from '../core/bodyMaps';
-import { AGGREGATION_LABELS, FIELD_TYPES, fmtLevel, formatDuration, isTimeRange, rangeMinutes, scaleLevels, severity, withLevels } from '../core/fieldTypes';
+import { AGGREGATION_LABELS, FIELD_TYPES, fmtLevel, formatDuration, isTimeRange, itemName, listItems, rangeMinutes, scaleLevels, severity, withLevels } from '../core/fieldTypes';
 import { useDragReorder } from './useDragReorder';
 import type { Aggregation, BodyMapKind, FieldConfig, FieldDef, FieldType, FieldValue, Polarity, ScaleLevel } from '../core/types';
 import { BodyMapSvg } from './BodyMap';
@@ -165,10 +165,43 @@ function BodyMapInput({ field, value, onChange, id }: InputProps) {
 
 function TextInput({ field, value, onChange, id }: InputProps) {
   const v = typeof value === 'string' ? value : '';
-  return field.config.multiline ? (
-    <textarea id={id} rows={3} value={v} onChange={(e) => onChange(e.target.value)} />
-  ) : (
-    <input id={id} type="text" value={v} onChange={(e) => onChange(e.target.value)} />
+  if (field.config.multiline) return <textarea id={id} rows={3} value={v} onChange={(e) => onChange(e.target.value)} />;
+  if (!field.config.splitList) return <input id={id} type="text" value={v} onChange={(e) => onChange(e.target.value)} />;
+  return <ListTextInput field={field} value={v} onChange={onChange} id={id} />;
+}
+
+/** Liste (z. B. Essen, Medikamente): frühere Einträge als Ein-Tipp-Vorschläge. */
+function ListTextInput({ field, value, onChange, id }: { field: FieldDef; value: string; onChange: (v: FieldValue) => void; id: string }) {
+  const { data } = useStore();
+  const suggestions = useMemo(() => {
+    const seen = new Map<string, { text: string; n: number; last: string }>();
+    for (const e of data.entries) {
+      const raw = e.values[field.id];
+      if (typeof raw !== 'string') continue;
+      for (const item of listItems(raw)) {
+        const key = itemName(item).toLocaleLowerCase('de-DE');
+        const cur = seen.get(key);
+        // Den zuletzt verwendeten Wortlaut (inkl. Menge) anbieten.
+        if (!cur) seen.set(key, { text: item, n: 1, last: e.timestamp });
+        else seen.set(key, { text: e.timestamp > cur.last ? item : cur.text, n: cur.n + 1, last: e.timestamp > cur.last ? e.timestamp : cur.last });
+      }
+    }
+    return [...seen.entries()].sort((a, b) => b[1].n - a[1].n || b[1].last.localeCompare(a[1].last)).slice(0, 10);
+  }, [data.entries, field.id]);
+  const have = new Set(listItems(value).map((x) => itemName(x).toLocaleLowerCase('de-DE')));
+  const open = suggestions.filter(([k]) => !have.has(k));
+  const add = (item: string) => onChange(value.trim() ? `${value.trim().replace(/,$/, '')}, ${item}` : item);
+  return (
+    <div className="list-text">
+      <input id={id} type="text" value={value} onChange={(e) => onChange(e.target.value)} />
+      {open.length > 0 && (
+        <div className="chips suggest" aria-label="Zuletzt verwendet">
+          {open.map(([k, s]) => (
+            <button key={k} type="button" className="chip small" onClick={() => add(s.text)}>＋ {s.text}</button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -29,6 +29,16 @@ export interface Insight {
 
 const num = (v: number, digits = 1) => v.toLocaleString('de-DE', { maximumFractionDigits: digits });
 const pct = (v: number) => `${v > 0 ? '+' : '−'}${Math.round(Math.abs(v) * 100)} %`;
+/** Kennzahl einer Veränderung: auf Skalen als Differenz (Prozente wären bei kleinen Werten irreführend). */
+function changeMetric(f: FieldDef, diff: number, base: number): string {
+  const sign = diff > 0 ? '+' : '−';
+  if (f.type === 'scale' || base === 0 || Math.abs(base) < 1) return `${sign}${num(Math.abs(diff))}${f.type === 'scale' ? '' : unitOf(f)}`;
+  return pct(diff / Math.abs(base));
+}
+
+/** Gehören zwei Felder zum selben Thema (gleicher Abschnitt)? Dann sind Zusammenhänge oft selbstverständlich. */
+const sameTopic = (a: FieldDef, b: FieldDef) => !!a.group && a.group === b.group;
+
 const unitOf = (f: FieldDef) => (f.config.unit ? ` ${f.config.unit}` : '');
 const range = (f: FieldDef) =>
   f.config.min !== undefined && f.config.max !== undefined && f.config.max > f.config.min ? f.config.max - f.config.min : null;
@@ -66,7 +76,7 @@ export function trendInsights(tracker: Tracker, entries: Entry[], now: Date): In
       trackerId: tracker.id,
       title: `${metricLabel(f)}: ${word} als in den 2 Wochen davor`,
       detail: `Ø ${num(b)}${unitOf(f)} → ${num(a)}${unitOf(f)} (letzte 14 Tage)`,
-      metric: b !== 0 ? pct(change / Math.abs(b)) : `${change > 0 ? '+' : '−'}${num(Math.abs(change))}`,
+      metric: changeMetric(f, change, b),
       tone,
       strength: Math.min(1, norm * 1.5),
     });
@@ -85,6 +95,9 @@ export function correlationInsights(trackers: Tracker[], entries: Entry[], minPa
       const A = metrics[i];
       const B = metrics[j];
       const same = A.t.id === B.t.id;
+      // z. B. Müdigkeit ↔ Erschöpfung oder Bauchschmerz ↔ Dauer: selbstverständlich, nicht zeigen.
+      // Messwerte (z. B. Raumtemperatur) als mögliche Einflüsse bleiben erlaubt.
+      if (same && sameTopic(A.f, B.f) && A.f.type !== 'measurement' && B.f.type !== 'measurement') continue;
       // Gleicher Tracker: symmetrisch, nur einmal; trackerübergreifend: auch Folgetag.
       const lags = same ? (i < j ? [0] : []) : [0, 1];
       for (const lag of lags) {
@@ -111,7 +124,7 @@ export function correlationInsights(trackers: Tracker[], entries: Entry[], minPa
   return out.sort((a, b) => b.strength - a.strength);
 }
 
-export function factorInsights(tracker: Tracker, entries: Entry[], minGroup = 3): Insight[] {
+export function factorInsights(tracker: Tracker, entries: Entry[], minGroup = 4): Insight[] {
   const es = entriesOf(tracker, entries);
   const targets = numericFields(tracker).filter((f) => polarityOf(f) !== 'neutral' && f.type !== 'checkbox');
   const factors = tracker.fields.filter((f) => fieldSpec(f).categorical);
@@ -128,6 +141,8 @@ export function factorInsights(tracker: Tracker, entries: Entry[], minGroup = 3)
     const sd = Math.sqrt(aggregate(allY.map((y) => (y - mean) ** 2), 'avg')) || 1;
     const r = range(target);
     for (const factor of factors) {
+      // „Füße kalt → Kälteempfinden höher“ ist keine Erkenntnis: gleicher Abschnitt überspringen.
+      if (sameTopic(factor, target)) continue;
       if (factor.id === target.id) continue;
       const fSpec = fieldSpec(factor);
       const cats = new Map<string, number[]>();
@@ -152,7 +167,7 @@ export function factorInsights(tracker: Tracker, entries: Entry[], minGroup = 3)
           trackerId: tracker.id,
           title: `${label} → ${metricLabel(target)} ${toneFor(target, diff) === 'good' ? 'besser' : 'schlechter'}`,
           detail: `${factor.type === 'checkbox' ? '' : `${factor.label}: `}Ø ${num(a)}${unitOf(target)} statt ${num(b)}${unitOf(target)} (${withY.length} vs. ${withoutY.length} Einträge)`,
-          metric: b !== 0 ? pct(diff / Math.abs(b)) : `${diff > 0 ? '+' : '−'}${num(Math.abs(diff))}`,
+          metric: changeMetric(target, diff, b),
           tone: toneFor(target, diff),
           strength: Math.min(1, effect * 1.6),
         });

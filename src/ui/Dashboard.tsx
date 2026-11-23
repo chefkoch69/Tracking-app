@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
+import { SymptomTrendCard } from './SymptomTrendCard';
 import { generateDemo } from '../core/demo';
+import { TEMPLATES, trackerFromTemplate } from '../core/templates';
 import { WakeChip } from './HealthPanel';
 import { withHealth } from '../core/health';
 import { askConfirm } from './confirm';
@@ -45,7 +47,16 @@ export function Dashboard() {
               Messwerten, Auswahlfeldern, Körperkarte und mehr.
             </p>
             <div className="actions center">
-              <button className="btn white big" onClick={() => navigate('/new')}>＋ Ersten Tracker bauen</button>
+              <button
+                className="btn white big"
+                onClick={() => {
+                  dispatch({ type: 'tracker/save', tracker: trackerFromTemplate(TEMPLATES.find((t) => t.key === 'now')!) });
+                  navigate('/now');
+                }}
+              >
+                💙 „Mein Befinden“ starten
+              </button>
+              <button className="btn outline-white big" onClick={() => navigate('/new')}>＋ Eigenen Tracker bauen</button>
               <button className="btn outline-white big" onClick={() => dispatch({ type: 'data/merge', ...generateDemo() })}>Mit Beispieldaten ansehen</button>
             </div>
           </div>
@@ -68,6 +79,11 @@ export function Dashboard() {
     );
   }
 
+  // Haupt-Tracker für den Verlauf: der Schnell-Check-in, sonst der mit den meisten Symptomen.
+  const mainTracker =
+    active.find((t) => t.quick && !t.demo) ??
+    active.find((t) => t.quick) ??
+    [...active].sort((a, b) => b.fields.filter((f) => f.type === 'scale').length - a.fields.filter((f) => f.type === 'scale').length).find((t) => t.fields.filter((f) => f.type === 'scale').length >= 2);
   const allSlots = active.flatMap((t) => daySlotStatus(t, data.entries, now));
   const doneToday = allSlots.filter((s) => s.done).length;
 
@@ -85,7 +101,6 @@ export function Dashboard() {
           <div className="hero-cta">
             <button className="btn white" onClick={() => navigate('/now')}>⚡ Wie geht’s dir gerade?</button>
             <button className="btn outline-white" onClick={() => navigate('/now/talk')}>🎙 Erzählen</button>
-            <button className="btn outline-white" onClick={() => navigate('/arzt')}>🩺 Arztbericht</button>
           </div>
           <WakeChip now={now} />
           <WeekStrip now={now} state={(d) => combinedDayState(active, data.entries, d, now)} />
@@ -142,6 +157,16 @@ export function Dashboard() {
         <button className="btn primary" onClick={() => navigate('/new')}>＋ Neuer Tracker</button>
       </div>
       <TrackerGroups trackers={active} now={now} />
+
+      {mainTracker && <SymptomTrendCard tracker={mainTracker} />}
+
+      <section className="card doctor-card">
+        <div>
+          <h2>Arzttermin?</h2>
+          <p className="muted small">Ein Blatt mit Übersicht, Verlauf und Tagestabellen – zum Ausdrucken oder als Datei.</p>
+        </div>
+        <button className="btn primary" onClick={() => navigate('/arzt')}>🩺 Bericht erstellen</button>
+      </section>
 
       {insights.length > 0 && (
         <section className="card">

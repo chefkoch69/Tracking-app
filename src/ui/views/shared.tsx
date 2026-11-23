@@ -1,16 +1,24 @@
 import { useState } from 'react';
 import { askConfirm } from '../confirm';
 import { formatClock } from '../../core/dates';
-import { formatDuration, formatShort, formatValue, isEmptyValue, isTimeRange, metricLabel, rangeMinutes, severity } from '../../core/fieldTypes';
+import { formatDuration, formatShort, formatValue, isEmptyValue, isTimeRange, metricLabel, polarityOf, rangeMinutes, severity } from '../../core/fieldTypes';
 import type { Entry, FieldDef, Tracker } from '../../core/types';
 import { useStore } from '../../state/store';
 import { severityColor } from '../fieldInputs';
 import { navigate } from '../router';
 
 /** Werte eines Eintrags als kompakte Pills; Skalen ampelfarbig. */
-export function ValuePills({ tracker, entry, limit }: { tracker: Tracker; entry: Entry; limit?: number }) {
+/** „Keine Beschwerden“: Skalenwert auf dem Minimum eines Symptoms (höher = schlechter). */
+export function isNone(f: FieldDef, v: unknown): boolean {
+  return f.type === 'scale' && typeof v === 'number' && v === (f.config.min ?? 0) && polarityOf(f) === 'higher-worse';
+}
+
+export function ValuePills({ tracker, entry, limit, hideNone = true }: { tracker: Tracker; entry: Entry; limit?: number; hideNone?: boolean }) {
+  // Werte auf „keine“ blähen die Anzeige auf – sie stehen bei Bedarf in einer eigenen Zeile.
   const filled = tracker.fields.filter(
-    (f) => !isEmptyValue(entry.values[f.id]) && !(f.type === 'text' && f.config.multiline) && entry.values[f.id] !== false,
+    (f) =>
+      !isEmptyValue(entry.values[f.id]) && !(f.type === 'text' && f.config.multiline) && entry.values[f.id] !== false &&
+      !(hideNone && isNone(f, entry.values[f.id])),
   );
   const shown = limit ? filled.slice(0, limit) : filled;
   return (
@@ -57,6 +65,10 @@ export function EntryCard({ tracker, entry }: { tracker: Tracker; entry: Entry }
         </span>
       </div>
       <ValuePills tracker={tracker} entry={entry} />
+      {(() => {
+        const none = tracker.fields.filter((f) => isNone(f, entry.values[f.id]));
+        return none.length ? <p className="none-line">ohne Beschwerden: {none.map((f) => f.label).join(', ')}</p> : null;
+      })()}
       {notes.map((f) => (
         <p key={f.id} className="entry-note">
           <small className="muted">{f.label}</small>

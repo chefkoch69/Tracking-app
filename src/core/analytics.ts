@@ -353,3 +353,61 @@ export function averageGapMinutes(entries: Entry[]): number | null {
   if (ts.length < 2) return null;
   return (ts[ts.length - 1] - ts[0]) / (ts.length - 1) / 60000;
 }
+
+// ---------------------------------------------------------------------------
+// Beschwerden im Verlauf: mehrere Symptome gemeinsam (Tageshöchstwerte)
+// ---------------------------------------------------------------------------
+
+export interface SymptomTrendData {
+  days: string[];
+  series: { field: FieldDef; values: (number | null)[]; avg: number }[];
+  /** Mittel der Tageshöchstwerte der gewählten Symptome: letzte 7 Tage vs. 7 davor. */
+  compare: (ids: string[]) => { recent: number; previous: number } | null;
+}
+
+/** Bewertete Symptome (Skala, höher = schlechter) eines Trackers als Tagesreihen. */
+export function symptomTrend(tracker: Tracker, entries: Entry[], days = 14, now = new Date()): SymptomTrendData {
+  const end = startOfDay(now);
+  const keys = Array.from({ length: days }, (_, i) => dayKey(addDays(end, i - days + 1)));
+  const wide = Array.from({ length: days + 7 }, (_, i) => dayKey(addDays(end, i - days - 6)));
+  const own = entriesOf(tracker, entries);
+  const fields = tracker.fields.filter((f) => f.type === 'scale' && !f.hidden && (f.config.polarity ?? 'higher-worse') === 'higher-worse');
+  const dayMax = (f: FieldDef) => {
+    const m = new Map<string, number>();
+    for (const e of own) {
+      const v = e.values[f.id];
+      if (typeof v !== 'number') continue;
+      const k = dayKey(new Date(e.timestamp));
+      m.set(k, Math.max(m.get(k) ?? -Infinity, v));
+    }
+    return m;
+  };
+  const maps = new Map(fields.map((f) => [f.id, dayMax(f)]));
+  const series = fields
+    .map((field) => {
+      const m = maps.get(field.id)!;
+      const values = keys.map((k) => (m.has(k) ? m.get(k)! : null));
+      const present = values.filter((v): v is number => v !== null);
+      return { field, values, avg: present.length ? aggregate(present, 'avg') : 0, n: present.length };
+    })
+    .filter((s) => s.n > 0)
+    .sort((a, b) => b.avg - a.avg)
+    .map(({ field, values, avg }) => ({ field, values, avg }));
+  const compare = (ids: string[]) => {
+    const window = (from: number, to: number) => {
+      const vals: number[] = [];
+      for (const id of ids) {
+        const m = maps.get(id);
+        if (!m) continue;
+        for (const k of wide.slice(from, to)) if (m.has(k)) vals.push(m.get(k)!);
+      }
+      return vals;
+    };
+    const n = wide.length;
+    const recent = window(n - 7, n);
+    const previous = window(n - 14, n - 7);
+    if (recent.length < 3 || previous.length < 3) return null;
+    return { recent: aggregate(recent, 'avg'), previous: aggregate(previous, 'avg') };
+  };
+  return { days: keys, series, compare };
+}

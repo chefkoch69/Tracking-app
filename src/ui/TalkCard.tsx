@@ -33,6 +33,7 @@ export function TalkCard({ quick, autoFocus }: { quick: Tracker; autoFocus?: boo
   const [keepRaw, setKeepRaw] = useState(true);
   const [takeWake, setTakeWake] = useState(true);
   const [done, setDone] = useState<string | null>(null);
+  const [undoIds, setUndoIds] = useState<string[]>([]);
   const [canAsk, setCanAsk] = useState<boolean | null>(null);
   const ctl = useRef<AbortController | null>(null);
   const area = useRef<HTMLTextAreaElement>(null);
@@ -88,6 +89,7 @@ export function TalkCard({ quick, autoFocus }: { quick: Tracker; autoFocus?: boo
   const saveAll = () => {
     if (!result) return;
     const chosen = result.proposals.filter((p) => include[p.key]);
+    const savedIds: string[] = [];
     // Originaltext beim spätesten Eintrag des Schnell-Check-ins (oder dem letzten überhaupt) ablegen.
     const rawTarget = [...chosen].reverse().find((p) => p.trackerId === quick.id && note(quick)) ?? [...chosen].reverse().find((p) => {
       const t = data.trackers.find((x) => x.id === p.trackerId);
@@ -107,17 +109,21 @@ export function TalkCard({ quick, autoFocus }: { quick: Tracker; autoFocus?: boo
       const time = new Date(times[p.key] ?? p.time);
       const entry: Entry = { id: uid(), trackerId: t.id, timestamp: (Number.isNaN(time.getTime()) ? p.time : time).toISOString(), values };
       dispatch({ type: 'entry/save', entry });
+      savedIds.push(entry.id);
     }
     if (result.wake && takeWake) dispatch({ type: 'health/upsert', days: [{ date: dayKey(new Date()), wake: result.wake, source: 'manual' }] });
     setDone(`${chosen.length} ${chosen.length === 1 ? 'Eintrag' : 'Einträge'} gespeichert.`);
+    setUndoIds(savedIds);
     reset();
   };
 
   const saveAsNote = () => {
     const n = note(quick);
     if (!n || !text.trim()) return;
-    dispatch({ type: 'entry/save', entry: { id: uid(), trackerId: quick.id, timestamp: new Date().toISOString(), values: { [n.id]: text.trim() } } });
+    const nid = uid();
+    dispatch({ type: 'entry/save', entry: { id: nid, trackerId: quick.id, timestamp: new Date().toISOString(), values: { [n.id]: text.trim() } } });
     setDone('Als Notiz gespeichert.');
+    setUndoIds([nid]);
     reset();
   };
 
@@ -141,14 +147,14 @@ export function TalkCard({ quick, autoFocus }: { quick: Tracker; autoFocus?: boo
       {phase !== 'review' && (
         <>
           <p className="muted small">
-            Erzähl einfach, was war und wie es dir geht – mit Uhrzeiten, wenn du sie weißt.
+            Frei erzählen – Claude macht daraus Einträge, du prüfst vor dem Speichern.
             {!dict.available && (isIOS() ? ' Tipp: Tippe auf das 🎤 unten auf deiner Tastatur und sprich.' : ' Tipp: Nutze die Diktierfunktion deiner Tastatur.')}
           </p>
           <textarea
             ref={area}
             id="talk-text"
             className="talk-text"
-            rows={5}
+            rows={3}
             value={text + (dict.partial ? (text ? ' ' : '') + dict.partial : '')}
             placeholder="z. B. Nach einem Termin habe ich gefrühstückt: 3 Eier und 3 Scheiben Toast mit Käse und Hummus. Danach war ich sehr fertig und habe 2 Stunden geschlafen. Jetzt ist mir mittelschlecht übel, ich musste öfter würgen."
             onChange={(e) => setText(e.target.value)}
@@ -172,7 +178,23 @@ export function TalkCard({ quick, autoFocus }: { quick: Tracker; autoFocus?: boo
               </>
             )}
           </div>
-          {done && <p className="saved-toast small" role="status">✓ {done}</p>}
+          {done && (
+            <div className="saved-toast small" role="status">
+              <span>✓ {done}</span>
+              {undoIds.length > 0 && (
+                <button
+                  className="btn ghost small"
+                  onClick={() => {
+                    undoIds.forEach((id) => dispatch({ type: 'entry/delete', id }));
+                    setUndoIds([]);
+                    setDone('Rückgängig gemacht.');
+                  }}
+                >
+                  Rückgängig
+                </button>
+              )}
+            </div>
+          )}
         </>
       )}
 

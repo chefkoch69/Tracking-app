@@ -758,3 +758,29 @@ button.ring:disabled { cursor: default; }
 .quick-or { font-family: var(--display); font-size: 1.2rem; color: var(--text); }
 
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.none-line { margin: 0.35rem 0 0; font-size: 0.78rem; color: var(--muted); }
+
+/* ---------- Beschwerden im Verlauf ---------- */
+.trend-card .chart { margin-top: 0.3rem; }
+.legend-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.6rem; }
+.legend-chip {
+  display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.7rem; border-radius: 999px;
+  border: 1px solid var(--border); background: var(--surface); font: inherit; font-size: 0.82rem; font-weight: 600; color: var(--muted); cursor: pointer;
+}
+.legend-chip.on { color: var(--text); background: var(--surface-2); }
+.legend-chip i { width: 0.75rem; height: 0.75rem; border-radius: 50%; border: 2px solid; display: inline-block; }
+.trend-range { margin-top: 0.7rem; }
+.pill.bad-pill { background: var(--bad-bg); color: var(--bad); }
+
+.doctor-card { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.doctor-card h2 { margin: 0 0 0.2rem; }
+.doctor-card p { margin: 0; }
+.report .trend-card { box-shadow: none; border: 1px solid var(--border); margin-bottom: 0.8rem; }
+
+.measure-table tbody tr { cursor: pointer; }
+.measure-table tbody tr:hover td, .measure-table tr.selected td { background: var(--surface-2); }
+.measure-table td.trend.better { color: var(--good); font-weight: 700; }
+.measure-table td.trend.worse { color: var(--bad); font-weight: 700; }
+
+.list-text { display: flex; flex-direction: column; gap: 0.45rem; }
+.chips.suggest .chip { background: var(--surface-2); border-color: transparent; color: var(--text); }

@@ -4,6 +4,7 @@ import {
   bucketize,
   consistencyScore,
   consistencySeries,
+  symptomTrend,
   timeDistribution,
   currentStreak,
   fieldStats,
@@ -563,5 +564,45 @@ describe('Ein Tracker für alles: Zusammenführen und Abschnitte', () => {
     expect(next.fields.map((f) => f.label)).toEqual(tpl.fields.map((f) => f.label));
     expect(next.fields.every((f) => !!f.group)).toBe(true);
     expect(hasUpgrades(templateUpgrades(next, tpl))).toBe(false);
+  });
+});
+
+describe('Erkenntnisse ohne Selbstverständlichkeiten', () => {
+  const now = at(21);
+  const demo = generateDemo(60, now);
+  const all = computeInsights(demo.trackers, demo.entries, now, 50);
+  it('zeigt keine Zusammenhänge innerhalb desselben Themas', () => {
+    expect(all.some((i) => i.title.includes('Füße') && i.title.includes('Kälteempfinden'))).toBe(false);
+    expect(all.some((i) => i.title.includes('Müdigkeit') && i.title.includes('Erschöpfung'))).toBe(false);
+    expect(all.some((i) => i.title.startsWith('Je höher Bauchschmerz, desto höher Dauer'))).toBe(false);
+  });
+  it('behält Einflüsse von Messwerten und anderen Themen', () => {
+    expect(all.some((i) => i.title.includes('Raumtemperatur') && i.title.includes('Kälteempfinden'))).toBe(true);
+    expect(all.some((i) => i.kind === 'factor' && /Milchkaffee|nach der Mahlzeit/.test(i.title))).toBe(true);
+  });
+  it('nennt auf Skalen Differenzen statt Prozente', () => {
+    for (const i of all.filter((x) => x.kind !== 'correlation' && /Bauchschmerz|Übelkeit|Kälteempfinden/.test(x.title.split('→').pop() ?? ''))) {
+      expect(i.metric).not.toMatch(/%/);
+    }
+  });
+});
+
+describe('Beschwerden im Verlauf', () => {
+  it('liefert Tageshöchstwerte je Symptom, sortiert nach Stärke, mit Wochenvergleich', () => {
+    const now = at(21);
+    const demo = generateDemo(60, now);
+    const [me] = demo.trackers;
+    const t = symptomTrend(me, demo.entries, 14, now);
+    expect(t.days).toHaveLength(14);
+    expect(t.days.at(-1)).toBe('2026-11-23');
+    expect(t.series.length).toBeGreaterThan(3);
+    for (let i = 1; i < t.series.length; i++) expect(t.series[i - 1].avg).toBeGreaterThanOrEqual(t.series[i].avg);
+    expect(t.series.some((s) => s.field.label === 'Stuhlgang')).toBe(false); // neutral, kein Symptom
+    const c = t.compare(t.series.slice(0, 3).map((s) => s.field.id));
+    expect(c).not.toBeNull();
+    // Tageshöchstwert: zwei Einträge an einem Tag → Maximum
+    const pain = me.fields.find((f) => f.label === 'Bauchschmerz')!;
+    const tt = symptomTrend(me, [entry(me, at(8), { [pain.id]: 1 }), entry(me, at(15), { [pain.id]: 3 })], 7, now);
+    expect(tt.series[0].values.at(-1)).toBe(3);
   });
 });

@@ -5,7 +5,7 @@ import type { Entry, Tracker } from '../../core/types';
 import { useStore } from '../../state/store';
 import { EntryCard, NoData } from './shared';
 
-const PAGE = 30;
+const PAGE = 20;
 
 function dayTitle(key: string): string {
   const today = dayKey(new Date());

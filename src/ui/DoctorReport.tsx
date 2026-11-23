@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { SymptomTrendCard } from './SymptomTrendCard';
 import { entriesOf } from '../core/analytics';
 import { addDays, dayKey, parseDayKey, startOfDay } from '../core/dates';
 import { fmtLevel } from '../core/fieldTypes';
@@ -170,6 +171,13 @@ export function DoctorReport() {
           return (
             <section key={t.id} className="report-section">
               <h3>{t.icon} {t.name.replace(/\s*\(Demo\)$/, '')} <small className="muted">· {es.length} Einträge</small></h3>
+              <SymptomTrendCard
+                tracker={t}
+                compact
+                title="Verlauf der Beschwerden"
+                end={parseDayKey(to)}
+                days={Math.min(31, Math.max(7, Math.round((parseDayKey(to).getTime() - parseDayKey(from).getTime()) / 86400000) + 1))}
+              />
               <ReportSheet tracker={t} entries={es} mode={mode} />
             </section>
           );

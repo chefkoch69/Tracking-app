@@ -156,6 +156,7 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
   const [when, setWhen] = useState(() => toLocalInput(new Date()));
   const [timeTouched, setTimeTouched] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
+  const [undoIds, setUndoIds] = useState<string[]>([]);
 
   const entries = useMemo(() => entriesOf(tracker, data.entries), [tracker, data.entries]);
   const today = dayKey(new Date());
@@ -191,6 +192,7 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
       dispatch({ type: 'health/upsert', days: [{ date: key, wake: formatClock(ts), source: 'manual' }] });
     }
     setSaved(`Gespeichert um ${formatClock(ts)}: ${filled.map((f) => short(f, values[f.id])).join(' · ')}`);
+    setUndoIds([entry.id]);
     setValues(empty());
     setTimeTouched(false);
     setWhen(toLocalInput(new Date()));
@@ -234,7 +236,21 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
       {saved && (
         <div className="saved-toast" role="status">
           <span>✓ {saved}</span>
-          <button className="btn ghost small" onClick={() => setSaved(null)} aria-label="Hinweis schließen">✕</button>
+          <span className="inline">
+            {undoIds.length > 0 && (
+              <button
+                className="btn ghost small"
+                onClick={() => {
+                  undoIds.forEach((id) => dispatch({ type: 'entry/delete', id }));
+                  setUndoIds([]);
+                  setSaved('Rückgängig gemacht – der Eintrag ist entfernt.');
+                }}
+              >
+                Rückgängig
+              </button>
+            )}
+            <button className="btn ghost small" onClick={() => { setSaved(null); setUndoIds([]); }} aria-label="Hinweis schließen">✕</button>
+          </span>
         </div>
       )}
 
@@ -330,5 +346,6 @@ function short(f: FieldDef, v: FieldValue): string {
   if (Array.isArray(v)) return v.join(', ');
   if (f.type === 'scale') return f.label;
   const s = formatValue(f, v);
-  return f.type === 'text' ? 'Notiz' : s;
+  if (f.type === 'text') return f.config.multiline ? 'Notiz' : s.length > 28 ? `${s.slice(0, 27)}…` : s;
+  return s;
 }
