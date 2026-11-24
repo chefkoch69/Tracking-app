@@ -1,8 +1,9 @@
 // Cloudflare Worker für „Mein Befinden“ – wird von scripts/build-worker.mjs mit den App-Dateien
 // (Konstante FILES) zu dist-worker/worker.js zusammengesetzt.
 //
-// - Ohne Passwort kommt niemand hinein: Das Passwort ist ein Cloudflare-Geheimnis (PASSWORT), das
-//   die Besitzerin bzw. der Besitzer selbst im Dashboard festlegt. Fehlt es, bleibt die App gesperrt.
+// - Ohne Passwort kommt niemand hinein. Festgelegt wird es einmalig in der App (/setup) mit einem
+//   Einrichtungs-Code, dessen Hash im Speicher liegt (auth:setup); gespeichert wird nur ein PBKDF2-Hash.
+//   Alternativ gilt ein Cloudflare-Geheimnis PASSWORT. Ohne beides bleibt die App gesperrt.
 // - Nach der Anmeldung merkt sich das Gerät die Sitzung (Cookie, 1 Jahr). Ein neues Passwort
 //   meldet alle Geräte ab.
 // - /api/docs: die Tagebuch-Daten im Cloudflare-Speicher (KV, Bindung DATA) – nur angemeldet.
@@ -76,9 +77,31 @@ function readCookie(request, name) {
   return m ? m[1] : null;
 }
 
+const b64 = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf)));
+async function pbkdf2(password, saltB64) {
+  const salt = Uint8Array.from(atob(saltB64), (c) => c.charCodeAt(0));
+  const key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+  return b64(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: 100000 }, key, 256));
+}
+async function sha(s) {
+  return b64url(await crypto.subtle.digest('SHA-256', enc.encode(s)));
+}
+
+/** Woran das Passwort geprüft wird: Cloudflare-Geheimnis oder in der App festgelegt (gespeichert als Hash). */
+async function passwordState(env) {
+  if (env.PASSWORT) return { kind: 'secret', key: env.PASSWORT };
+  const rec = env.DATA ? await env.DATA.get('auth:pw', 'json') : null;
+  return rec ? { kind: 'kv', key: rec.hash, rec } : null;
+}
+async function checkPassword(state, given) {
+  if (state.kind === 'secret') return samePassword(given, state.key);
+  return same(await pbkdf2(given, state.rec.salt), state.rec.hash);
+}
+
 async function signedIn(request, env) {
   const c = readCookie(request, COOKIE);
-  return !!(c && env.PASSWORT && same(c, await sessionToken(env.PASSWORT)));
+  const st = c ? await passwordState(env) : null;
+  return !!(c && st && same(c, await sessionToken(st.key)));
 }
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -119,16 +142,18 @@ function loginPage(next, error) {
   );
 }
 
-function setupPage() {
+function setupPage(error) {
   return page(
     'Mein Befinden – Passwort festlegen',
-    `<img src="/icon-180.png" alt=""><h1>Fast geschafft</h1>
-<p>Die App ist gesperrt, bis du bei Cloudflare ein Passwort festgelegt hast:</p>
-<ol><li>dash.cloudflare.com → <b>Workers &amp; Pages</b> → <b>mein-befinden</b></li>
-<li><b>Einstellungen</b> → <b>Variablen und Geheimnisse</b> → <b>Hinzufügen</b></li>
-<li>Typ: <b>Geheimnis</b>, Name: <code>PASSWORT</code>, Wert: dein Passwort</li>
-<li><b>Bereitstellen</b> – dann diese Seite neu laden.</li></ol>`,
-    503,
+    `<img src="/icon-180.png" alt=""><h1>Passwort festlegen</h1>
+<p>Einmalig: Gib den Einrichtungs-Code ein, den dir Claude im Chat genannt hat, und wähle dein Passwort.</p>
+<form method="post" action="/setup" style="display:flex;flex-direction:column;gap:10px">
+<label for="code">Einrichtungs-Code</label><input id="code" name="code" autocomplete="one-time-code" autocapitalize="characters" required>
+<input type="text" name="username" value="Mein Befinden" autocomplete="username" style="display:none" aria-hidden="true" tabindex="-1">
+<label for="pw">Neues Passwort (mind. 8 Zeichen)</label><input id="pw" type="password" name="password" autocomplete="new-password" minlength="8" required>
+<label for="pw2">Passwort wiederholen</label><input id="pw2" type="password" name="password2" autocomplete="new-password" minlength="8" required>
+<button type="submit">Speichern &amp; loslegen</button></form>${error ? `<p class="err">${esc(error)}</p>` : ''}`,
+    error ? 400 : 200,
   );
 }
 
@@ -197,19 +222,45 @@ export default {
 
     if (PUBLIC.has(path)) return serveFile(request, path);
 
+    if (path === '/setup') {
+      if (await passwordState(env)) return Response.redirect(new URL('/login', url).toString(), 303);
+      if (request.method !== 'POST') return setupPage();
+      if (await tooManyFails(env, ip)) return page('Zu viele Versuche', '<h1>Zu viele Versuche</h1><p>Bitte versuch es in einer Stunde nochmal.</p>', 429);
+      const form = await request.formData();
+      const code = String(form.get('code') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const pw = String(form.get('password') || '');
+      const expected = await env.DATA.get('auth:setup');
+      if (!expected || !same(await sha(code), expected)) {
+        await countFail(env, ip);
+        return setupPage('Der Einrichtungs-Code stimmt nicht.');
+      }
+      if (pw.length < 8) return setupPage('Das Passwort braucht mindestens 8 Zeichen.');
+      if (pw !== String(form.get('password2') || '')) return setupPage('Die beiden Passwörter sind nicht gleich.');
+      const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
+      const rec = { salt, hash: await pbkdf2(pw, salt) };
+      await env.DATA.put('auth:pw', JSON.stringify(rec));
+      await env.DATA.delete('auth:setup');
+      return new Response(null, {
+        status: 303,
+        headers: { location: '/', 'set-cookie': `${COOKIE}=${await sessionToken(rec.hash)}; Path=/; Max-Age=${YEAR}; HttpOnly; Secure; SameSite=Lax`, 'cache-control': 'no-store' },
+      });
+    }
+
+    const state = await passwordState(env);
+
     if (path === '/login') {
-      if (!env.PASSWORT) return setupPage();
+      if (!state) return Response.redirect(new URL('/setup', url).toString(), 303);
       const next = safeNext(url.searchParams.get('next'));
       if (request.method === 'POST') {
         if (await tooManyFails(env, ip)) return page('Zu viele Versuche', '<h1>Zu viele Versuche</h1><p>Bitte versuch es in einer Stunde nochmal.</p>', 429);
         const form = await request.formData();
         const to = safeNext(form.get('next'));
-        if (await samePassword(String(form.get('password') || ''), env.PASSWORT)) {
+        if (await checkPassword(state, String(form.get('password') || ''))) {
           return new Response(null, {
             status: 303,
             headers: {
               location: to,
-              'set-cookie': `${COOKIE}=${await sessionToken(env.PASSWORT)}; Path=/; Max-Age=${YEAR}; HttpOnly; Secure; SameSite=Lax`,
+              'set-cookie': `${COOKIE}=${await sessionToken(state.key)}; Path=/; Max-Age=${YEAR}; HttpOnly; Secure; SameSite=Lax`,
               'cache-control': 'no-store',
             },
           });
@@ -229,7 +280,7 @@ export default {
     }
 
     const isApi = path.startsWith('/api/');
-    if (!env.PASSWORT) return isApi ? json({ error: 'Noch kein Passwort festgelegt.' }, 503) : setupPage();
+    if (!state) return isApi ? json({ error: 'Noch kein Passwort festgelegt.' }, 503) : Response.redirect(new URL('/setup', url).toString(), 303);
     if (!(await signedIn(request, env))) {
       if (isApi) return json({ error: 'Bitte anmelden.' }, 401);
       return Response.redirect(new URL(`/login?next=${encodeURIComponent(path + url.search)}`, url).toString(), 303);
