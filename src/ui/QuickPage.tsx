@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { TalkCard } from './TalkCard';
+import { SpeakCard } from './SpeakCard';
 import { entriesOf } from '../core/analytics';
 import { dayKey, formatClock, toLocalInput } from '../core/dates';
 import {
@@ -73,6 +73,12 @@ export function QuickPage({ talk, moment, at }: { talk?: boolean; moment?: strin
       </div>
     );
   }
+  if (talk)
+    return (
+      <div className="page">
+        <SpeakCard tracker={tracker} onDone={() => navigate('/')} />
+      </div>
+    );
   return <MomentEntry key={tracker.id} tracker={tracker} talk={talk} initial={moment} at={at} />;
 }
 
@@ -363,7 +369,7 @@ function MomentEntry({ tracker, talk, initial, at }: { tracker: Tracker; talk?: 
         </section>
       )}
 
-      {moment === 'talk' && <TalkCard quick={tracker} autoFocus={talk} />}
+      {moment === 'talk' && <SpeakCard tracker={tracker} />}
 
       {m && (
         <form

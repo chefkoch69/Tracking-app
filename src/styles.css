@@ -1249,3 +1249,32 @@ button.ring:disabled { cursor: default; }
 .moment-card-inline { overflow: clip; }
 .backbar { grid-template-columns: 6rem minmax(0, 1fr) 6rem; }
 .backbar-title { max-width: none; min-width: 0; }
+
+/* Erzählen */
+.speak-card { display: flex; flex-direction: column; gap: 0.7rem; }
+.speak-top { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
+.speak-mic {
+  display: inline-flex; align-items: center; gap: 0.5rem; min-height: 54px; padding: 0 1.3rem; border-radius: 999px; border: 0;
+  background: var(--primary); color: #fff; font: inherit; font-weight: 750; font-size: 1.02rem; cursor: pointer;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--primary) 35%, transparent);
+}
+.speak-mic.on { background: var(--bad); box-shadow: 0 0 0 6px color-mix(in srgb, var(--bad) 18%, transparent); animation: speak-pulse 1.4s ease-in-out infinite; }
+@keyframes speak-pulse { 50% { box-shadow: 0 0 0 12px color-mix(in srgb, var(--bad) 8%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .speak-mic.on { animation: none; } }
+.speak-live { color: var(--bad); font-weight: 700; font-size: 0.88rem; }
+.speak-hint { margin: 0; padding: 0.6rem 0.8rem; background: var(--surface-2); border-radius: 12px; font-size: 0.92rem; }
+.speak-next { margin: 0; padding: 0.6rem 0.8rem; border-radius: 12px; background: color-mix(in srgb, var(--primary) 8%, var(--surface)); font-size: 0.9rem; }
+.speak-text { width: 100%; font: inherit; font-size: 1rem; border: 1px solid var(--border); border-radius: 14px; padding: 0.7rem 0.8rem; resize: vertical; background: var(--surface); color: var(--text); }
+.speak-points ul { list-style: none; margin: 0 0 0.5rem; padding: 0; display: flex; flex-direction: column; }
+.sp-point { padding: 0.55rem 0; border-top: 1px solid var(--border); }
+.sp-point:first-child { border-top: 0; }
+.sp-head { display: flex; align-items: center; gap: 0.6rem; color: var(--muted); }
+.sp-point.done .sp-head { color: var(--text); }
+.sp-point.next .sp-head { color: var(--primary); }
+.sp-icon { width: 1.9rem; height: 1.9rem; display: grid; place-items: center; border-radius: 10px; background: var(--surface-2); flex-shrink: 0; }
+.sp-point.done .sp-icon { background: var(--good-bg); color: var(--good); font-weight: 800; }
+.sp-values { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.4rem 0 0 2.5rem; }
+.sp-scale { flex-basis: 100%; }
+.sp-scale .cs-row { border-top: 0; padding: 0.1rem 0; }
+.sp-chip { display: inline-flex; align-items: center; gap: 0.3rem; background: var(--surface-2); border-radius: 999px; padding: 0.2rem 0.3rem 0.2rem 0.7rem; font-size: 0.85rem; font-weight: 600; }
+.sp-chip button { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 0.8rem; padding: 0.25rem 0.4rem; min-width: 28px; min-height: 28px; }
