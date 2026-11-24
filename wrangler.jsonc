@@ -1,0 +1,10 @@
+// Cloudflare Worker, der die App ausliefert (alle Dateien im Skript eingebettet).
+// Veröffentlichen: npm run deploy – braucht ein Cloudflare-API-Token mit „Workers Scripts: Edit“
+// und eine workers.dev-Subdomain im Konto.
+{
+  "name": "mein-befinden",
+  "main": "dist-worker/worker.js",
+  "compatibility_date": "2025-11-01",
+  "workers_dev": true,
+  "preview_urls": false
+}
