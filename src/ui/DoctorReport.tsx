@@ -57,8 +57,8 @@ export function DoctorReport() {
     <div className="page">
       <section className="hero-band compact no-print">
         <div className="hero-inner">
-          <h1>Arztbericht</h1>
-          <p className="hero-lead">Alle Daten eines Zeitraums auf einem Blatt – zum Ausdrucken, als Datei oder als Text.</p>
+          <h1>Arzttermin</h1>
+          <p className="hero-lead">Alles für den Arztbesuch: Termin, deine Fragen, eine Zusammenfassung und der Bericht mit allen Einträgen.</p>
         </div>
       </section>
 
@@ -372,16 +372,38 @@ function SummaryCard({ from, to, prompt, hasEntries }: { from: string; to: strin
         Claude fasst den gewählten Zeitraum auf einer Seite zusammen – nur aus deinen Einträgen, ohne Diagnosen. Lies ihn vor
         dem Termin durch und ändere, was nicht stimmt. Dafür gehen die Einträge des Zeitraums an Claude (über dein Konto).
       </p>
-      {(draft || phase !== 'idle') && (
+      {can === false && (
+        <div className="bridge active">
+          <p className="muted small">
+            Über die Claude-App: „Für Claude kopieren“ antippen, in der Claude-App in einen neuen Chat einfügen und senden.
+            Claudes Antwort kopieren und unten einfügen – dann steht sie im Bericht.
+          </p>
+          <div className="actions start">
+            <button
+              className="btn primary"
+              disabled={!hasEntries}
+              onClick={async () => {
+                const p = prompt();
+                if (await copyText(p)) await notify('Kopiert. Öffne die Claude-App, füge den Text in einen neuen Chat ein und sende ihn. Kopiere dann Claudes Antwort und füge sie hier ins Feld ein.');
+                else await notify('Die Zwischenablage ist hier gesperrt. Markiere den Text und kopiere ihn selbst:', p);
+              }}
+            >
+              ✦ Für Claude kopieren
+            </button>
+          </div>
+        </div>
+      )}
+      {(draft || phase !== 'idle' || can === false) && (
         <textarea
           className="summary-edit"
-          rows={14}
+          rows={draft ? 14 : 4}
           value={draft}
           readOnly={phase !== 'idle'}
+          placeholder={can === false ? 'Claudes Zusammenfassung hier einfügen' : undefined}
           aria-label="Zusammenfassung"
           onChange={(e) => {
             setDraft(e.target.value);
-            store(e.target.value);
+            store(e.target.value, saved ? undefined : { summaryFrom: from, summaryTo: to });
           }}
         />
       )}
@@ -421,7 +443,6 @@ function SummaryCard({ from, to, prompt, hasEntries }: { from: string; to: strin
         )}
       </div>
       {!hasEntries && <p className="muted small">Im gewählten Zeitraum gibt es noch keine Einträge.</p>}
-      {can === false && <p className="muted small">Das geht nur in claude.ai. Alternativ: unten „Als Text kopieren“ und in einen Chat mit Claude einfügen.</p>}
       {error && <p className="error small">{error}</p>}
     </section>
   );

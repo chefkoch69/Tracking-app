@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { SymptomTrendCard } from './SymptomTrendCard';
 import { SetupCard } from './SetupCard';
-import { generateDemo } from '../core/demo';
 import { TEMPLATES, trackerFromTemplate } from '../core/templates';
 import { WakeChip } from './HealthPanel';
 import { withHealth } from '../core/health';
@@ -62,7 +61,6 @@ export function Dashboard() {
                 💙 „Mein Befinden“ starten
               </button>
               <button className="btn outline-white big" onClick={() => navigate('/new')}>＋ Eigenen Tracker bauen</button>
-              <button className="btn outline-white big" onClick={() => dispatch({ type: 'data/merge', ...generateDemo() })}>Mit Beispieldaten ansehen</button>
             </div>
           </div>
         </section>

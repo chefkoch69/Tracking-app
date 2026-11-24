@@ -88,7 +88,7 @@ export function HealthSettings() {
       <h2>Apple Health</h2>
       <p className="muted">
         Schlaf (Aufstehzeit, Dauer), Bewegung (Schritte, aktive Energie, Trainingsminuten), Ruhepuls und Körperanalyse (Gewicht,
-        Körperfett) fließen in „seit dem Aufstehen“, den Vergleich, „Was hilft wirklich?“ und den Arztbericht ein.
+        Körperfett) fließen in „seit dem Aufstehen“, den Vergleich, „Was auffällt“ und den Arztbericht ein.
         Eine Web-App darf Health nicht direkt lesen – ein iPhone-Kurzbefehl holt die Werte und übergibt sie hierher.
       </p>
 

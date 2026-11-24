@@ -8,9 +8,9 @@ const files = readdirSync(dir);
 const css = files.filter((f) => f.endsWith('.css')).map((f) => readFileSync(join(dir, f), 'utf8')).join('\n');
 const js = files.filter((f) => f.endsWith('.js')).map((f) => readFileSync(join(dir, f), 'utf8')).join('\n');
 
-const page = `<title>Build Your Own Tracker</title>
+const page = `<title>Mein Befinden</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Baue dir deinen eigenen Tracker – Gewohnheiten, Symptome, Ernährung, Fitness.">
+<meta name="description" content="Dein Gesundheitstagebuch: Beschwerden, Essen und Medikamente schnell eintragen, Muster erkennen, Arzttermin vorbereiten.">
 <style>${css}</style>
 <div id="root"></div>
 <script type="module">${js.replace(/<\/script/gi, '<\\/script')}</script>

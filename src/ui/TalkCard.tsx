@@ -6,6 +6,8 @@ import type { Entry, FieldValue, Tracker } from '../core/types';
 import { useStore } from '../state/store';
 import { claudeUse } from './claudeRuntime';
 import { useDictation } from './useDictation';
+import { copyText } from './save';
+import { notify } from './confirm';
 
 const isIOS = () => /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
@@ -35,6 +37,9 @@ export function TalkCard({ quick, autoFocus }: { quick: Tracker; autoFocus?: boo
   const [done, setDone] = useState<string | null>(null);
   const [undoIds, setUndoIds] = useState<string[]>([]);
   const [canAsk, setCanAsk] = useState<boolean | null>(null);
+  const [answer, setAnswer] = useState('');
+  const [bridgeStep, setBridgeStep] = useState<1 | 2>(1);
+  const [bridgeNow, setBridgeNow] = useState<Date | null>(null);
   const ctl = useRef<AbortController | null>(null);
   const area = useRef<HTMLTextAreaElement>(null);
   const dict = useDictation((piece) => setText((t) => (t ? t + piece : piece.trimStart())));
@@ -60,7 +65,7 @@ export function TalkCard({ quick, autoFocus }: { quick: Tracker; autoFocus?: boo
     if (!sample) {
       setCanAsk(false);
       setPhase('idle');
-      setError('Die Auswertung mit Claude gibt es nur in claude.ai. Speichere den Text als Notiz.');
+      setError(null);
       return;
     }
     const now = new Date();
@@ -127,6 +132,37 @@ export function TalkCard({ quick, autoFocus }: { quick: Tracker; autoFocus?: boo
     reset();
   };
 
+  /** Ohne Claude in der Seite: Text für die Claude-App kopieren, Antwort wieder einfügen. */
+  const copyForClaude = async () => {
+    if (!text.trim()) return;
+    dict.stop();
+    const now = new Date();
+    setBridgeNow(now);
+    const prompt = `${narrativePrompt(text, trackers, now, data.health)}\n\nWichtig: Antworte nur mit dem JSON, ohne Erklärung.`;
+    if (await copyText(prompt)) setBridgeStep(2);
+    else await notify('Die Zwischenablage ist hier gesperrt. Markiere den Text und kopiere ihn selbst:', prompt);
+  };
+  const useAnswer = () => {
+    const a = answer.trim();
+    const start = a.indexOf('{');
+    const end = a.lastIndexOf('}');
+    try {
+      if (start < 0 || end <= start) throw new Error('kein JSON');
+      const r = interpretNarrative(JSON.parse(a.slice(start, end + 1)), trackers, bridgeNow ?? new Date());
+      if (!r.proposals.length) throw new Error('leer');
+      setError(null);
+      setResult(r);
+      setTimes(Object.fromEntries(r.proposals.map((p) => [p.key, toLocalInput(p.time)])));
+      setInclude(Object.fromEntries(r.proposals.map((p) => [p.key, true])));
+      setTakeWake(!!r.wake && !data.health?.[dayKey(new Date())]?.wake);
+      setPhase('review');
+      setAnswer('');
+      setBridgeStep(1);
+    } catch {
+      setError('Das sieht nicht nach Claudes Antwort aus. Kopiere in der Claude-App die ganze Antwort (mit den geschweiften Klammern) und füge sie hier ein.');
+    }
+  };
+
   const reset = () => {
     setText('');
     setResult(null);
@@ -174,10 +210,31 @@ export function TalkCard({ quick, autoFocus }: { quick: Tracker; autoFocus?: boo
                 {canAsk !== false && (
                   <button className="btn primary" disabled={!text.trim()} onClick={analyse}>✦ In Einträge umwandeln</button>
                 )}
+                {canAsk === false && (
+                  <button className="btn primary" disabled={!text.trim()} onClick={copyForClaude}>✦ Für die Claude-App kopieren</button>
+                )}
                 <button className="btn" disabled={!text.trim() || !note(quick)} onClick={saveAsNote}>Als Notiz speichern</button>
               </>
             )}
           </div>
+          {canAsk === false && (
+            <div className={`bridge ${bridgeStep === 2 ? 'active' : ''}`}>
+              <p className="muted small">
+                {bridgeStep === 2
+                  ? 'Kopiert ✓ Öffne jetzt die Claude-App, füge den Text in einen neuen Chat ein und sende ihn. Kopiere Claudes Antwort und füge sie hier ein:'
+                  : 'In Einträge umwandeln geht über die Claude-App: Text kopieren, dort einfügen, Claudes Antwort hier einfügen – du prüfst alles vor dem Speichern.'}
+              </p>
+              {bridgeStep === 2 && (
+                <>
+                  <textarea rows={3} value={answer} placeholder="Claudes Antwort hier einfügen" aria-label="Claudes Antwort" onChange={(e) => setAnswer(e.target.value)} />
+                  <div className="actions start">
+                    <button className="btn primary" disabled={!answer.trim()} onClick={useAnswer}>Antwort übernehmen</button>
+                    <button className="btn ghost" onClick={() => setBridgeStep(1)}>Abbrechen</button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
           {done && (
             <div className="saved-toast small" role="status">
               <span>✓ {done}</span>

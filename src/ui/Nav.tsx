@@ -37,24 +37,24 @@ export const TABS: Tab[] = [
   {
     key: 'doctor',
     href: '#/arzt',
-    label: 'Arzt',
+    label: 'Arzttermin',
     match: ['doctor'],
     icon: (
       <svg viewBox="0 0 24 24" {...stroke}>
-        <rect x="5.5" y="4.5" width="13" height="16" rx="2.2" />
-        <path d="M9.5 3.5h5v2.6h-5zM9 11h6M9 14.5h4" />
+        <rect x="4" y="5.5" width="16" height="14.5" rx="2.2" />
+        <path d="M8 3.5v4M16 3.5v4M12 10.5v6M9 13.5h6" />
       </svg>
     ),
   },
   {
     key: 'data',
     href: '#/data',
-    label: 'Daten',
+    label: 'Tagebuch',
     match: ['data'],
     icon: (
       <svg viewBox="0 0 24 24" {...stroke}>
-        <rect x="4" y="5" width="16" height="14" rx="2.2" />
-        <path d="M4 10h16M4 14.5h16M10 10v9" />
+        <path d="M6 4h11.5a1.5 1.5 0 0 1 1.5 1.5V20H7.5A2.5 2.5 0 0 1 5 17.5v-12A1.5 1.5 0 0 1 6.5 4z" />
+        <path d="M5 17.5A2.5 2.5 0 0 1 7.5 15H19M9 8h6M9 11h4" />
       </svg>
     ),
   },

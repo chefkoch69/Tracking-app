@@ -78,7 +78,10 @@ export function Settings() {
           </p>
         ) : (
           <>
-            <p className="muted">Erinnerungen erscheinen als Mitteilung, solange die App geöffnet ist (auch im Hintergrund-Tab).</p>
+            <p className="muted">
+              Mitteilungen der App kommen nur, solange sie geöffnet ist. Zuverlässig erinnert dich dein Kalender – z. B. um 9, 14
+              und 20 Uhr: „Befinden eintragen“.
+            </p>
             <p>
               Mitteilungen:{' '}
               <b>{perm === 'granted' ? 'erlaubt ✓' : perm === 'denied' ? 'blockiert – in den Browser-Einstellungen freigeben' : perm === 'unsupported' ? 'hier nicht möglich' : 'noch nicht erlaubt'}</b>
@@ -104,7 +107,8 @@ export function Settings() {
           </p>
         ) : (
           <p className="muted">
-            Deine Einträge liegen nur in diesem Browser auf diesem Gerät. Sichere sie ab und zu als Datei.
+            Deine Einträge liegen nur hier auf diesem Gerät – nichts geht an einen Server. Sichere sie ab und zu als Datei
+            (unten bei „Sichern &amp; übertragen“), z. B. in iCloud Drive. Löschst du die App vom Home-Bildschirm, sind die Daten weg.
           </p>
         )}
       </section>
