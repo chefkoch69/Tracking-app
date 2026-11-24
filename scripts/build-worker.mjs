@@ -1,6 +1,6 @@
-// Packt die gebaute App (dist/) in EIN Cloudflare-Worker-Skript: alle Dateien eingebettet,
-// ausgeliefert mit passendem Inhaltstyp. So reicht zum Veröffentlichen ein API-Token
-// (ohne separaten Datei-Upload).
+// Packt die gebaute App (dist/) in EIN Cloudflare-Worker-Skript: alle Dateien eingebettet und
+// mit Anmeldung und Datenspeicher aus scripts/worker-template.js. So reicht zum Veröffentlichen
+// ein API-Token (ohne separaten Datei-Upload).
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
@@ -36,37 +36,8 @@ for (const p of walk(root)) {
   files[rel] = TEXT.has(ext) ? { type, text: buf.toString('utf8') } : { type, b64: buf.toString('base64') };
 }
 
-const worker = `// Automatisch erzeugt von scripts/build-worker.mjs – nicht von Hand ändern.
-const FILES = ${JSON.stringify(files)};
-const decoded = new Map();
-function body(path, f) {
-  if (f.text !== undefined) return f.text;
-  if (!decoded.has(path)) decoded.set(path, Uint8Array.from(atob(f.b64), (c) => c.charCodeAt(0)));
-  return decoded.get(path);
-}
-export default {
-  async fetch(request) {
-    const url = new URL(request.url);
-    let path = decodeURIComponent(url.pathname);
-    if (path.endsWith('/')) path += 'index.html';
-    let f = FILES[path];
-    if (!f && !path.includes('.', path.lastIndexOf('/'))) {
-      path = '/index.html';
-      f = FILES[path];
-    }
-    if (!f) return new Response('Nicht gefunden', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
-    const fresh = path === '/index.html' || path === '/sw.js' || path === '/manifest.webmanifest';
-    return new Response(request.method === 'HEAD' ? null : body(path, f), {
-      headers: {
-        'content-type': f.type,
-        'cache-control': fresh ? 'no-cache' : 'public, max-age=31536000, immutable',
-        'x-content-type-options': 'nosniff',
-        'referrer-policy': 'no-referrer',
-      },
-    });
-  },
-};
-`;
+const template = readFileSync('scripts/worker-template.js', 'utf8');
+const worker = `// Automatisch erzeugt von scripts/build-worker.mjs – nicht von Hand ändern.\nconst FILES = ${JSON.stringify(files)};\n${template}`;
 mkdirSync('dist-worker', { recursive: true });
 writeFileSync('dist-worker/worker.js', worker);
 console.log(`dist-worker/worker.js – ${Object.keys(files).length} Dateien, ${(worker.length / 1024).toFixed(0)} KB`);

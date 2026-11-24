@@ -3,6 +3,11 @@ import { cloudDiff, fromCloud, sameData, type CloudMeta, type CloudWeek } from '
 import type { AppData } from '../core/types';
 import { useStore } from '../state/store';
 import { claudeUse, hasClaudeRuntime } from './claudeRuntime';
+import { IS_WORKER } from './env';
+import { createWorkerDb } from './workerDb';
+
+/** Gibt es hier einen Online-Speicher (claude.ai oder eigene Cloudflare-Version)? */
+const hasRemote = () => IS_WORKER || hasClaudeRuntime();
 
 /**
  * Abgleich mit dem privaten Cloud-Speicher der claude.ai-Seite ("db").
@@ -49,7 +54,7 @@ type Db = any;
 
 export function CloudSyncProvider({ children }: { children: ReactNode }) {
   const { data, dispatch } = useStore();
-  const [state, setState] = useState<SyncState>({ status: hasClaudeRuntime() ? 'connecting' : 'local' });
+  const [state, setState] = useState<SyncState>({ status: hasRemote() ? 'connecting' : 'local' });
   const db = useRef<Db | null>(null);
   /** Zuletzt mit der Cloud übereinstimmender Zustand. */
   const synced = useRef<AppData | null>(null);
@@ -103,7 +108,7 @@ export function CloudSyncProvider({ children }: { children: ReactNode }) {
 
   // Verbinden und abonnieren – genau einmal.
   useEffect(() => {
-    if (!hasClaudeRuntime()) return;
+    if (!hasRemote()) return;
     let cancelled = false;
     const unsubs: (() => void)[] = [];
     let metaSnap: { exists: boolean; data(): unknown; metadata: { fromCache: boolean; hasPendingWrites: boolean } } | null = null;
@@ -149,14 +154,15 @@ export function CloudSyncProvider({ children }: { children: ReactNode }) {
     };
 
     (async () => {
-      const user = await claudeUse('user');
+      // Eigene Cloudflare-Version: angemeldet ist, wer das Passwort kennt – kein Besitzer-Check nötig.
+      const user = IS_WORKER ? null : await claudeUse('user');
       if (cancelled) return;
       if (user && typeof user.isOwner === 'function' && !(await user.isOwner())) {
         setState({ status: 'local', message: 'Nur wer die Seite erstellt hat, speichert online. Du siehst hier deine eigene, lokale Version.' });
         window.clearTimeout(loadTimer);
         return;
       }
-      const store = await claudeUse('db');
+      const store = IS_WORKER ? createWorkerDb() : await claudeUse('db');
       if (cancelled) return;
       if (!store) {
         window.clearTimeout(loadTimer);
@@ -221,7 +227,7 @@ const LABEL: Record<SyncStatus, string> = {
 
 export function SyncBadge() {
   const s = useSyncStatus();
-  if (s.status === 'local' && !hasClaudeRuntime()) return null;
+  if (s.status === 'local' && !hasRemote()) return null;
   const icon = s.status === 'synced' ? '☁︎✓' : s.status === 'saving' || s.status === 'connecting' ? '☁︎…' : s.status === 'local' ? '⌂' : '☁︎!';
   return (
     <a href="#/settings" className={`sync-badge ${s.status}`} title={s.message ?? LABEL[s.status]} aria-label={LABEL[s.status]}>

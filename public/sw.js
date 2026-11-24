@@ -1,11 +1,14 @@
 // Minimaler Service Worker: Offline-Cache (network-first) und Klick auf Benachrichtigungen.
-const CACHE = 'byot-v1';
+const CACHE = 'byot-v2';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 
 self.addEventListener('fetch', (e) => {
-  if (e.request.method !== 'GET' || new URL(e.request.url).origin !== location.origin) return;
+  const url = new URL(e.request.url);
+  if (e.request.method !== 'GET' || url.origin !== location.origin) return;
+  // Daten und Anmeldung nie aus dem Zwischenspeicher – immer direkt vom Server.
+  if (/^\/(api|login|logout)(\/|$|\?)/.test(url.pathname)) return;
   e.respondWith(
     fetch(e.request)
       .then((res) => {

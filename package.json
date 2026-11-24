@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "build:pages": "tsc --noEmit && vite build --outDir docs --emptyOutDir && node -e \"require('fs').writeFileSync('docs/.nojekyll', '')\"",
-    "build:worker": "npm run build && node scripts/build-worker.mjs",
+    "build:worker": "tsc --noEmit && VITE_TARGET=worker vite build && node scripts/build-worker.mjs",
     "deploy": "npm run build:worker && npx --yes wrangler@4.166.0 deploy",
     "build:artifact": "tsc --noEmit && VITE_TARGET=artifact vite build --outDir dist-artifact/build && node scripts/build-artifact.mjs",
     "preview": "vite preview",

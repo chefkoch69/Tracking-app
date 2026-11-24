@@ -4,7 +4,7 @@ import { FeedbackCard } from './FeedbackCard';
 import { HealthSettings } from './HealthPanel';
 import { copyText, saveFile } from './save';
 import { askConfirm, notify } from './confirm';
-import { IS_ARTIFACT } from './env';
+import { IS_ARTIFACT, IS_WORKER } from './env';
 import { generateDemo } from '../core/demo';
 import { emptyData, exportJson, normalize } from '../core/storage';
 import { useStore } from '../state/store';
@@ -117,7 +117,17 @@ export function Settings() {
       <section className="card">
         <h2>Wo deine Daten liegen</h2>
         <SyncInfo />
-        {online ? (
+        {IS_WORKER ? (
+          <>
+            <p className="muted">
+              Deine Einträge liegen in deinem eigenen, kostenlosen Cloudflare-Konto – nur mit deinem Passwort erreichbar und auf
+              all deinen Geräten gleich. Zusätzlich bleibt eine Kopie auf diesem Gerät, damit die App auch ohne Netz startet.
+            </p>
+            <div className="actions start">
+              <a className="btn" href="/logout">Abmelden</a>
+            </div>
+          </>
+        ) : online ? (
           <p className="muted">
             Deine Einträge liegen in einem privaten Speicher dieser Seite: Nur du kannst sie lesen und ändern, sie sind auf
             all deinen Geräten gleich und bleiben, auch wenn der Browser-Speicher geleert wird. Wer die Seite geteilt
