@@ -204,6 +204,12 @@ export interface Experiment {
   createdAt: string;
 }
 
+/** Tagebuch-Notiz eines Tages: Gesamteindruck (1 = schlecht … 5 = sehr gut) und ein Satz. */
+export interface DayNote {
+  mood?: number;
+  note?: string;
+}
+
 export interface AppData {
   version: 1;
   trackers: Tracker[];
@@ -214,4 +220,6 @@ export interface AppData {
   health?: Record<string, HealthDay>;
   /** Was ich ausprobieren will / ausprobiere / ausprobiert habe. */
   experiments?: Experiment[];
+  /** Je Tag (YYYY-MM-DD): „Wie war der Tag?“ */
+  days?: Record<string, DayNote>;
 }

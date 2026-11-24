@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react';
 import { SyncInfo, useSyncStatus } from './cloudSync';
-import { FeedbackCard } from './FeedbackCard';
 import { HealthSettings } from './HealthPanel';
 import { copyText, saveFile } from './save';
 import { askConfirm, notify } from './confirm';
@@ -37,7 +36,7 @@ export function Settings() {
       <section className="hero-band compact">
         <div className="hero-inner">
           <h1>Mehr</h1>
-          <p className="hero-lead">Arzttermin, Armband-Daten, Feedback, Felder anpassen und wo deine Daten liegen.</p>
+          <p className="hero-lead">Arzttermin, Armband-Daten, Felder anpassen und wo deine Daten liegen.</p>
         </div>
       </section>
 
@@ -60,7 +59,6 @@ export function Settings() {
         </a>
       </section>
 
-      <FeedbackCard />
 
       <section className="card">
         <div className="section-head">

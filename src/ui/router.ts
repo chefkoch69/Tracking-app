@@ -7,7 +7,7 @@ export type Route =
   | { name: 'tracker'; id: string; view?: string }
   | { name: 'entry'; id: string; entryId?: string; date?: string }
   | { name: 'data'; day?: string }
-  | { name: 'now'; talk?: boolean; moment?: string }
+  | { name: 'now'; talk?: boolean; moment?: string; at?: string }
   | { name: 'try' }
   | { name: 'doctor' }
   | { name: 'health'; payload?: string }
@@ -19,7 +19,7 @@ export function parseRoute(hash: string): Route {
   const parts = path.split('/').filter(Boolean);
   if (parts[0] === 'new') return { name: 'new' };
   if (parts[0] === 'data') return { name: 'data', day: params.get('d') ?? undefined };
-  if (parts[0] === 'now') return { name: 'now', talk: parts[1] === 'talk', moment: params.get('m') ?? undefined };
+  if (parts[0] === 'now') return { name: 'now', talk: parts[1] === 'talk', moment: params.get('m') ?? undefined, at: params.get('at') ?? undefined };
   if (parts[0] === 'try') return { name: 'try' };
   if (parts[0] === 'arzt') return { name: 'doctor' };
   if (parts[0] === 'health') return { name: 'health', payload: params.get('data') ?? undefined };

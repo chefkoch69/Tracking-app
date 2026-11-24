@@ -147,9 +147,6 @@ export function Dashboard() {
 
       <AppointmentHint now={now} />
 
-      <p className="feedback-link">
-        <button className="linkish" onClick={() => navigate('/settings')}>💬 Etwas fehlt oder nervt? Sag es Claude.</button>
-      </p>
     </div>
   );
 }

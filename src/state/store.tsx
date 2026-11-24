@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNo
 import { emptyData, localStorageAdapter, type StorageAdapter } from '../core/storage';
 import { mergeHealth } from '../core/health';
 import { mergeTrackers } from '../core/trackerEdit';
-import type { AppData, Entry, Experiment, HealthDay, Profile, ReminderState, Tracker } from '../core/types';
+import type { AppData, DayNote, Entry, Experiment, HealthDay, Profile, ReminderState, Tracker } from '../core/types';
 
 export type Action =
   | { type: 'tracker/save'; tracker: Tracker }
@@ -21,7 +21,8 @@ export type Action =
   | { type: 'health/delete'; date: string }
   | { type: 'demo/remove' }
   | { type: 'experiment/save'; experiment: Experiment }
-  | { type: 'experiment/delete'; id: string };
+  | { type: 'experiment/delete'; id: string }
+  | { type: 'day/update'; date: string; patch: DayNote };
 
 function upsert<T extends { id: string }>(list: T[], item: T): T[] {
   const i = list.findIndex((x) => x.id === item.id);
@@ -115,6 +116,14 @@ export function reducer(state: AppData, action: Action): AppData {
         // Eigene (nicht-Demo) Health-Werte haben Vorrang.
         health: action.health ? { ...action.health, ...state.health } : state.health,
       };
+    case 'day/update': {
+      const cur = { ...(state.days?.[action.date] ?? {}), ...action.patch };
+      const empty = cur.mood === undefined && !cur.note?.trim();
+      const days = { ...(state.days ?? {}) };
+      if (empty) delete days[action.date];
+      else days[action.date] = cur;
+      return { ...state, days };
+    }
     case 'experiment/save':
       return { ...state, experiments: upsert(state.experiments ?? [], action.experiment) };
     case 'experiment/delete':

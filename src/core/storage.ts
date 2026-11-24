@@ -56,7 +56,7 @@ export function normalize(raw: unknown): AppData {
   const ids = new Set(trackers.map((t) => t.id));
   const entries: Entry[] = r.entries.filter((e) => ids.has(e.trackerId) && typeof e.timestamp === 'string');
   const experiments = Array.isArray(r.experiments) ? r.experiments.filter((x) => x && typeof x.id === 'string' && typeof x.title === 'string') : [];
-  return { version: 1, trackers, entries, reminders: r.reminders ?? {}, profile: r.profile, health: r.health ?? {}, experiments };
+  return { version: 1, trackers, entries, reminders: r.reminders ?? {}, profile: r.profile, health: r.health ?? {}, experiments, days: r.days && typeof r.days === 'object' ? r.days : {} };
 }
 
 export function exportJson(data: AppData): string {

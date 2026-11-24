@@ -17,7 +17,7 @@ import {
   validateValues,
 } from '../core/fieldTypes';
 import { FAVORITE_ICON, favoriteValues, favorites } from '../core/favorites';
-import { dayRhythm, entryFeedback, levelText, type ValueChange } from '../core/feedback';
+import { MOODS, dayRhythm, entryFeedback, levelText, type ValueChange } from '../core/feedback';
 import { isFoodField } from '../core/foodGroups';
 import {
   MOMENTS,
@@ -48,7 +48,7 @@ import { ValuePills } from './views/shared';
  * Schlafen gehen. Jeder Moment fragt nur, was dazu gehört; Details zu einer Beschwerde klappen
  * auf, sobald man sie angibt. Nur Ausgefülltes wird gespeichert.
  */
-export function QuickPage({ talk, moment }: { talk?: boolean; moment?: string }) {
+export function QuickPage({ talk, moment, at }: { talk?: boolean; moment?: string; at?: string }) {
   const { data, dispatch } = useStore();
   const quick = data.trackers.filter((t) => t.quick && !t.archived);
   const tracker = quick.find((t) => !t.demo) ?? quick[0];
@@ -73,7 +73,7 @@ export function QuickPage({ talk, moment }: { talk?: boolean; moment?: string })
       </div>
     );
   }
-  return <MomentEntry key={tracker.id} tracker={tracker} talk={talk} initial={moment} />;
+  return <MomentEntry key={tracker.id} tracker={tracker} talk={talk} initial={moment} at={at} />;
 }
 
 /** Schnelle Zeitwahl: die meisten Einträge passieren „jetzt“ oder kurz davor. */
@@ -159,7 +159,7 @@ export function FollowUpCard({ tracker, onSymptoms }: { tracker: Tracker; onSymp
   );
 }
 
-function MomentEntry({ tracker, talk, initial }: { tracker: Tracker; talk?: boolean; initial?: string }) {
+function MomentEntry({ tracker, talk, initial, at }: { tracker: Tracker; talk?: boolean; initial?: string; at?: string }) {
   const { data, dispatch } = useStore();
   const now = useNow(30000);
   const visible = tracker.fields.filter((f) => !f.hidden);
@@ -170,8 +170,8 @@ function MomentEntry({ tracker, talk, initial }: { tracker: Tracker; talk?: bool
     if (talk) setMoment('talk');
     else if (initial && momentByKey(initial)) setMoment(momentByKey(initial)!.key);
   }, [talk, initial]);
-  const [timeKey, setTimeKey] = useState<string>('now');
-  const [custom, setCustom] = useState(() => toLocalInput(new Date()));
+  const [timeKey, setTimeKey] = useState<string>(at ? 'custom' : 'now');
+  const [custom, setCustom] = useState(() => (at && /^\d{4}-\d{2}-\d{2}$/.test(at) ? `${at}T12:00` : toLocalInput(new Date())));
   const [saved, setSaved] = useState<SavedInfo | null>(null);
   const [undone, setUndone] = useState(false);
   const [showMore, setShowMore] = useState(false);
@@ -386,6 +386,7 @@ function MomentEntry({ tracker, talk, initial }: { tracker: Tracker; talk?: bool
                 {(m.wake || m.fields.length > 0 || m.key === 'evening') && (
                   <section className="card moment-card">
                     {m.wake && <WakeControl day={dayKey(when)} />}
+                    {m.key === 'evening' && <DayMoodControl day={dayKey(when)} />}
                     {m.key === 'evening' && <LastMealLine tracker={tracker} entries={entries} now={now} />}
                     {m.fields.map((mf) => {
                       const f = fieldByLabel(tracker, mf.label);
@@ -639,6 +640,34 @@ function CompactScale({ field, value, prev, onChange }: { field: FieldDef; value
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+/** Abends: „Wie war der Tag?“ mit einem Tipp (gilt für den ganzen Tag). */
+function DayMoodControl({ day }: { day: string }) {
+  const { data, dispatch } = useStore();
+  const mood = data.days?.[day]?.mood;
+  return (
+    <div className="field quick-field">
+      <div className="quick-label">
+        <label>Wie war der Tag insgesamt?</label>
+      </div>
+      <div className="mood-row compact" role="radiogroup" aria-label="Wie war der Tag?">
+        {MOODS.map((m) => (
+          <button
+            key={m.value}
+            type="button"
+            role="radio"
+            aria-checked={mood === m.value}
+            className={`mood-btn ${mood === m.value ? 'on' : ''}`}
+            onClick={() => dispatch({ type: 'day/update', date: day, patch: { mood: mood === m.value ? undefined : m.value } })}
+          >
+            <span aria-hidden>{m.icon}</span>
+            <small>{m.label}</small>
+          </button>
+        ))}
       </div>
     </div>
   );

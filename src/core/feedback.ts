@@ -199,3 +199,52 @@ export function questionList(text: string | undefined): string[] {
     .map((l) => l.replace(/^\s*(?:[-–•*]|\d+[.)])\s*/, '').trim())
     .filter(Boolean);
 }
+
+// ---------------------------------------------------------------------------
+// Tagesübersicht (Tagebuch)
+
+export const MOODS = [
+  { value: 1, icon: '😣', label: 'schlecht' },
+  { value: 2, icon: '🙁', label: 'eher schlecht' },
+  { value: 3, icon: '😐', label: 'okay' },
+  { value: 4, icon: '🙂', label: 'gut' },
+  { value: 5, icon: '😄', label: 'sehr gut' },
+];
+
+export interface DaySummary {
+  date: string;
+  entries: number;
+  mood?: number;
+  note?: string;
+  wake?: string;
+  sleepHours?: number;
+  steps?: number;
+  /** Stärkste Beschwerde des Tages. */
+  worst?: { label: string; value: number; level: number; text: string };
+}
+
+/** Was einen Tag ausmacht – für Tagesliste, Monatskalender und Tagesseite. */
+export function daySummary(
+  trackers: Tracker[],
+  entries: Entry[],
+  date: string,
+  health?: Record<string, { wake?: string; sleepHours?: number; steps?: number }>,
+  days?: Record<string, { mood?: number; note?: string }>,
+): DaySummary {
+  const ids = new Set(trackers.map((t) => t.id));
+  const es = entries.filter((e) => ids.has(e.trackerId) && dayKey(new Date(e.timestamp)) === date);
+  let worst: DaySummary['worst'];
+  for (const e of es) {
+    const t = trackers.find((x) => x.id === e.trackerId)!;
+    for (const f of t.fields) {
+      if (f.type !== 'scale' || polarityOf(f) !== 'higher-worse') continue;
+      const v = e.values[f.id];
+      if (typeof v !== 'number') continue;
+      const lv = severity(f, v) ?? 0;
+      if (lv > 0 && (!worst || lv > worst.level)) worst = { label: f.label, value: v, level: lv, text: levelText(f, v) };
+    }
+  }
+  const h = health?.[date];
+  const d = days?.[date];
+  return { date, entries: es.length, mood: d?.mood, note: d?.note, wake: h?.wake, sleepHours: h?.sleepHours, steps: h?.steps, worst };
+}

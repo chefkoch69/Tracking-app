@@ -54,7 +54,7 @@ export function App() {
         break;
       }
       case 'now':
-        page = <QuickPage talk={route.talk} moment={route.moment} />;
+        page = <QuickPage key={route.at ?? 'now'} talk={route.talk} moment={route.moment} at={route.at} />;
         break;
       case 'try':
         page = <ExperimentsPage />;
