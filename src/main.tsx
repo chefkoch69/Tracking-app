@@ -9,6 +9,7 @@ import '@fontsource/montserrat/latin-600.css';
 import '@fontsource/montserrat/latin-700.css';
 import '@fontsource/playfair-display/latin-700.css';
 import './styles/index.css';
+import { startAutoUpdate } from './platform/autoUpdate';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -22,6 +23,7 @@ createRoot(document.getElementById('root')!).render(
 
 if ('serviceWorker' in navigator && import.meta.env.PROD && import.meta.env.VITE_TARGET !== 'artifact') {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(() => undefined);
+    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch(() => undefined);
   });
+  startAutoUpdate();
 }
