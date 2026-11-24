@@ -11,7 +11,7 @@ export interface BodyRegion {
   short: string;
 }
 
-export const BODY_MAPS: Record<BodyMapKind, { label: string; regions: BodyRegion[] }> = {
+export const BODY_MAPS = {
   abdomen: {
     label: 'Bauch (6 Regionen)',
     regions: [
@@ -47,7 +47,25 @@ export const BODY_MAPS: Record<BodyMapKind, { label: string; regions: BodyRegion
       { id: 'foot-l', short: 'Fuß li', label: 'Fuß links' },
     ],
   },
+} as Record<BodyMapKind, { label: string; regions: BodyRegion[] }>;
+
+export const HEAD_MAP = {
+  label: 'Kopf',
+  regions: [
+    { id: 'stirn', short: 'Stirn', label: 'Stirn' },
+    { id: 'augen', short: 'Augen', label: 'Augen / Nasenwurzel' },
+    { id: 'schlaefe-r', short: 'Schl. re', label: 'Schläfe rechts' },
+    { id: 'schlaefe-l', short: 'Schl. li', label: 'Schläfe links' },
+    { id: 'kiefer', short: 'Kiefer', label: 'Kiefer / Gesicht' },
+    { id: 'scheitel', short: 'Scheitel', label: 'Scheitel (oben)' },
+    { id: 'hinterkopf', short: 'Hinterkopf', label: 'Hinterkopf' },
+    { id: 'nacken', short: 'Nacken', label: 'Nacken' },
+    { id: 'seite-r', short: 'einseitig re', label: 'ganze rechte Seite' },
+    { id: 'seite-l', short: 'einseitig li', label: 'ganze linke Seite' },
+    { id: 'ganz', short: 'ganz', label: 'ganzer Kopf' },
+  ],
 };
+BODY_MAPS.head = HEAD_MAP;
 
 export function regionLabel(kind: BodyMapKind, id: string): string {
   return BODY_MAPS[kind].regions.find((r) => r.id === id)?.label ?? id;

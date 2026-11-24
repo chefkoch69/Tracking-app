@@ -274,6 +274,22 @@ export const FIELD_TYPES: Record<FieldType, FieldTypeSpec> = {
     toNumber: (_f, v) => (isTimeRange(v) ? rangeMinutes(v) : null),
     categories: none,
   },
+  time: {
+    type: 'time',
+    label: 'Uhrzeit',
+    hint: 'z. B. Handy weggelegt um, Wecker gestellt auf',
+    icon: '◔',
+    // Als Uhrzeit dokumentiert, nicht als Messwert gemittelt (23:30 und 00:30 liegen nah beieinander).
+    numeric: false,
+    categorical: false,
+    defaultAggregation: 'last',
+    defaultConfig: () => ({}),
+    emptyValue: () => '',
+    validate: (_f, v) => (typeof v === 'string' && TIME_OF_DAY.test(v) ? null : 'Bitte eine Uhrzeit angeben (HH:MM).'),
+    format: (_f, v) => (typeof v === 'string' && TIME_OF_DAY.test(v) ? `${v} Uhr` : '–'),
+    toNumber: (f, v) => timeToHours(f, v),
+    categories: none,
+  },
   bodymap: {
     type: 'bodymap',
     label: 'Körperkarte / Lokalisation',
@@ -297,6 +313,27 @@ export const FIELD_TYPES: Record<FieldType, FieldTypeSpec> = {
 };
 
 export const FIELD_TYPE_LIST = Object.values(FIELD_TYPES);
+
+const TIME_OF_DAY = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** Uhrzeit → Stunden (23:30 → 23,5); mit `overnight` zählt 00:30 als 24,5. */
+export function timeToHours(f: FieldDef, v: FieldValue | undefined): number | null {
+  if (typeof v !== 'string' || !TIME_OF_DAY.test(v)) return null;
+  const h = Number(v.slice(0, 2)) + Number(v.slice(3)) / 60;
+  return f.config.overnight && h < 12 ? h + 24 : h;
+}
+
+/** Ist die Bedingung eines Felds erfüllt (Details erst zeigen, wenn die Beschwerde angegeben ist)? */
+export function conditionMet(field: FieldDef, fields: FieldDef[], values: Record<string, FieldValue | undefined>): boolean {
+  const c = field.showIf;
+  if (!c) return true;
+  const ref = fields.find((f) => f.id === c.fieldId);
+  if (!ref) return true;
+  const v = values[ref.id];
+  if (c.equals !== undefined) return v === c.equals || (Array.isArray(v) && v.includes(c.equals)) || (v === true && c.equals === 'Ja');
+  if (typeof v === 'number') return c.atLeast !== undefined ? v >= c.atLeast : v > 0;
+  return v === true;
+}
 
 export function fieldSpec(field: FieldDef): FieldTypeSpec {
   return FIELD_TYPES[field.type];

@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNo
 import { emptyData, localStorageAdapter, type StorageAdapter } from '../core/storage';
 import { mergeHealth } from '../core/health';
 import { mergeTrackers } from '../core/trackerEdit';
-import type { AppData, Entry, HealthDay, Profile, ReminderState, Tracker } from '../core/types';
+import type { AppData, Entry, Experiment, HealthDay, Profile, ReminderState, Tracker } from '../core/types';
 
 export type Action =
   | { type: 'tracker/save'; tracker: Tracker }
@@ -19,7 +19,9 @@ export type Action =
   | { type: 'data/merge'; trackers: Tracker[]; entries: Entry[]; health?: Record<string, HealthDay> }
   | { type: 'health/upsert'; days: HealthDay[] }
   | { type: 'health/delete'; date: string }
-  | { type: 'demo/remove' };
+  | { type: 'demo/remove' }
+  | { type: 'experiment/save'; experiment: Experiment }
+  | { type: 'experiment/delete'; id: string };
 
 function upsert<T extends { id: string }>(list: T[], item: T): T[] {
   const i = list.findIndex((x) => x.id === item.id);
@@ -113,6 +115,10 @@ export function reducer(state: AppData, action: Action): AppData {
         // Eigene (nicht-Demo) Health-Werte haben Vorrang.
         health: action.health ? { ...action.health, ...state.health } : state.health,
       };
+    case 'experiment/save':
+      return { ...state, experiments: upsert(state.experiments ?? [], action.experiment) };
+    case 'experiment/delete':
+      return { ...state, experiments: (state.experiments ?? []).filter((x) => x.id !== action.id) };
     case 'health/upsert':
       return { ...state, health: mergeHealth(state.health, action.days) };
     case 'health/delete': {

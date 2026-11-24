@@ -164,6 +164,26 @@ function BodyMapInput({ field, value, onChange, id }: InputProps) {
   );
 }
 
+/** Uhrzeit mit „jetzt“ – für Dinge wie „Handy weggelegt um“ oder „Wecker gestellt auf“. */
+function TimeInput({ value, onChange, id }: InputProps) {
+  const v = typeof value === 'string' ? value : '';
+  const now = () => {
+    const d = new Date();
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+  return (
+    <div className="time-input">
+      <input id={id} type="time" value={v} onChange={(e) => onChange(e.target.value)} />
+      <button type="button" className="chip small" onClick={() => onChange(now())}>jetzt</button>
+      {v && (
+        <button type="button" className="chip small" onClick={() => onChange('')} aria-label="Uhrzeit entfernen">
+          ✕
+        </button>
+      )}
+    </div>
+  );
+}
+
 function TextInput({ field, value, onChange, id }: InputProps) {
   const v = typeof value === 'string' ? value : '';
   if (field.config.multiline) return <textarea id={id} rows={3} value={v} onChange={(e) => onChange(e.target.value)} />;
@@ -554,6 +574,15 @@ export const FIELD_UI: Record<
           <PolarityConfig {...p} type="timerange" />
         </div>
       </>
+    ),
+  },
+  time: {
+    Input: TimeInput,
+    Config: (p) => (
+      <label className="switch">
+        <input type="checkbox" checked={!!p.config.overnight} onChange={(e) => p.onChange({ overnight: e.target.checked || undefined })} />
+        <span>Zeiten nach Mitternacht gehören zum Vorabend (z. B. „Handy weggelegt um 00:30“)</span>
+      </label>
     ),
   },
   bodymap: {

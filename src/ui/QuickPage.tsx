@@ -1,12 +1,37 @@
 import { useEffect, useMemo, useState } from 'react';
 import { TalkCard } from './TalkCard';
-import { askConfirm } from './confirm';
-import { applyUpgrades, hasUpgrades, templateUpgrades } from '../core/trackerEdit';
 import { entriesOf } from '../core/analytics';
 import { dayKey, formatClock, toLocalInput } from '../core/dates';
-import { FIELD_TYPES, fmtLevel, formatValue, groupFields, isEmptyValue, polarityOf, scaleLevels, severity, validateValues } from '../core/fieldTypes';
+import {
+  conditionMet,
+  FIELD_TYPES,
+  fmtLevel,
+  formatValue,
+  groupFields,
+  isEmptyValue,
+  itemName,
+  listItems,
+  polarityOf,
+  scaleLevels,
+  severity,
+  validateValues,
+} from '../core/fieldTypes';
 import { FAVORITE_ICON, favoriteValues, favorites } from '../core/favorites';
 import { dayRhythm, entryFeedback, levelText, type ValueChange } from '../core/feedback';
+import { isFoodField } from '../core/foodGroups';
+import {
+  MOMENTS,
+  detailsOf,
+  fieldByLabel,
+  momentByKey,
+  pendingFollowUp,
+  suggestedMoment,
+  symptomFields,
+  withEvent,
+  type FollowUp,
+  type Moment,
+  type MomentKey,
+} from '../core/moments';
 import { DayRhythmChart } from './DayRhythm';
 import { useNow } from './reminders';
 import { uid } from '../core/id';
@@ -19,15 +44,14 @@ import { navigate } from './router';
 import { ValuePills } from './views/shared';
 
 /**
- * „Jetzt“: schneller Check-in über den Tag. Nur ausgefüllte Felder werden
- * gespeichert; neben jeder Bewertung steht der letzte Wert, damit man
- * „besser/schlechter“ sofort sieht.
+ * Eintragen – nach Moment: Aufgestanden, Essen & Trinken, Beschwerde, Medikament & Maßnahme,
+ * Schlafen gehen. Jeder Moment fragt nur, was dazu gehört; Details zu einer Beschwerde klappen
+ * auf, sobald man sie angibt. Nur Ausgefülltes wird gespeichert.
  */
-export function QuickPage({ talk }: { talk?: boolean }) {
+export function QuickPage({ talk, moment }: { talk?: boolean; moment?: string }) {
   const { data, dispatch } = useStore();
   const quick = data.trackers.filter((t) => t.quick && !t.archived);
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const tracker = quick.find((t) => t.id === activeId) ?? quick[0];
+  const tracker = quick.find((t) => !t.demo) ?? quick[0];
 
   if (!tracker) {
     const tpl = TEMPLATES.find((t) => t.key === 'now')!;
@@ -35,102 +59,21 @@ export function QuickPage({ talk }: { talk?: boolean }) {
       <div className="page">
         <section className="hero-band compact">
           <div className="hero-inner">
-            <h1>Wie geht’s dir gerade?</h1>
-            <p className="hero-lead">Für zwischendurch: antippen, was gerade ist, speichern – fertig.</p>
+            <h1>Dein Körper-Tagebuch</h1>
+            <p className="hero-lead">Aufstehen, Essen, Beschwerden, Schlafen gehen – kurz antippen, fertig.</p>
           </div>
         </section>
         <div className="card empty">
-          <div className="empty-icon">⚡</div>
-          <p>
-            Richte „Mein Befinden“ ein – ein Tracker für alles: Ereignisse und Essen, Bauch und Verdauung, Übelkeit, Müdigkeit,
-            Tinnitus, Kälteempfinden und Notizen. Alles danach frei änderbar.
-          </p>
-          <button
-            className="btn primary"
-            onClick={() => {
-              const t = trackerFromTemplate(tpl);
-              dispatch({ type: 'tracker/save', tracker: t });
-            }}
-          >
+          <div className="empty-icon">💙</div>
+          <p>Richte „Mein Befinden“ ein. Alles lässt sich später unter „Mehr“ anpassen.</p>
+          <button className="btn primary" onClick={() => dispatch({ type: 'tracker/save', tracker: trackerFromTemplate(tpl) })}>
             „Mein Befinden“ einrichten
           </button>
-          <small className="muted">Oder baue dir unter „Mehr“ einen ganz eigenen Tracker.</small>
         </div>
       </div>
     );
   }
-  return <QuickForm key={tracker.id} tracker={tracker} others={quick} onSwitch={setActiveId} talk={talk} />;
-}
-
-/** Hinweis, wenn die Vorlage neue Felder hat, die dem eigenen Check-in fehlen. */
-function UpgradeHint({ tracker }: { tracker: Tracker }) {
-  const { dispatch } = useStore();
-  const [hidden, setHidden] = useState(false);
-  const tpl = TEMPLATES.find((t) => t.key === 'now')!.build();
-  const norm = (s: string) => s.trim().toLocaleLowerCase('de-DE');
-  // Nur für Check-ins, die erkennbar aus der Vorlage stammen.
-  const related = tracker.fields.filter((f) => tpl.fields.some((tf) => norm(tf.label) === norm(f.label))).length >= 3;
-  const up = templateUpgrades(tracker, tpl);
-  const rename = tracker.name === 'Befinden jetzt';
-  if (hidden || !related || (!hasUpgrades(up) && !rename)) return null;
-  const items = [...up.fields.map((f) => f.label), ...up.options.flatMap((o) => o.add.map((a) => `„${a}“`))];
-  return (
-    <div className="demo-banner">
-      <span>
-        <b>„Mein Befinden“: alles in einem.</b>{' '}
-        {items.length ? `Dazu kommen: ${items.join(', ')}. ` : ''}
-        Felder werden in Abschnitte sortiert (Ereignisse & Essen, Bauch, Allgemein, Kälte). Deine bisherigen Einträge bleiben unverändert.
-      </span>
-      <span className="inline">
-        <button className="btn small ghost" onClick={() => setHidden(true)}>Nicht jetzt</button>
-        <button
-          className="btn small primary"
-          onClick={() => {
-            const next = applyUpgrades(tracker, up, tpl);
-            dispatch({ type: 'tracker/save', tracker: rename ? { ...next, name: 'Mein Befinden', icon: tracker.icon === '⚡' ? '💙' : tracker.icon, color: '#2f63f0' } : next });
-          }}
-        >
-          Übernehmen
-        </button>
-      </span>
-    </div>
-  );
-}
-
-/** Eigene Tracker, die inhaltlich zu „Mein Befinden“ gehören, zum Zusammenführen anbieten. */
-function MergeHint({ tracker }: { tracker: Tracker }) {
-  const { data, dispatch } = useStore();
-  const [hidden, setHidden] = useState<string[]>([]);
-  const norm = (s: string) => s.trim().toLocaleLowerCase('de-DE');
-  const candidates = data.trackers.filter(
-    (t) =>
-      t.id !== tracker.id && !t.demo && !t.archived && !hidden.includes(t.id) &&
-      t.fields.filter((f) => tracker.fields.some((x) => norm(x.label) === norm(f.label))).length >= 1,
-  );
-  if (!candidates.length) return null;
-  return (
-    <>
-      {candidates.map((c) => (
-        <div key={c.id} className="demo-banner">
-          <span>
-            <b>{c.icon} {c.name}</b> ist noch ein eigener Tracker. In „{tracker.name}“ übernehmen? Gleiche Felder werden zusammengelegt, alle {data.entries.filter((e) => e.trackerId === c.id).length} Einträge wandern mit.
-          </span>
-          <span className="inline">
-            <button className="btn small ghost" onClick={() => setHidden((h) => [...h, c.id])}>Getrennt lassen</button>
-            <button
-              className="btn small primary"
-              onClick={async () => {
-                if (await askConfirm(`„${c.name}“ in „${tracker.name}“ übernehmen? Danach gibt es nur noch einen Tracker.`, { okLabel: 'Zusammenführen', danger: false }))
-                  dispatch({ type: 'tracker/merge', sourceId: c.id, targetId: tracker.id });
-              }}
-            >
-              Zusammenführen
-            </button>
-          </span>
-        </div>
-      ))}
-    </>
-  );
+  return <MomentEntry key={tracker.id} tracker={tracker} talk={talk} initial={moment} />;
 }
 
 /** Schnelle Zeitwahl: die meisten Einträge passieren „jetzt“ oder kurz davor. */
@@ -156,46 +99,86 @@ function nextHint(tracker: Tracker, values: Record<string, FieldValue>): string 
     .flatMap((f) => (Array.isArray(values[f.id]) ? (values[f.id] as string[]) : [`${f.label} ${values[f.id]}`]))
     .join(' ')
     .toLocaleLowerCase('de-DE');
-  if (/medikament/.test(texts)) return 'Wie wirkt es? Trag in 1–2 Stunden ein, wie es dir dann geht – so siehst du, was wirklich hilft.';
-  if (/gegessen|getrunken/.test(texts)) return 'Trag in 1–2 Stunden ein, wie es dir nach dem Essen geht – so werden mögliche Auslöser sichtbar.';
+  if (/medikament|maßnahme/.test(texts)) return 'Wie wirkt es? Ich frage später nach – trag dann ein, wie es dir geht.';
+  if (/gegessen|getrunken/.test(texts)) return 'In 1–2 Stunden frage ich nach, wie es dir nach dem Essen geht – so werden mögliche Auslöser sichtbar.';
   return null;
 }
 
-function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; others: Tracker[]; onSwitch: (id: string) => void; talk?: boolean }) {
+const DISMISS_KEY = 'byot:followup-dismissed';
+const readDismissed = (): string[] => {
+  try {
+    return JSON.parse(localStorage.getItem(DISMISS_KEY) ?? '[]');
+  } catch {
+    return [];
+  }
+};
+
+/** Nachfrage nach dem Essen – auch auf „Heute“. */
+export function FollowUpCard({ tracker, onSymptoms }: { tracker: Tracker; onSymptoms?: () => void }) {
+  const { data, dispatch } = useStore();
+  const now = useNow(60000);
+  const [dismissed, setDismissed] = useState<string[]>(readDismissed);
+  const [done, setDone] = useState(false);
+  const f: FollowUp | null = pendingFollowUp(tracker, data.entries, now, dismissed);
+  if (!f || done) return null;
+  const dismiss = () => {
+    const next = [...dismissed, f.meal.id].slice(-30);
+    setDismissed(next);
+    try {
+      localStorage.setItem(DISMISS_KEY, JSON.stringify(next));
+    } catch {
+      /* egal */
+    }
+  };
+  const allGood = () => {
+    const { main } = symptomFields(tracker);
+    const belly = main.filter((x) => ['Bauchschmerz', 'Übelkeit'].includes(x.label));
+    const values = Object.fromEntries((belly.length ? belly : main.slice(0, 1)).map((x) => [x.id, 0]));
+    dispatch({ type: 'entry/save', entry: { id: uid(), trackerId: tracker.id, timestamp: new Date().toISOString(), values } });
+    setDone(true);
+  };
+  const h = Math.floor(f.minutesAgo / 60);
+  const ago = h >= 1 ? `vor ${h} Std${f.minutesAgo % 60 >= 20 ? ` ${f.minutesAgo % 60} Min` : ''}` : `vor ${f.minutesAgo} Min`;
+  return (
+    <section className="card followup-card" role="status">
+      <div className="fu-head">
+        <span className="fu-icon" aria-hidden>🍽</span>
+        <div>
+          <strong>Wie geht’s dir nach dem Essen?</strong>
+          <small className="muted">
+            {formatClock(new Date(f.meal.timestamp))} ({ago}): {f.what}
+          </small>
+        </div>
+        <button className="btn ghost small icon-btn" onClick={dismiss} aria-label="Nicht nachfragen">✕</button>
+      </div>
+      <div className="fu-actions">
+        <button className="btn" onClick={allGood}>😊 Alles gut</button>
+        <button className="btn primary" onClick={() => (onSymptoms ? onSymptoms() : navigate('/now?m=symptom'))}>🤕 Beschwerden</button>
+      </div>
+    </section>
+  );
+}
+
+function MomentEntry({ tracker, talk, initial }: { tracker: Tracker; talk?: boolean; initial?: string }) {
   const { data, dispatch } = useStore();
   const now = useNow(30000);
   const visible = tracker.fields.filter((f) => !f.hidden);
-  const OPEN_KEY = `byot:open:${tracker.id}`;
-  const [open, setOpen] = useState<Record<string, boolean>>(() => {
-    try {
-      return JSON.parse(localStorage.getItem(OPEN_KEY) ?? '{}');
-    } catch {
-      return {};
-    }
-  });
-  const toggleGroup = (name: string, v: boolean) =>
-    setOpen((s) => {
-      const next = { ...s, [name]: v };
-      try {
-        localStorage.setItem(OPEN_KEY, JSON.stringify(next));
-      } catch {
-        /* egal */
-      }
-      return next;
-    });
   const empty = () => Object.fromEntries(visible.map((f) => [f.id, FIELD_TYPES[f.type].emptyValue(f)]));
   const [values, setValues] = useState<Record<string, FieldValue>>(empty);
-  const [mode, setMode] = useState<'tap' | 'talk'>(talk ? 'talk' : 'tap');
+  const [moment, setMoment] = useState<MomentKey | 'talk' | null>(talk ? 'talk' : (momentByKey(initial)?.key ?? null));
   useEffect(() => {
-    if (talk) setMode('talk');
-  }, [talk]);
+    if (talk) setMoment('talk');
+    else if (initial && momentByKey(initial)) setMoment(momentByKey(initial)!.key);
+  }, [talk, initial]);
   const [timeKey, setTimeKey] = useState<string>('now');
   const [custom, setCustom] = useState(() => toLocalInput(new Date()));
   const [saved, setSaved] = useState<SavedInfo | null>(null);
   const [undone, setUndone] = useState(false);
+  const [showMore, setShowMore] = useState(false);
+  const [showOptional, setShowOptional] = useState(false);
+  const [showNote, setShowNote] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
-  /** Zeitpunkt des Eintrags – bei „jetzt“ der tatsächliche Speicherzeitpunkt. */
   const timeFor = (ref: Date): Date => {
     if (timeKey === 'custom') {
       const d = new Date(custom);
@@ -211,6 +194,8 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
   const today = dayKey(now);
   const todays = entries.filter((e) => dayKey(new Date(e.timestamp)) === today).reverse();
   const rhythm = useMemo(() => dayRhythm(tracker, data.entries, now), [tracker, data.entries, today]); // eslint-disable-line react-hooks/exhaustive-deps
+  const favs = useMemo(() => favorites(tracker, data.entries, new Date(), 6), [tracker, data.entries]);
+  const suggestion = suggestedMoment(tracker, data.entries, now);
 
   /** Letzter erfasster Wert je Feld (innerhalb der letzten 24 h). */
   const last = (f: FieldDef): { v: FieldValue; t: Date } | null => {
@@ -225,20 +210,17 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
     return null;
   };
 
-  const filled = visible.filter((f) => !isEmptyValue(values[f.id]) && values[f.id] !== false);
-  const errors = validateValues(visible.filter((f) => filled.includes(f)), values);
+  // Ausgefüllt und sichtbar (Details nur, wenn ihre Beschwerde angegeben ist).
+  const filled = visible.filter((f) => !isEmptyValue(values[f.id]) && values[f.id] !== false && conditionMet(f, visible, values));
+  const errors = validateValues(filled, values);
 
-  /** Speichert einen Eintrag und zeigt die Rückmeldung. */
   const store = (vals: Record<string, FieldValue>) => {
     const ts = timeFor(new Date());
     const entry: Entry = { id: uid(), trackerId: tracker.id, timestamp: ts.toISOString(), values: vals };
     dispatch({ type: 'entry/save', entry });
-    // "aufgestanden" angetippt → Aufstehzeit für den Tag merken (falls noch keine).
     const key = dayKey(ts);
     const woke = Object.values(vals).some((v) => Array.isArray(v) && v.some((x) => x.toLowerCase() === 'aufgestanden'));
-    if (woke && !data.health?.[key]?.wake) {
-      dispatch({ type: 'health/upsert', days: [{ date: key, wake: formatClock(ts), source: 'manual' }] });
-    }
+    if (woke && !data.health?.[key]?.wake) dispatch({ type: 'health/upsert', days: [{ date: key, wake: formatClock(ts), source: 'manual' }] });
     const changes = entryFeedback(tracker, [...data.entries, entry], entry);
     const clip = (t: string, n: number) => (t.length > n ? `${t.slice(0, n - 1)}…` : t);
     const rest = tracker.fields
@@ -250,27 +232,43 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const m: Moment | undefined = moment && moment !== 'talk' ? momentByKey(moment) : undefined;
   const save = () => {
     if (!filled.length || Object.keys(errors).length) return;
-    store(Object.fromEntries(filled.map((f) => [f.id, values[f.id]])));
+    const vals = Object.fromEntries(filled.map((f) => [f.id, values[f.id]]));
+    store(m ? withEvent(tracker, m, vals) : vals);
     setValues(empty());
+    setMoment(null);
+    setShowMore(false);
+    setShowOptional(false);
+    setShowNote(false);
   };
 
-  const favs = useMemo(() => favorites(tracker, data.entries, new Date(), 6), [tracker, data.entries]);
-  /** Beschwerden (bewertete Skalen) kompakt oben – der Rest steht in den Abschnitten darunter. */
-  const core = visible.filter((f) => f.type === 'scale' && polarityOf(f) === 'higher-worse');
-  const detailGroups = groupFields(visible.filter((f) => !core.includes(f)));
-  const legend = (() => {
-    if (!core.length) return null;
-    const lv = (f: FieldDef) => scaleLevels(f.config).map((l) => `${l.value}:${l.label}`).join('|');
-    if (!core.every((f) => lv(f) === lv(core[0]))) return null;
-    return scaleLevels(core[0].config).map((l) => `${stepText(l.value)} ${l.label}`).join(' · ');
-  })();
+  const { main, more } = symptomFields(tracker);
+  const note = visible.find((f) => f.type === 'text' && f.config.multiline);
+  const set = (f: FieldDef, v: FieldValue) => setValues((s) => ({ ...s, [f.id]: v }));
+
+  const field = (f: FieldDef, ask?: string) => (
+    <QuickField key={f.id} field={f} label={ask} value={values[f.id] ?? null} prev={last(f)} error={errors[f.id]} onChange={(v) => set(f, v)} />
+  );
+  const symptomRows = (list: FieldDef[]) =>
+    list.map((f) => (
+      <div key={f.id} className="cs-block">
+        <CompactScale field={f} value={values[f.id] ?? null} prev={last(f)} onChange={(v) => set(f, v)} />
+        {typeof values[f.id] === 'number' && (values[f.id] as number) > 0 && detailsOf(tracker, f).length > 0 && (
+          <div className="cs-details">
+            {detailsOf(tracker, f).map((d) => field(d))}
+          </div>
+        )}
+      </div>
+    ));
 
   const title =
     timeKey === 'now'
-      ? 'Wie geht’s dir gerade?'
-      : `Wie ging’s dir ${otherDay ? `am ${when.toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric' })} ` : ''}um ${formatClock(when)}?`;
+      ? m
+        ? `${m.icon} ${m.label}`
+        : 'Was möchtest du eintragen?'
+      : `${m ? `${m.icon} ${m.label}` : 'Eintragen'} ${otherDay ? `am ${when.toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric' })} ` : ''}um ${formatClock(when)}`;
 
   return (
     <div className="page">
@@ -301,75 +299,73 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
               <input id="quick-when" type="datetime-local" value={custom} max={toLocalInput(now)} onChange={(e) => setCustom(e.target.value)} />
             </div>
           )}
-          {others.length > 1 && (
-            <div className="chips">
-              {others.map((t) => (
-                <button key={t.id} className={`chip small on-hero ${t.id === tracker.id ? 'active' : ''}`} onClick={() => onSwitch(t.id)}>
-                  {t.icon} {t.name}
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       </section>
 
-      <UpgradeHint tracker={tracker} />
-      <MergeHint tracker={tracker} />
-
       {saved && (
-        <section className={`saved-card ${undone ? 'undone' : ''}`} role="status">
-          <div className="saved-head">
-            <span className="saved-check" aria-hidden>{undone ? '↺' : '✓'}</span>
-            <strong>{undone ? 'Rückgängig gemacht – der Eintrag ist entfernt.' : `Gespeichert · ${formatClock(new Date(saved.entry.timestamp))}${dayKey(new Date(saved.entry.timestamp)) !== today ? ` am ${new Date(saved.entry.timestamp).toLocaleDateString('de-DE')}` : ''}`}</strong>
-            <button className="btn ghost small icon-btn" onClick={() => setSaved(null)} aria-label="Rückmeldung schließen">✕</button>
+        <SavedCard
+          saved={saved}
+          undone={undone}
+          today={today}
+          onClose={() => setSaved(null)}
+          onUndo={() => {
+            dispatch({ type: 'entry/delete', id: saved.entry.id });
+            setUndone(true);
+          }}
+          onEdit={() => navigate(`/t/${tracker.id}/entry/${saved.entry.id}`)}
+        />
+      )}
+
+      {!moment && <FollowUpCard tracker={tracker} onSymptoms={() => setMoment('symptom')} />}
+
+      {/* Moment wählen */}
+      {!moment ? (
+        <section className="moment-grid" aria-label="Was möchtest du eintragen?">
+          {MOMENTS.filter((x) => x.key !== 'all').map((x) => (
+            <button key={x.key} className={`moment-tile ${suggestion === x.key ? 'suggested' : ''}`} onClick={() => setMoment(x.key)}>
+              <span className="mt-icon" aria-hidden>{x.icon}</span>
+              <span className="mt-label">{x.label}</span>
+              <small>{suggestion === x.key ? 'jetzt passend' : x.hint}</small>
+            </button>
+          ))}
+          <button className="moment-tile" onClick={() => setMoment('talk')}>
+            <span className="mt-icon" aria-hidden>🎙</span>
+            <span className="mt-label">Erzählen</span>
+            <small>frei sprechen oder schreiben</small>
+          </button>
+        </section>
+      ) : (
+        <div className="moment-switch" role="tablist" aria-label="Moment wechseln">
+          {MOMENTS.map((x) => (
+            <button key={x.key} role="tab" aria-selected={moment === x.key} className={`chip small ${moment === x.key ? 'active' : ''}`} onClick={() => setMoment(x.key)}>
+              {x.icon} {x.label}
+            </button>
+          ))}
+          <button role="tab" aria-selected={moment === 'talk'} className={`chip small ${moment === 'talk' ? 'active' : ''}`} onClick={() => setMoment('talk')}>
+            🎙 Erzählen
+          </button>
+        </div>
+      )}
+
+      {!moment && favs.length > 0 && (
+        <section className="card fav-card">
+          <div className="fav-head">
+            <h2>Schnell eintragen</h2>
+            <small className="muted">1 Tipp = gespeichert</small>
           </div>
-          {!undone && (
-            <>
-              {saved.changes.length > 0 && (
-                <ul className="saved-changes">
-                  {saved.changes.map((c) => (
-                    <li key={c.field.id} className={c.direction}>
-                      <span className="sc-label">{c.field.label}</span>
-                      <b>{levelText(c.field, c.value)}</b>
-                      <small>
-                        {c.direction === 'better' ? '▼ besser als' : c.direction === 'worse' ? '▲ schlechter als' : '= gleich wie'} um {formatClock(c.prevAt)}
-                        {c.direction !== 'same' && ` (${fmtLevel(c.prev)})`}
-                      </small>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {saved.rest.length > 0 && <p className="saved-rest">{saved.rest.join(' · ')}</p>}
-              {saved.hint && <p className="saved-hint">{saved.hint}</p>}
-              <div className="saved-actions">
-                <button
-                  className="btn ghost small"
-                  onClick={() => {
-                    dispatch({ type: 'entry/delete', id: saved.entry.id });
-                    setUndone(true);
-                  }}
-                >
-                  Rückgängig
-                </button>
-                <button className="btn ghost small" onClick={() => navigate(`/t/${tracker.id}/entry/${saved.entry.id}`)}>Bearbeiten</button>
-              </div>
-            </>
-          )}
+          <div className="fav-chips">
+            {favs.map((f) => (
+              <button key={`${f.fieldId}|${f.text}`} type="button" className="fav-chip" onClick={() => store(favoriteValues(tracker, f))}>
+                <span aria-hidden>{FAVORITE_ICON[f.kind]}</span> {f.text}
+              </button>
+            ))}
+          </div>
         </section>
       )}
 
-      <div className="seg mode-switch" role="tablist" aria-label="Art des Eintrags">
-        <button role="tab" aria-selected={mode === 'tap'} className={mode === 'tap' ? 'active' : ''} onClick={() => setMode('tap')}>
-          Antippen
-        </button>
-        <button role="tab" aria-selected={mode === 'talk'} className={mode === 'talk' ? 'active' : ''} onClick={() => setMode('talk')}>
-          🎙 Erzählen
-        </button>
-      </div>
+      {moment === 'talk' && <TalkCard quick={tracker} autoFocus={talk} />}
 
-      {mode === 'talk' ? (
-        <TalkCard quick={tracker} autoFocus={talk} />
-      ) : (
+      {m && (
         <form
           className="entry-form quick-form"
           onSubmit={(e) => {
@@ -377,85 +373,82 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
             save();
           }}
         >
-          {core.length > 0 && (
-            <section className="card core-card">
-              <div className="fav-head">
-                <h2>Beschwerden</h2>
-                {core.some((f) => filled.includes(f)) && (
-                  <button type="button" className="btn ghost small" onClick={() => setValues((v) => ({ ...v, ...Object.fromEntries(core.map((f) => [f.id, null])) }))}>
-                    Zurücksetzen
-                  </button>
-                )}
-              </div>
-              {legend && <p className="core-legend">{legend}</p>}
-              {core.map((f) => (
-                <CompactScale key={f.id} field={f} value={values[f.id] ?? null} prev={last(f)} onChange={(v) => setValues((s) => ({ ...s, [f.id]: v }))} />
-              ))}
-            </section>
-          )}
-
-          {favs.length > 0 && (
-            <section className="card fav-card">
-              <div className="fav-head">
-                <h2>Gegessen, getrunken, genommen</h2>
-                <small className="muted">1 Tipp = gespeichert</small>
-              </div>
-              <div className="fav-chips">
-                {favs.map((f) => (
-                  <button key={`${f.fieldId}|${f.text}`} type="button" className="fav-chip" onClick={() => store(favoriteValues(tracker, f))}>
-                    <span aria-hidden>{FAVORITE_ICON[f.kind]}</span> {f.text}
-                  </button>
-                ))}
-              </div>
-            </section>
-          )}
-
           <EntryDayContext.Provider value={dayKey(when)}>
-            {detailGroups.map((g, gi) => {
-              const isOpen = open[g.name] ?? (gi === 0 || g.fields.length <= 2);
-              const count = g.fields.filter((f) => filled.includes(f)).length;
-              return (
-                <section key={g.name} className={`card quick-group ${isOpen ? 'open' : ''}`}>
-                  <button type="button" className="quick-group-head" aria-expanded={isOpen} onClick={() => toggleGroup(g.name, !isOpen)}>
-                    <span className="qg-title">{g.name}</span>
-                    {count > 0 && <span className="pill good">{count} ausgefüllt</span>}
-                    <span className="qg-chevron" aria-hidden>{isOpen ? '−' : '+'}</span>
-                  </button>
-                  {isOpen &&
-                    g.fields.map((f) => {
-                      const i = visible.indexOf(f);
-                      const prev = last(f);
-                      const cur = values[f.id];
-                      const delta = typeof cur === 'number' && prev && typeof prev.v === 'number' ? cur - prev.v : null;
-                      const better = delta !== null && (delta < 0) === (f.config.polarity !== 'higher-better');
-                      return (
-                        <div key={f.id} className="field quick-field">
-                          <div className="quick-label">
-                            {/* Abschnitt mit nur einem gleichnamigen Feld: Bezeichnung nicht doppelt zeigen */}
-                            <label htmlFor={`q-${f.id}`} className={g.fields.length === 1 && g.name === f.label ? 'sr-only' : ''}>{f.label}</label>
-                            {prev && (
-                              <small className="muted">
-                                zuletzt {short(f, prev.v)} um {formatClock(prev.t)}
-                                {delta !== null && delta !== 0 && polarityOf(f) !== 'neutral' && (
-                                  <b className={`delta ${better ? 'good' : 'bad'}`}>{better ? ' ▼ besser' : ' ▲ schlechter'}</b>
-                                )}
-                                {delta === 0 && <b className="delta"> = gleich</b>}
-                              </small>
-                            )}
-                          </div>
-                          {f.description && !visible.slice(0, i).some((p) => p.description === f.description) && <small className="muted">{f.description}</small>}
-                          <FieldInput id={`q-${f.id}`} field={f} value={values[f.id] ?? null} onChange={(v) => setValues((s) => ({ ...s, [f.id]: v }))} />
-                          {errors[f.id] && <small className="error">{errors[f.id]}</small>}
-                        </div>
-                      );
-                    })}
+            {m.key === 'all' ? (
+              groupFields(visible.filter((f) => conditionMet(f, visible, values))).map((g) => (
+                <section key={g.name} className="card quick-group open">
+                  <h2 className="qg-static">{g.name}</h2>
+                  {g.fields.map((f) => field(f))}
                 </section>
-              );
-            })}
+              ))
+            ) : (
+              <>
+                {(m.wake || m.fields.length > 0 || m.key === 'evening') && (
+                  <section className="card moment-card">
+                    {m.wake && <WakeControl day={dayKey(when)} />}
+                    {m.key === 'evening' && <LastMealLine tracker={tracker} entries={entries} now={now} />}
+                    {m.fields.map((mf) => {
+                      const f = fieldByLabel(tracker, mf.label);
+                      return f ? field(f, mf.ask) : null;
+                    })}
+                  </section>
+                )}
+
+                {m.symptoms !== 'none' && (
+                  <section className="card core-card">
+                    {m.symptoms === 'optional' && !showOptional ? (
+                      <button type="button" className="linkish add-more" onClick={() => setShowOptional(true)}>
+                        ＋ Wie geht’s dir gerade? (optional)
+                      </button>
+                    ) : (
+                      <>
+                        <div className="fav-head">
+                          <h2>{m.key === 'symptom' ? 'Was hast du?' : 'Wie geht’s dir?'}</h2>
+                          {main.concat(more).some((f) => filled.includes(f)) && (
+                            <button type="button" className="btn ghost small" onClick={() => setValues((v) => ({ ...v, ...Object.fromEntries(main.concat(more).map((f) => [f.id, null])) }))}>
+                              Zurücksetzen
+                            </button>
+                          )}
+                        </div>
+                        <p className="core-legend">
+                          0 keine · ½ sehr leicht · 1 leicht · 2 mittel · 3 schwer{m.key === 'symptom' ? ' – Details klappen auf, sobald du etwas antippst' : ''}
+                        </p>
+                        {symptomRows(main)}
+                        {more.length > 0 &&
+                          (showMore || m.key === 'symptom' || more.some((f) => filled.includes(f)) ? (
+                            symptomRows(more)
+                          ) : (
+                            <button type="button" className="linkish add-more" onClick={() => setShowMore(true)}>
+                              ＋ Weitere: {more.map((f) => f.label).join(', ')}
+                            </button>
+                          ))}
+                        {m.key === 'symptom' &&
+                          ['Stuhlgang'].map((l) => {
+                            const f = fieldByLabel(tracker, l);
+                            return f ? field(f) : null;
+                          })}
+                      </>
+                    )}
+                  </section>
+                )}
+
+                {note && (
+                  <section className="card note-card">
+                    {showNote || !isEmptyValue(values[note.id]) ? (
+                      field(note)
+                    ) : (
+                      <button type="button" className="linkish add-more" onClick={() => setShowNote(true)}>
+                        ＋ Notiz
+                      </button>
+                    )}
+                  </section>
+                )}
+              </>
+            )}
           </EntryDayContext.Provider>
           <div className="actions sticky quick-save">
             <span className="muted small quick-count">
-              {filled.length ? `${filled.length} ${filled.length === 1 ? 'Angabe' : 'Angaben'}` : 'Tippe an, was gerade ist'}
+              {filled.length ? `${filled.length} ${filled.length === 1 ? 'Angabe' : 'Angaben'}` : 'Tippe an, was zutrifft'}
             </span>
             {filled.length > 0 && (
               <button type="button" className="btn ghost small" onClick={() => setValues(empty())}>
@@ -469,11 +462,11 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
         </form>
       )}
 
-      {todays.length > 0 && (
+      {!moment && todays.length > 0 && (
         <section className="card">
           <div className="section-head">
             <h2>Heute</h2>
-            <button className="btn ghost small" onClick={() => navigate(`/t/${tracker.id}/table`)}>Alle Einträge</button>
+            <button className="btn ghost small" onClick={() => navigate('/data')}>Verlauf</button>
           </div>
           <DayRhythmChart rhythm={rhythm} onPick={(id) => navigate(`/t/${tracker.id}/entry/${id}`)} />
           <ul className="timeline">
@@ -483,9 +476,6 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
                   <span className="tl-time-big">{formatClock(new Date(e.timestamp))}</span>
                   <span className="tl-body">
                     <ValuePills tracker={tracker} entry={e} />
-                    {visible.filter((f) => f.type === 'text' && !isEmptyValue(e.values[f.id])).map((f) => (
-                      <small key={f.id} className="muted">{String(e.values[f.id])}</small>
-                    ))}
                   </span>
                 </button>
               </li>
@@ -502,12 +492,110 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
   );
 }
 
+/** Ein Feld mit Bezeichnung, letztem Wert und Eingabe. */
+function QuickField({ field: f, label, value, prev, error, onChange }: { field: FieldDef; label?: string; value: FieldValue; prev: { v: FieldValue; t: Date } | null; error?: string; onChange: (v: FieldValue) => void }) {
+  const delta = typeof value === 'number' && prev && typeof prev.v === 'number' ? value - prev.v : null;
+  const better = delta !== null && (delta < 0) === (f.config.polarity !== 'higher-better');
+  return (
+    <div className="field quick-field">
+      <div className="quick-label">
+        <label htmlFor={`q-${f.id}`}>{label ?? f.label}</label>
+        {prev && (
+          <small className="muted">
+            zuletzt {short(f, prev.v)} um {formatClock(prev.t)}
+            {delta !== null && delta !== 0 && polarityOf(f) !== 'neutral' && <b className={`delta ${better ? 'good' : 'bad'}`}>{better ? ' ▼ besser' : ' ▲ schlechter'}</b>}
+          </small>
+        )}
+      </div>
+      {f.description && <small className="muted">{f.description}</small>}
+      <FieldInput id={`q-${f.id}`} field={f} value={value} onChange={onChange} />
+      {error && <small className="error">{error}</small>}
+    </div>
+  );
+}
+
+/** Aufwachzeit: aus Apple Health (Amazfit) übernommen oder selbst eintragen. */
+function WakeControl({ day }: { day: string }) {
+  const { data, dispatch } = useStore();
+  const h = data.health?.[day];
+  return (
+    <div className="field quick-field wake-control">
+      <div className="quick-label">
+        <label htmlFor="wake-time">Aufgewacht um</label>
+        {h?.wake && <small className="muted">{h.source === 'health' ? 'aus Apple Health' : 'selbst eingetragen'}{h.sleepHours ? ` · ${fmtLevel(h.sleepHours)} h Schlaf` : ''}</small>}
+      </div>
+      <div className="time-input">
+        <input
+          id="wake-time"
+          type="time"
+          value={h?.wake ?? ''}
+          onChange={(e) => e.target.value && dispatch({ type: 'health/upsert', days: [{ date: day, wake: e.target.value, source: h?.source === 'health' ? 'health' : 'manual' }] })}
+        />
+        {!h?.wake && <small className="muted">Mit dem Health-Kurzbefehl kommt die Zeit von deinem Armband (siehe „Mehr“).</small>}
+      </div>
+    </div>
+  );
+}
+
+/** Abends: wann zuletzt gegessen wurde – aus den Einträgen, nicht nochmal fragen. */
+function LastMealLine({ tracker, entries, now }: { tracker: Tracker; entries: Entry[]; now: Date }) {
+  const food = tracker.fields.filter((f) => isFoodField(f) && /gegessen|essen/i.test(f.label));
+  const today = dayKey(now);
+  const meals = entries.filter((e) => dayKey(new Date(e.timestamp)) === today && food.some((f) => typeof e.values[f.id] === 'string' && e.values[f.id]));
+  const lastMeal = meals[meals.length - 1];
+  if (!lastMeal) return <p className="muted small moment-info">Heute noch kein Essen eingetragen.</p>;
+  const what = food.flatMap((f) => (typeof lastMeal.values[f.id] === 'string' ? listItems(lastMeal.values[f.id] as string).map(itemName) : [])).join(', ');
+  return (
+    <p className="muted small moment-info">
+      Zuletzt gegessen: <b>{formatClock(new Date(lastMeal.timestamp))}</b> – {what}
+    </p>
+  );
+}
+
+function SavedCard({ saved, undone, today, onClose, onUndo, onEdit }: { saved: SavedInfo; undone: boolean; today: string; onClose: () => void; onUndo: () => void; onEdit: () => void }) {
+  const ts = new Date(saved.entry.timestamp);
+  return (
+    <section className={`saved-card ${undone ? 'undone' : ''}`} role="status">
+      <div className="saved-head">
+        <span className="saved-check" aria-hidden>{undone ? '↺' : '✓'}</span>
+        <strong>{undone ? 'Rückgängig gemacht – der Eintrag ist entfernt.' : `Gespeichert · ${formatClock(ts)}${dayKey(ts) !== today ? ` am ${ts.toLocaleDateString('de-DE')}` : ''}`}</strong>
+        <button className="btn ghost small icon-btn" onClick={onClose} aria-label="Rückmeldung schließen">✕</button>
+      </div>
+      {!undone && (
+        <>
+          {saved.changes.length > 0 && (
+            <ul className="saved-changes">
+              {saved.changes.map((c) => (
+                <li key={c.field.id} className={c.direction}>
+                  <span className="sc-label">{c.field.label}</span>
+                  <b>{levelText(c.field, c.value)}</b>
+                  <small>
+                    {c.direction === 'better' ? '▼ besser als' : c.direction === 'worse' ? '▲ schlechter als' : '= gleich wie'} um {formatClock(c.prevAt)}
+                    {c.direction !== 'same' && ` (${fmtLevel(c.prev)})`}
+                  </small>
+                </li>
+              ))}
+            </ul>
+          )}
+          {saved.rest.length > 0 && <p className="saved-rest">{saved.rest.join(' · ')}</p>}
+          {saved.hint && <p className="saved-hint">{saved.hint}</p>}
+          <div className="saved-actions">
+            <button className="btn ghost small" onClick={onUndo}>Rückgängig</button>
+            <button className="btn ghost small" onClick={onEdit}>Bearbeiten</button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
 function short(f: FieldDef, v: FieldValue): string {
   if (f.type === 'scale' && typeof v === 'number') return `${f.label} ${fmtLevel(v)}`;
-  if (Array.isArray(v)) return v.join(', ');
+  if (Array.isArray(v)) return f.type === 'bodymap' ? formatValue(f, v) : v.join(', ');
   if (f.type === 'scale') return f.label;
   const s = formatValue(f, v);
   if (f.type === 'text') return f.config.multiline ? 'Notiz' : s.length > 28 ? `${s.slice(0, 27)}…` : s;
+  if (f.type === 'time') return `${f.label} ${s}`;
   return s;
 }
 

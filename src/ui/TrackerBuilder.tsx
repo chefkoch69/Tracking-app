@@ -141,7 +141,17 @@ export function TrackerBuilder({ existing }: { existing?: Tracker }) {
 
       <section className="card">
         {step === 0 && <StepBasics tracker={tracker} update={update} />}
-        {step === 1 && <StepFields fields={tracker.fields} onChange={(fields) => update({ fields })} warnRemoval={hasEntries} />}
+        {step === 1 && (
+          <StepFields
+            fields={tracker.fields}
+            onChange={(fields) => {
+              // Selbst entfernte Felder von „Mein Befinden“ nicht automatisch wieder ergänzen.
+              const gone = tracker.fields.filter((f) => !fields.some((x) => x.id === f.id)).map((f) => f.label);
+              update(gone.length && tracker.quick ? { fields, templateSkip: [...new Set([...(tracker.templateSkip ?? []), ...gone])] } : { fields });
+            }}
+            warnRemoval={hasEntries}
+          />
+        )}
         {step === 2 && <StepSchedule schedule={tracker.schedule} onChange={(schedule) => update({ schedule })} />}
         {step === 3 && <StepViews tracker={tracker} onChange={(views) => update({ views })} />}
         {step === 4 && <StepSummary tracker={tracker} />}

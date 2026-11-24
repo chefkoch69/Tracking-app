@@ -15,6 +15,7 @@ export interface CloudMeta {
   reminders: AppData['reminders'];
   profile: AppData['profile'] | null;
   health: NonNullable<AppData['health']>;
+  experiments?: NonNullable<AppData['experiments']>;
 }
 
 export interface CloudWeek {
@@ -44,6 +45,7 @@ export function toCloud(data: AppData): { meta: CloudMeta; weeks: Map<string, Cl
     reminders: data.reminders,
     profile: data.profile ?? null,
     health: data.health ?? {},
+    experiments: data.experiments ?? [],
   });
   const weeks = new Map<string, CloudWeek>();
   for (const e of data.entries) {
@@ -68,6 +70,7 @@ export function fromCloud(meta: Partial<CloudMeta> | undefined, weeks: Partial<C
     reminders: meta?.reminders ?? {},
     profile: meta?.profile ?? undefined,
     health: meta?.health ?? {},
+    experiments: meta?.experiments ?? [],
     entries,
   };
 }

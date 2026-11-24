@@ -1,24 +1,22 @@
-import { useMemo, useState } from 'react';
-import { SymptomTrendCard } from './SymptomTrendCard';
+import { useState } from 'react';
 import { SetupCard } from './SetupCard';
 import { TEMPLATES, trackerFromTemplate } from '../core/templates';
 import { WakeChip } from './HealthPanel';
-import { withHealth } from '../core/health';
 import { askConfirm } from './confirm';
 import { bucketize, consistencyScore, currentStreak, entriesOf, numericFields, series } from '../core/analytics';
 import { ConsistencyRing } from './ConsistencyRing';
 import { addDays, dayKey, formatClock, startOfDay } from '../core/dates';
 import { aggregationOf } from '../core/fieldTypes';
-import { computeInsights } from '../core/insights';
 import { daySlotStatus, describeSchedule, nextSlot, slotKey } from '../core/schedule';
 import type { Tracker } from '../core/types';
 import { useStore } from '../state/store';
 import { combinedDayState, WeekStrip } from './Adherence';
 import { Sparkline } from './charts/Charts';
-import { InsightList, InsightReadiness } from './Insights';
-import { AppointmentCard } from './AppointmentCard';
 import { DayRhythmChart } from './DayRhythm';
-import { dayRhythm, insightReadiness } from '../core/feedback';
+import { appointmentLabel, dayRhythm, daysUntil, questionList } from '../core/feedback';
+import { MOMENTS, suggestedMoment } from '../core/moments';
+import { experimentDay } from '../core/experiments';
+import { FollowUpCard } from './QuickPage';
 import { useDueTrackers, useNow } from './reminders';
 import { navigate } from './router';
 import { ValuePills } from './views/shared';
@@ -33,22 +31,16 @@ export function Dashboard() {
   const now = useNow();
   const due = useDueTrackers(now);
   const active = data.trackers.filter((t) => !t.archived);
-  const archived = data.trackers.filter((t) => t.archived);
-  const insights = useMemo(() => {
-    const all = withHealth(data);
-    return computeInsights(all.trackers, all.entries, new Date());
-  }, [data]);
-  const readiness = insightReadiness(data.trackers, data.entries, now);
 
   if (!data.trackers.length) {
     return (
       <div className="page">
         <section className="hero-band">
           <div className="hero-inner center">
-            <h1 className="display">Dein persönliches Datensystem</h1>
+            <h1 className="display">Dein Körper-Tagebuch</h1>
             <p className="hero-lead">
-              Nicht die App entscheidet, was getrackt wird – du entscheidest. Baue dir deinen eigenen Tracker aus Skalen,
-              Messwerten, Auswahlfeldern, Körperkarte und mehr.
+              Aufstehen, Essen, Beschwerden, Schlafen gehen – kurz antippen. Die App zeigt dir, was auffällt, und hilft,
+              Dinge auszuprobieren.
             </p>
             <div className="actions center">
               <button
@@ -60,16 +52,15 @@ export function Dashboard() {
               >
                 💙 „Mein Befinden“ starten
               </button>
-              <button className="btn outline-white big" onClick={() => navigate('/new')}>＋ Eigenen Tracker bauen</button>
             </div>
           </div>
         </section>
         <div className="feature-grid">
           {[
-            ['🧩', 'Baukasten', 'Zahlen, Skalen, Messwerte, Auswahl, Zeiträume, Körperkarte – frei kombinierbar.'],
-            ['⏰', 'Erinnerungen', 'Feste Zeiten oder Intervalle – was fällig ist, siehst du sofort in der Übersicht.'],
-            ['📈', 'Auswertungen', 'Verläufe, Kalender, Rekorde, Zusammenhänge und was dir wirklich hilft.'],
-            ['🩺', 'Arztbericht', 'Druckbare Tabelle wie ein Papiertagebuch – mit einem Tipp.'],
+            ['☀️', 'Nach Moment eintragen', 'Aufgestanden, Essen & Trinken, Beschwerde, Schlafen gehen – jeweils nur, was dazu gehört.'],
+            ['🤕', 'Details, wenn nötig', 'Bauchweh, Kopfweh, Tinnitus: die Details klappen erst auf, wenn du etwas angibst.'],
+            ['🔍', 'Was auffällt', 'Mögliche Auslöser, was geholfen hat und wie es sich entwickelt.'],
+            ['🧪', 'Ausprobieren', 'Eine Liste, was du testen willst – mit Vergleich vorher und währenddessen.'],
           ].map(([icon, title, text]) => (
             <div key={title} className="feature card">
               <span className="feature-icon">{icon}</span>
@@ -87,8 +78,6 @@ export function Dashboard() {
     active.find((t) => t.quick && !t.demo) ??
     active.find((t) => t.quick) ??
     [...active].sort((a, b) => b.fields.filter((f) => f.type === 'scale').length - a.fields.filter((f) => f.type === 'scale').length).find((t) => t.fields.filter((f) => f.type === 'scale').length >= 2);
-  const allSlots = active.flatMap((t) => daySlotStatus(t, data.entries, now));
-  const doneToday = allSlots.filter((s) => s.done).length;
 
   return (
     <div className="page">
@@ -96,16 +85,11 @@ export function Dashboard() {
         <div className="hero-inner">
           <p className="hero-date">{now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
           <h1 className="display">{greeting(now)}</h1>
-          <p className="hero-lead">
-            {allSlots.length
-              ? `${doneToday} von ${allSlots.length} geplanten Einträgen heute erledigt`
-              : `${active.length} ${active.length === 1 ? 'Tracker' : 'Tracker'} aktiv`}
-          </p>
           <div className="hero-cta">
-            <button className="btn white" onClick={() => navigate('/now')}>⚡ Wie geht’s dir gerade?</button>
             <button className="btn outline-white" onClick={() => navigate('/now/talk')}>🎙 Erzählen</button>
           </div>
-          <WakeChip now={now} />
+          {/* Aufstehen wird über „Aufgestanden“ eingetragen – hier nur die Werte vom Armband/Health */}
+          <WakeChip now={now} buttons={!mainTracker?.quick} />
           <WeekStrip now={now} state={(d) => combinedDayState(active, data.entries, d, now)} />
         </div>
       </section>
@@ -115,7 +99,7 @@ export function Dashboard() {
       {data.trackers.some((t) => t.demo) && !data.entries.some((e) => data.trackers.find((t) => t.id === e.trackerId && !t.demo)) && (
         <div className="demo-banner">
           <span>
-            <b>Beispieldaten</b> · Die mit „(Demo)“ markierten Tracker sind erfundene Beispiele zum Ausprobieren.
+            <b>Beispieldaten</b> · Die mit „(Demo)“ markierten Tracker sind erfundene Beispiele.
           </span>
           <button className="btn small" onClick={async () => (await askConfirm('Alle Beispiel-Tracker und ihre Einträge entfernen? Deine eigenen Tracker bleiben erhalten.', { okLabel: 'Beispiele entfernen' })) && dispatch({ type: 'demo/remove' })}>
             Beispiele entfernen
@@ -150,43 +134,22 @@ export function Dashboard() {
                 >
                   Später (15 Min)
                 </button>
-                <button className="btn primary small" onClick={() => navigate(`/t/${tracker.id}/entry`)}>Jetzt eintragen</button>
+                <button className="btn primary small" onClick={() => navigate(tracker.quick ? '/now' : `/t/${tracker.id}/entry`)}>Jetzt eintragen</button>
               </div>
             </div>
           ))}
         </section>
       )}
 
-      <AppointmentCard now={now} />
+      {mainTracker && <FollowUpCard tracker={mainTracker} />}
+
+      {mainTracker?.quick && <MomentShortcuts tracker={mainTracker} now={now} />}
+
+      <RunningExperiments />
 
       <TodayTimeline trackers={active} now={now} main={mainTracker} />
 
-      {mainTracker && <SymptomTrendCard tracker={mainTracker} />}
-
-      <section className="card">
-        <div className="section-head">
-          <h2>Was auffällt</h2>
-          <small className="muted">aus deinen Einträgen</small>
-        </div>
-        {insights.length > 0 ? <InsightList insights={insights} showTracker grouped /> : <InsightReadiness readiness={readiness} />}
-      </section>
-
-      <div className="section-head">
-        <h2>Meine Tracker</h2>
-        <button className="btn primary" onClick={() => navigate('/new')}>＋ Neuer Tracker</button>
-      </div>
-      <TrackerGroups trackers={active} now={now} />
-
-      {archived.length > 0 && (
-        <details className="archived">
-          <summary>Archiviert ({archived.length})</summary>
-          <div className="tracker-grid">
-            {archived.map((t) => (
-              <TrackerCard key={t.id} tracker={t} now={now} />
-            ))}
-          </div>
-        </details>
-      )}
+      <AppointmentHint now={now} />
 
       <p className="feedback-link">
         <button className="linkish" onClick={() => navigate('/settings')}>💬 Etwas fehlt oder nervt? Sag es Claude.</button>
@@ -195,7 +158,67 @@ export function Dashboard() {
   );
 }
 
-function TrackerCard({ tracker, now }: { tracker: Tracker; now: Date }) {
+/** Die Momente des Tages als Abkürzung – passend zur Tageszeit hervorgehoben. */
+function MomentShortcuts({ tracker, now }: { tracker: Tracker; now: Date }) {
+  const { data } = useStore();
+  const suggestion = suggestedMoment(tracker, data.entries, now);
+  return (
+    <section className="moment-grid compact" aria-label="Eintragen">
+      {MOMENTS.filter((m) => ['morning', 'meal', 'symptom', 'evening'].includes(m.key)).map((m) => (
+        <button key={m.key} className={`moment-tile ${suggestion === m.key ? 'suggested' : ''}`} onClick={() => navigate(`/now?m=${m.key}`)}>
+          <span className="mt-icon" aria-hidden>{m.icon}</span>
+          <span className="mt-label">{m.label}</span>
+          {suggestion === m.key && <small>jetzt passend</small>}
+        </button>
+      ))}
+    </section>
+  );
+}
+
+/** Was gerade ausprobiert wird – mit Tag-Zähler. */
+function RunningExperiments() {
+  const { data } = useStore();
+  const running = (data.experiments ?? []).filter((x) => x.status === 'running');
+  if (!running.length) return null;
+  return (
+    <section className="card running-card">
+      <div className="section-head">
+        <h2>Läuft gerade</h2>
+        <button className="btn ghost small" onClick={() => navigate('/try')}>Ausprobieren</button>
+      </div>
+      <ul className="exp-list">
+        {running.map((x) => (
+          <li key={x.id}>
+            <span className="exp-title">🧪 {x.title}</span>
+            <span className="pill">Tag {experimentDay(x, new Date())}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Arzttermin nur als kurzer Hinweis, wenn er bald ist. */
+function AppointmentHint({ now }: { now: Date }) {
+  const { data } = useStore();
+  const date = data.profile?.appointment;
+  if (!date) return null;
+  const n = daysUntil(date, now);
+  if (n < 0 || n > 21) return null;
+  const q = questionList(data.profile?.questions).length;
+  return (
+    <button className="card appt-hint" onClick={() => navigate('/arzt')}>
+      <span aria-hidden>🩺</span>
+      <span>
+        <strong>Arzttermin {appointmentLabel(date, now)}</strong>
+        <small className="muted">{q ? `${q} ${q === 1 ? 'Frage' : 'Fragen'} notiert · ` : ''}Bericht vorbereiten</small>
+      </span>
+      <span aria-hidden>›</span>
+    </button>
+  );
+}
+
+export function TrackerCard({ tracker, now }: { tracker: Tracker; now: Date }) {
   const { data } = useStore();
   const entries = entriesOf(tracker, data.entries);
   const last = entries[entries.length - 1];
@@ -297,7 +320,7 @@ function TodayTimeline({ trackers, now, main }: { trackers: Tracker[]; now: Date
 }
 
 /** Tracker nach Kategorie gruppiert (nur wenn es mehrere Kategorien gibt). */
-function TrackerGroups({ trackers, now }: { trackers: Tracker[]; now: Date }) {
+export function TrackerGroups({ trackers, now }: { trackers: Tracker[]; now: Date }) {
   const groups = new Map<string, Tracker[]>();
   for (const t of trackers) {
     const k = t.category.trim() || 'Ohne Kategorie';

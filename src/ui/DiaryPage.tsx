@@ -1,4 +1,9 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { withHealth } from '../core/health';
+import { computeInsights } from '../core/insights';
+import { insightReadiness } from '../core/feedback';
+import { InsightList, InsightReadiness } from './Insights';
+import { SymptomTrendCard } from './SymptomTrendCard';
 import { dayKey, formatDay, parseDayKey } from '../core/dates';
 import { fmtLevel, scaleLevels, severity } from '../core/fieldTypes';
 import type { Entry, Tracker } from '../core/types';
@@ -43,7 +48,12 @@ function worstOfDay(items: { e: Entry; t: Tracker }[]): string | null {
  */
 export function DiaryPage() {
   const { data } = useStore();
-  const [view, setView] = useState<'list' | 'table'>('list');
+  const [view, setView] = useState<'list' | 'patterns' | 'table'>('list');
+  const insights = useMemo(() => {
+    const all = withHealth(data);
+    return computeInsights(all.trackers, all.entries, new Date());
+  }, [data]);
+  const main = data.trackers.find((t) => t.quick && !t.demo && !t.archived) ?? data.trackers.find((t) => t.quick && !t.archived);
   const [days, setDays] = useState(DAYS);
   const trackers = data.trackers.filter((t) => !t.archived);
   const items = data.entries
@@ -65,18 +75,30 @@ export function DiaryPage() {
     <div className="page">
       <section className="hero-band compact">
         <div className="hero-inner">
-          <h1>Tagebuch</h1>
-          <p className="hero-lead">Alles, was du eingetragen hast – Tag für Tag. Antippen zum Ändern.</p>
+          <h1>Verlauf</h1>
+          <p className="hero-lead">Dein Tagebuch Tag für Tag, wie sich Beschwerden entwickeln und was auffällt.</p>
         </div>
       </section>
 
       <div className="seg view-switch" role="tablist" aria-label="Ansicht">
         <button role="tab" aria-selected={view === 'list'} className={view === 'list' ? 'active' : ''} onClick={() => setView('list')}>Tage</button>
-        <button role="tab" aria-selected={view === 'table'} className={view === 'table' ? 'active' : ''} onClick={() => setView('table')}>Tabelle & Export</button>
+        <button role="tab" aria-selected={view === 'patterns'} className={view === 'patterns' ? 'active' : ''} onClick={() => setView('patterns')}>Was auffällt</button>
+        <button role="tab" aria-selected={view === 'table'} className={view === 'table' ? 'active' : ''} onClick={() => setView('table')}>Tabelle</button>
       </div>
 
       {view === 'table' ? (
         <DataTable />
+      ) : view === 'patterns' ? (
+        <>
+          {main && <SymptomTrendCard tracker={main} />}
+          <section className="card">
+            <div className="section-head">
+              <h2>Was auffällt</h2>
+              <small className="muted">aus deinen Einträgen</small>
+            </div>
+            {insights.length > 0 ? <InsightList insights={insights} showTracker grouped /> : <InsightReadiness readiness={insightReadiness(data.trackers, data.entries, new Date())} />}
+          </section>
+        </>
       ) : !items.length ? (
         <div className="card empty">
           <div className="empty-icon">📓</div>

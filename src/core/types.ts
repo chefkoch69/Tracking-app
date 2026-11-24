@@ -17,12 +17,13 @@ export type FieldType =
   | 'checkbox'
   | 'datetime'
   | 'timerange'
+  | 'time'
   | 'bodymap';
 
 /** Ob ein höherer Wert gut, schlecht oder neutral ist (für Farben & Erkenntnisse). */
 export type Polarity = 'higher-worse' | 'higher-better' | 'neutral';
 
-export type BodyMapKind = 'abdomen' | 'body';
+export type BodyMapKind = 'abdomen' | 'body' | 'head';
 
 /** Wie Werte eines Feldes pro Tag/Woche/Monat zusammengefasst werden. */
 export type Aggregation = 'sum' | 'avg' | 'max' | 'min' | 'last' | 'count';
@@ -52,6 +53,20 @@ export interface FieldConfig {
   splitList?: boolean;
   /** Zeitraum: Beginn automatisch mit der Aufstehzeit vorbelegen. */
   fromWake?: boolean;
+  /** Uhrzeit: Zeiten vor 12 Uhr zählen zum Vorabend (z. B. „Handy weggelegt um 00:30“). */
+  overnight?: boolean;
+}
+
+/**
+ * Feld nur zeigen, wenn ein anderes Feld passt – z. B. Bauchweh-Details erst, wenn
+ * „Bauchschmerz“ über 0 liegt. Ohne Angabe: Zahl/Skala über 0 bzw. Häkchen gesetzt.
+ */
+export interface ShowIf {
+  fieldId: string;
+  /** Zahl/Skala mindestens so groß. */
+  atLeast?: number;
+  /** Auswahl gleich bzw. Mehrfachauswahl enthält diesen Wert. */
+  equals?: string;
 }
 
 export interface ScaleLevel {
@@ -70,6 +85,8 @@ export interface FieldDef {
   hidden?: boolean;
   /** Abschnitt im Formular (z. B. „Bauch & Verdauung“); Felder ohne Abschnitt stehen unter „Weitere“. */
   group?: string;
+  /** Nur zeigen, wenn … (Details, die „aufploppen“). */
+  showIf?: ShowIf;
 }
 
 /** Zeitraum "HH:MM"–"HH:MM" (Feldtyp timerange). */
@@ -117,6 +134,8 @@ export interface Tracker {
   demo?: boolean;
   /** Erscheint auf der „Jetzt“-Seite für den schnellen Check-in. */
   quick?: boolean;
+  /** Selbst entfernte Vorlagen-Felder (Bezeichnungen) – werden nicht automatisch wieder ergänzt. */
+  templateSkip?: string[];
 }
 
 export interface Entry {
@@ -171,6 +190,20 @@ export interface Profile {
   summaryTo?: string;
 }
 
+/** Etwas, das man ausprobieren will, gerade ausprobiert oder schon ausprobiert hat. */
+export interface Experiment {
+  id: string;
+  title: string;
+  category?: string;
+  status: 'idea' | 'running' | 'done';
+  /** YYYY-MM-DD */
+  startedAt?: string;
+  endedAt?: string;
+  verdict?: 'helped' | 'partly' | 'no' | 'unclear';
+  note?: string;
+  createdAt: string;
+}
+
 export interface AppData {
   version: 1;
   trackers: Tracker[];
@@ -179,4 +212,6 @@ export interface AppData {
   profile?: Profile;
   /** Gesundheitsdaten je Tag (Schlüssel YYYY-MM-DD). */
   health?: Record<string, HealthDay>;
+  /** Was ich ausprobieren will / ausprobiere / ausprobiert habe. */
+  experiments?: Experiment[];
 }

@@ -11,12 +11,15 @@ import { navigate, useRoute } from './router';
 import { TabBar, TopNav, useTypingClass } from './Nav';
 import { Settings } from './Settings';
 import { DiaryPage } from './DiaryPage';
+import { ExperimentsPage } from './ExperimentsPage';
+import { useAutoUpgrade } from './autoUpgrade';
 import { TrackerBuilder } from './TrackerBuilder';
 import { TrackerDetail } from './TrackerDetail';
 
 export function App() {
   useReminderEngine();
   useTypingClass();
+  useAutoUpgrade();
   const route = useRoute();
   const { data } = useStore();
   const tracker = 'id' in route ? data.trackers.find((t) => t.id === route.id) : undefined;
@@ -49,7 +52,10 @@ export function App() {
         break;
       }
       case 'now':
-        page = <QuickPage talk={route.talk} />;
+        page = <QuickPage talk={route.talk} moment={route.moment} />;
+        break;
+      case 'try':
+        page = <ExperimentsPage />;
         break;
       case 'doctor':
         page = <DoctorReport />;

@@ -12,49 +12,49 @@ const stroke = { fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLin
 
 export const TABS: Tab[] = [
   {
-    key: 'now',
-    href: '#/now',
-    label: 'Eintragen',
-    match: ['now', 'entry'],
-    icon: (
-      <svg viewBox="0 0 24 24" {...stroke}>
-        <circle cx="12" cy="12" r="8.5" />
-        <path d="M12 8.2v7.6M8.2 12h7.6" />
-      </svg>
-    ),
-  },
-  {
     key: 'dashboard',
     href: '#/',
-    label: 'Übersicht',
-    match: ['dashboard', 'tracker', 'edit', 'new'],
+    label: 'Heute',
+    match: ['dashboard'],
     icon: (
       <svg viewBox="0 0 24 24" {...stroke}>
-        <path d="M4.5 10.2 12 4l7.5 6.2V19a1 1 0 0 1-1 1H15v-5.5H9V20H5.5a1 1 0 0 1-1-1z" />
-      </svg>
-    ),
-  },
-  {
-    key: 'doctor',
-    href: '#/arzt',
-    label: 'Arzttermin',
-    match: ['doctor'],
-    icon: (
-      <svg viewBox="0 0 24 24" {...stroke}>
-        <rect x="4" y="5.5" width="16" height="14.5" rx="2.2" />
-        <path d="M8 3.5v4M16 3.5v4M12 10.5v6M9 13.5h6" />
+        <circle cx="12" cy="12" r="4.2" />
+        <path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7" />
       </svg>
     ),
   },
   {
     key: 'data',
     href: '#/data',
-    label: 'Tagebuch',
+    label: 'Verlauf',
     match: ['data'],
     icon: (
       <svg viewBox="0 0 24 24" {...stroke}>
-        <path d="M6 4h11.5a1.5 1.5 0 0 1 1.5 1.5V20H7.5A2.5 2.5 0 0 1 5 17.5v-12A1.5 1.5 0 0 1 6.5 4z" />
-        <path d="M5 17.5A2.5 2.5 0 0 1 7.5 15H19M9 8h6M9 11h4" />
+        <path d="M4 19.5h16" />
+        <path d="M5.5 15.5l4-4.5 3.5 3 5.5-6.5" />
+      </svg>
+    ),
+  },
+  {
+    key: 'now',
+    href: '#/now',
+    label: 'Eintragen',
+    match: ['now', 'entry'],
+    icon: (
+      <svg viewBox="0 0 24 24" {...stroke} strokeWidth={2.4}>
+        <path d="M12 5.5v13M5.5 12h13" />
+      </svg>
+    ),
+  },
+  {
+    key: 'try',
+    href: '#/try',
+    label: 'Ausprobieren',
+    match: ['try'],
+    icon: (
+      <svg viewBox="0 0 24 24" {...stroke}>
+        <path d="M9.5 3.5h5M10.5 3.5v6L5.2 18.3A1.5 1.5 0 0 0 6.5 20.5h11a1.5 1.5 0 0 0 1.3-2.2L13.5 9.5v-6" />
+        <path d="M7.6 14.5h8.8" />
       </svg>
     ),
   },
@@ -62,7 +62,7 @@ export const TABS: Tab[] = [
     key: 'more',
     href: '#/settings',
     label: 'Mehr',
-    match: ['settings', 'health'],
+    match: ['settings', 'health', 'doctor', 'tracker', 'edit', 'new'],
     icon: (
       <svg viewBox="0 0 24 24" fill="currentColor">
         <circle cx="5.5" cy="12" r="1.8" />
@@ -91,7 +91,7 @@ export function TabBar({ route }: { route: Route }) {
       {TABS.map((t) => {
         const active = t.match.includes(route.name);
         return (
-          <a key={t.key} href={t.href} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined}>
+          <a key={t.key} href={t.href} className={`${active ? 'active' : ''} ${t.key === 'now' ? 'tab-add' : ''}`} aria-current={active ? 'page' : undefined}>
             <span className="tab-icon" aria-hidden>{t.icon}</span>
             <span>{t.label}</span>
           </a>

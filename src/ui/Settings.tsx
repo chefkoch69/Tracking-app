@@ -37,15 +37,34 @@ export function Settings() {
       <section className="hero-band compact">
         <div className="hero-inner">
           <h1>Mehr</h1>
-          <p className="hero-lead">Feedback, deine Tracker, Gesundheitsdaten, Erinnerungen und wo deine Daten liegen.</p>
+          <p className="hero-lead">Arzttermin, Armband-Daten, Feedback, Felder anpassen und wo deine Daten liegen.</p>
         </div>
+      </section>
+
+      <section className="more-links">
+        <button className="card more-link" onClick={() => navigate('/arzt')}>
+          <span className="ml-icon" aria-hidden>🩺</span>
+          <span>
+            <strong>Arzttermin & Bericht</strong>
+            <small className="muted">Termin, Fragen, Zusammenfassung und Bericht mit allen Einträgen</small>
+          </span>
+          <span aria-hidden>›</span>
+        </button>
+        <a className="card more-link" href="#health-settings">
+          <span className="ml-icon" aria-hidden>❤️</span>
+          <span>
+            <strong>Schlaf & Bewegung vom Armband</strong>
+            <small className="muted">Apple Health / Amazfit: Aufwachzeit, Schlaf, Schritte übernehmen</small>
+          </span>
+          <span aria-hidden>›</span>
+        </a>
       </section>
 
       <FeedbackCard />
 
       <section className="card">
         <div className="section-head">
-          <h2>Deine Tracker</h2>
+          <h2>Felder & Tracker anpassen</h2>
           <button className="btn small" onClick={() => navigate('/new')}>＋ Neuen bauen</button>
         </div>
         {data.trackers.length ? (
@@ -63,7 +82,7 @@ export function Settings() {
         ) : (
           <p className="muted">Noch keine Tracker.</p>
         )}
-        <p className="muted small">Felder hinzufügen, umbenennen, verschieben oder ausblenden – deine Einträge bleiben dabei erhalten.</p>
+        <p className="muted small">Im Baukasten kannst du Felder hinzufügen, umbenennen, verschieben oder ausblenden – deine Einträge bleiben dabei erhalten.</p>
       </section>
 
       <HealthSettings />
@@ -154,7 +173,7 @@ export function Settings() {
       </section>
 
       <section className="card">
-        <h2>Ausprobieren</h2>
+        <h2>Beispieldaten ansehen</h2>
         <p className="muted">
           Fügt Beispiel-Tracker („Mein Befinden (Demo)“ und „Liegestütze (Demo)“) mit 60 Tagen erfundener Einträge hinzu – so
           siehst du, wie Verlauf und Auswertungen aussehen. Mit einem Tipp in der Übersicht wieder entfernt.

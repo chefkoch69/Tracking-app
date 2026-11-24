@@ -25,6 +25,9 @@ import { reducer } from '../state/store';
 import { computeInsights, factorInsights, trendInsights } from './insights';
 import { foodGroupsOf } from './foodGroups';
 import { favoriteValues, favorites } from './favorites';
+import { conditionMet, fieldSpec } from './fieldTypes';
+import { MOMENTS, detailsOf, fieldByLabel, pendingFollowUp, suggestedMoment, symptomFields, withEvent } from './moments';
+import { experimentDay, experimentEffect } from './experiments';
 import { doctorSummaryPrompt } from './doctorSummary';
 import { appointmentLabel, dayRhythm, daysUntil, entryFeedback, insightReadiness, levelText, questionList } from './feedback';
 import { healthAsTracker, minutesSinceWake, parseHealthText, sinceWakeDistribution } from './health';
@@ -532,7 +535,7 @@ describe('Ein Tracker für alles: Zusammenführen und Abschnitte', () => {
     expect(t.name).toBe('Mein Befinden');
     expect(t.quick).toBe(true);
     const groups = [...new Set(t.fields.map((f) => f.group))];
-    expect(groups).toEqual(['Ereignisse & Essen', 'Bauch & Verdauung', 'Allgemein', 'Kälte', 'Notiz']);
+    expect(groups).toEqual(['Ereignisse & Essen', 'Schlaf & Aufstehen', 'Bauch & Verdauung', 'Kopf', 'Tinnitus', 'Allgemein', 'Kälte', 'Notiz']);
     for (const l of ['Bauchschmerz', 'Lokalisation', 'Kälteempfinden', 'Raumtemperatur', 'Was gegessen?', 'Würgen / Brechreiz']) {
       expect(t.fields.some((f) => f.label === l)).toBe(true);
     }
@@ -875,5 +878,127 @@ describe('Arztzettel mit Claude', () => {
     const t = trackerFromTemplate(TEMPLATES.find((x) => x.key === 'now')!);
     const txt = reportText([t], [], undefined, '2026-11-20', '2026-11-23', { summary: 'Kurz: Bauchschmerz an 5 von 7 Tagen.' });
     expect(txt.indexOf('ZUSAMMENFASSUNG')).toBeLessThan(txt.indexOf('Kurz:'));
+  });
+});
+
+describe('Körper-Tagebuch: Details, Uhrzeiten, Kopf', () => {
+  const tpl = () => trackerFromTemplate(TEMPLATES.find((x) => x.key === 'now')!);
+  const by = (t: Tracker, l: string) => t.fields.find((f) => f.label === l)!;
+
+  it('zeigt Details erst, wenn die Beschwerde angegeben ist', () => {
+    const t = tpl();
+    const pain = by(t, 'Bauchschmerz');
+    const loc = by(t, 'Lokalisation');
+    const head = by(t, 'Kopf – wo?');
+    expect(loc.showIf?.fieldId).toBe(pain.id);
+    expect(conditionMet(loc, t.fields, { [pain.id]: 0 })).toBe(false);
+    expect(conditionMet(loc, t.fields, { [pain.id]: 0.5 })).toBe(true);
+    expect(conditionMet(head, t.fields, { [pain.id]: 2 })).toBe(false);
+    expect(conditionMet(by(t, 'Tinnitus – Klang'), t.fields, { [by(t, 'Tinnitus').id]: 1 })).toBe(true);
+    expect(conditionMet(by(t, 'Notiz'), t.fields, {})).toBe(true);
+    expect(validateValues([head], { [head.id]: ['schlaefe-r', 'nacken'] })).toEqual({});
+  });
+
+  it('speichert Uhrzeiten wie „Handy weggelegt um“ – auch nach Mitternacht', () => {
+    const t = tpl();
+    const phone = by(t, 'Handy weggelegt um');
+    const alarm = by(t, 'Wecker gestellt auf');
+    expect(validateValues([phone], { [phone.id]: '23:45' })).toEqual({});
+    expect(Object.keys(validateValues([phone], { [phone.id]: '25:00' }))).toEqual([phone.id]);
+    expect(fieldSpec(phone).toNumber(phone, '00:30')).toBe(24.5);
+    expect(fieldSpec(alarm).toNumber(alarm, '06:30')).toBe(6.5);
+    expect(formatValue(alarm, '06:30')).toBe('06:30 Uhr');
+    const r = interpretNarrative({ entries: [{ trackerId: t.id, time: '2026-11-23T22:30', values: { [phone.id]: '22.15' } }] }, [t], at(23));
+    expect(r.proposals[0].values[phone.id]).toBe('22:15');
+  });
+
+  it('erweitert ein älteres „Mein Befinden“ um Schlaf, Kopf und Tinnitus – mit passenden Bedingungen', () => {
+    const t = tpl();
+    const keep = ['Was ist passiert?', 'Was gegessen?', 'Bezug zu Mahlzeiten', 'Medikamente', 'Bauchschmerz', 'Uhrzeit von–bis', 'Lokalisation', 'Übelkeit', 'Müdigkeit', 'Erschöpfung', 'Tinnitus', 'Kälteempfinden', 'Wo kalt?', 'Notiz'];
+    const old: Tracker = {
+      ...t,
+      fields: t.fields
+        .filter((f) => keep.includes(f.label))
+        .map((f) => ({ ...f, showIf: undefined, group: f.label === 'Tinnitus' ? 'Allgemein' : f.group })),
+    };
+    const template = TEMPLATES.find((x) => x.key === 'now')!.build();
+    const up = templateUpgrades(old, template);
+    expect(hasUpgrades(up)).toBe(true);
+    const next = applyUpgrades(old, up, template);
+    const nb = (l: string) => next.fields.find((f) => f.label === l)!;
+    expect(next.fields.map((f) => f.label)).toEqual(template.fields.map((f) => f.label));
+    // Bedingungen zeigen auf Felder dieses Trackers
+    expect(nb('Lokalisation').showIf?.fieldId).toBe(nb('Bauchschmerz').id);
+    expect(nb('Kopf – wo?').showIf?.fieldId).toBe(nb('Kopfschmerz').id);
+    expect(nb('Tinnitus – Ohr').showIf?.fieldId).toBe(nb('Tinnitus').id);
+    expect(nb('Tinnitus').group).toBe('Tinnitus');
+    expect(nb('Bauchschmerz').id).toBe(old.fields.find((f) => f.label === 'Bauchschmerz')!.id);
+    expect(hasUpgrades(templateUpgrades(next, template))).toBe(false);
+  });
+});
+
+describe('Eintragen nach Moment', () => {
+  const tpl = () => trackerFromTemplate(TEMPLATES.find((x) => x.key === 'now')!);
+  it('findet die Felder jedes Moments in „Mein Befinden“', () => {
+    const t = tpl();
+    for (const m of MOMENTS) for (const f of m.fields) expect(fieldByLabel(t, f.label), `${m.key}: ${f.label}`).toBeTruthy();
+    const { main, more } = symptomFields(t);
+    expect(main.map((f) => f.label)).toEqual(['Bauchschmerz', 'Übelkeit', 'Kopfschmerz', 'Tinnitus', 'Müdigkeit', 'Erschöpfung', 'Kälteempfinden']);
+    expect(more.map((f) => f.label)).toEqual(['Würgen / Brechreiz', 'Sodbrennen', 'Erbrechen']);
+    expect(detailsOf(t, fieldByLabel(t, 'Kopfschmerz')!).map((f) => f.label)).toEqual(['Kopf – wo?', 'Art der Kopfschmerzen', 'Kopfschmerz von–bis']);
+  });
+  it('vermerkt das passende Ereignis', () => {
+    const t = tpl();
+    const ev = fieldByLabel(t, 'Was ist passiert?')!;
+    const meal = MOMENTS.find((m) => m.key === 'meal')!;
+    const drinkOnly = withEvent(t, meal, { [fieldByLabel(t, 'Was getrunken?')!.id]: 'Kaffee' });
+    expect(drinkOnly[ev.id]).toEqual(['getrunken']);
+    const food = withEvent(t, meal, { [fieldByLabel(t, 'Was gegessen?')!.id]: 'Semmel' });
+    expect(food[ev.id]).toEqual(['gegessen']);
+    const evening = withEvent(t, MOMENTS.find((m) => m.key === 'evening')!, {});
+    expect(evening[ev.id]).toEqual(['schlafen gegangen']);
+    // Maßnahme ohne Medikament: kein „Medikament genommen“
+    const med = withEvent(t, MOMENTS.find((m) => m.key === 'med')!, { [fieldByLabel(t, 'Maßnahmen')!.id]: 'Wärmflasche' });
+    expect(med[ev.id]).toBeUndefined();
+  });
+  it('schlägt morgens „Aufgestanden“ und abends „Schlafen gehen“ vor', () => {
+    const t = tpl();
+    expect(suggestedMoment(t, [], at(7))).toBe('morning');
+    expect(suggestedMoment(t, [entry(t, at(6, 50), { [fieldByLabel(t, 'Was ist passiert?')!.id]: ['aufgestanden'] })], at(7))).toBe(null);
+    expect(suggestedMoment(t, [], at(15))).toBe(null);
+    expect(suggestedMoment(t, [], at(22))).toBe('evening');
+  });
+  it('fragt 30 Minuten bis 4 Stunden nach dem Essen nach', () => {
+    const t = tpl();
+    const food = fieldByLabel(t, 'Was gegessen?')!;
+    const pain = fieldByLabel(t, 'Bauchschmerz')!;
+    const meal = entry(t, at(12, 0), { [food.id]: '2 Semmeln, Butter' });
+    expect(pendingFollowUp(t, [meal], at(12, 10))).toBe(null); // zu früh
+    const f = pendingFollowUp(t, [meal], at(13, 0));
+    expect(f?.what).toBe('Semmeln, Butter');
+    expect(f?.minutesAgo).toBe(60);
+    expect(pendingFollowUp(t, [meal, entry(t, at(12, 45), { [pain.id]: 0 })], at(13, 0))).toBe(null); // schon beantwortet
+    expect(pendingFollowUp(t, [meal], at(17, 0))).toBe(null); // zu spät
+    expect(pendingFollowUp(t, [meal], at(13, 0), [meal.id])).toBe(null); // weggeklickt
+  });
+});
+
+describe('Ausprobieren', () => {
+  it('vergleicht Beschwerden vorher und während des Versuchs', () => {
+    const t = trackerFromTemplate(TEMPLATES.find((x) => x.key === 'now')!);
+    const pain = t.fields.find((f) => f.label === 'Bauchschmerz')!;
+    const sleep = t.fields.find((f) => f.label === 'Schlafqualität')!;
+    const es: Entry[] = [];
+    for (let i = 1; i <= 10; i++) es.push(entry(t, at(13, 0, new Date(2026, 10, i)), { [pain.id]: 2, [sleep.id]: 2 })); // 1.–10.11.
+    for (let i = 11; i <= 20; i++) es.push(entry(t, at(13, 0, new Date(2026, 10, i)), { [pain.id]: 0.5, [sleep.id]: 4 })); // 11.–20.11.
+    const exp = { id: 'x', title: 'Laktosefrei', status: 'running' as const, startedAt: '2026-11-11', createdAt: '2026-11-10' };
+    const eff = experimentEffect(exp, t, es, at(21, 0, new Date(2026, 10, 20)));
+    const p = eff.find((e) => e.field.label === 'Bauchschmerz')!;
+    expect(p.before).toBe(2);
+    expect(p.during).toBe(0.5);
+    expect(p.direction).toBe('better');
+    expect(eff.find((e) => e.field.label === 'Schlafqualität')?.direction).toBe('better');
+    expect(experimentDay(exp, new Date(2026, 10, 20, 9))).toBe(10);
+    expect(experimentEffect({ ...exp, startedAt: undefined }, t, es, at(21))).toEqual([]);
   });
 });

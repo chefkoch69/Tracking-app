@@ -50,6 +50,8 @@ function describeField(f: FieldDef): string {
       return 'Zeitraum {"from":"HH:MM","to":"HH:MM"}';
     case 'datetime':
       return 'Zeitpunkt "YYYY-MM-DDTHH:MM"';
+    case 'time':
+      return 'Uhrzeit "HH:MM"';
     case 'bodymap':
       return `Körperregionen, Liste von IDs aus: ${BODY_MAPS[c.bodyMap ?? 'abdomen'].regions.map((r) => `${r.id}=${r.label}`).join(', ')}`;
   }
@@ -131,6 +133,11 @@ export function coerceValue(f: FieldDef, v: unknown): FieldValue | null {
       return isTimeRange(v) && rangeMinutes(v) !== null ? { from: v.from, to: v.to } : null;
     case 'datetime':
       return typeof v === 'string' && !Number.isNaN(Date.parse(v)) ? new Date(v).toISOString() : null;
+    case 'time': {
+      const m = String(v).trim().match(/^(\d{1,2})[:.](\d{2})/);
+      if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return null;
+      return `${m[1].padStart(2, '0')}:${m[2]}`;
+    }
     case 'bodymap': {
       const ids = BODY_MAPS[f.config.bodyMap ?? 'abdomen'].regions.map((r) => r.id);
       const out = (Array.isArray(v) ? v : [v]).map(String).filter((x) => ids.includes(x));

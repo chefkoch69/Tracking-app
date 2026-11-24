@@ -27,13 +27,16 @@ export function optionRenames(before: Tracker, after: Tracker): { fieldId: strin
 export interface Upgrades {
   fields: FieldDef[];
   options: { fieldId: string; label: string; add: string[] }[];
-  /** Abschnitte aus der Vorlage für bestehende Felder ohne Abschnitt. */
+  /** Abschnitte aus der Vorlage für bestehende Felder (ohne oder mit einem Vorlagen-Abschnitt). */
   groups?: { fieldId: string; group: string }[];
+  /** Bedingungen aus der Vorlage („Details erst bei Beschwerde“), Bezug als Feld-Bezeichnung. */
+  conditions?: { fieldId: string; refLabel: string }[];
 }
 
 export function templateUpgrades(tracker: Tracker, template: Pick<Tracker, 'fields'>): Upgrades {
   const norm = (s: string) => s.trim().toLocaleLowerCase('de-DE');
-  const fields = template.fields.filter((tf) => !tracker.fields.some((f) => norm(f.label) === norm(tf.label)));
+  const skip = (tracker.templateSkip ?? []).map(norm);
+  const fields = template.fields.filter((tf) => !tracker.fields.some((f) => norm(f.label) === norm(tf.label)) && !skip.includes(norm(tf.label)));
   const options = tracker.fields.flatMap((f) => {
     const tf = template.fields.find((x) => norm(x.label) === norm(f.label) && x.type === f.type);
     if (!tf || (f.type !== 'select' && f.type !== 'multiselect')) return [];
@@ -41,14 +44,26 @@ export function templateUpgrades(tracker: Tracker, template: Pick<Tracker, 'fiel
     const add = (tf.config.options ?? []).filter((o) => !have.includes(norm(o)));
     return add.length ? [{ fieldId: f.id, label: f.label, add }] : [];
   });
+  // Abschnitt übernehmen, wenn das Feld keinen hat oder in einem Abschnitt der Vorlage steht
+  // (also nicht selbst einsortiert wurde).
+  const templateGroups = new Set(template.fields.map((x) => x.group).filter(Boolean));
   const groups = tracker.fields.flatMap((f) => {
     const tf = template.fields.find((x) => norm(x.label) === norm(f.label));
-    return tf?.group && !f.group ? [{ fieldId: f.id, group: tf.group }] : [];
+    return tf?.group && f.group !== tf.group && (!f.group || templateGroups.has(f.group)) ? [{ fieldId: f.id, group: tf.group }] : [];
   });
-  return groups.length ? { fields, options, groups } : { fields, options };
+  const conditions = tracker.fields.flatMap((f) => {
+    const tf = template.fields.find((x) => norm(x.label) === norm(f.label));
+    const ref = tf?.showIf && template.fields.find((x) => x.id === tf.showIf!.fieldId);
+    return ref && !f.showIf ? [{ fieldId: f.id, refLabel: ref.label }] : [];
+  });
+  const out: Upgrades = { fields, options };
+  if (groups.length) out.groups = groups;
+  if (conditions.length) out.conditions = conditions;
+  return out;
 }
 
-export const hasUpgrades = (u: Upgrades) => u.fields.length > 0 || u.options.length > 0 || (u.groups?.length ?? 0) > 0;
+export const hasUpgrades = (u: Upgrades) =>
+  u.fields.length > 0 || u.options.length > 0 || (u.groups?.length ?? 0) > 0 || (u.conditions?.length ?? 0) > 0;
 
 /**
  * Wendet templateUpgrades an: neue Felder an ihren Platz aus der Vorlage
@@ -71,6 +86,22 @@ export function applyUpgrades(tracker: Tracker, up: Upgrades, template?: Pick<Tr
     const at = after !== -1 ? after + 1 : noteIdx === -1 ? fields.length : noteIdx;
     fields = [...fields.slice(0, at), fresh, ...fields.slice(at)];
   }
+  // Bedingungen auf die Felder DIESES Trackers beziehen (über die Bezeichnung).
+  const byLabel = (label: string) => fields.find((f) => norm(f.label) === norm(label));
+  fields = fields.map((f) => {
+    const c = up.conditions?.find((x) => x.fieldId === f.id);
+    if (c) {
+      const ref = byLabel(c.refLabel);
+      return ref ? { ...f, showIf: { fieldId: ref.id } } : f;
+    }
+    if (f.showIf && !tracker.fields.some((x) => x.id === f.id)) {
+      // neu aus der Vorlage: Bezug zeigt noch auf die Vorlagen-ID
+      const tRef = template?.fields.find((x) => x.id === f.showIf!.fieldId);
+      const ref = tRef && byLabel(tRef.label);
+      return ref ? { ...f, showIf: { ...f.showIf, fieldId: ref.id } } : { ...f, showIf: undefined };
+    }
+    return f;
+  });
   return { ...tracker, fields };
 }
 

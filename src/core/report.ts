@@ -88,6 +88,8 @@ export function dayValue(f: FieldDef, es: Entry[]): string {
       return [...new Set(vals.map((v) => String(v).trim()))].join('; ');
     case 'datetime':
       return formatValue(f, vals[0]);
+    case 'time':
+      return [...new Set(vals.map((v) => String(v)))].join(', ');
   }
 }
 

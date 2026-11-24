@@ -60,40 +60,88 @@ export const TEMPLATES: TrackerTemplate[] = [
     category: 'Tagebuch',
     icon: '💙',
     color: '#2f63f0',
-    description: 'Alles an einem Ort: was passiert ist, Essen, Bauch, Übelkeit, Kälte, Müdigkeit – schnell antippen oder erzählen.',
+    description: 'Dein Körper-Tagebuch: Aufstehen und Schlafen, Essen und Trinken, Bauch, Kopf, Tinnitus, Erschöpfung – Details klappen auf, wenn du eine Beschwerde angibst.',
     build: () => {
       const g = (group: string, f: FieldDef): FieldDef => ({ ...f, group });
       const EV = 'Ereignisse & Essen';
+      const SL = 'Schlaf & Aufstehen';
       const BA = 'Bauch & Verdauung';
+      const KO = 'Kopf';
+      const TI = 'Tinnitus';
       const AL = 'Allgemein';
       const KA = 'Kälte';
+      const fields: FieldDef[] = [
+        g(EV, makeField('multiselect', 'Was ist passiert?', {
+          options: ['aufgestanden', 'gegessen', 'getrunken', 'Medikament genommen', 'Toilette', 'Bewegung', 'Pause / hingelegt', 'geschlafen', 'Stress', 'schlafen gegangen'],
+        })),
+        g(EV, { ...makeField('text', 'Was gegessen?', { splitList: true }), description: 'mit Mengen, durch Komma getrennt – z. B. 3 Eier, 3 Scheiben Toast, Käse, Hummus' }),
+        g(EV, { ...makeField('text', 'Was getrunken?', { splitList: true }), description: 'z. B. Kaffee, 0,5 l Wasser, Pfefferminztee' }),
+        g(EV, makeField('select', 'Bezug zu Mahlzeiten', { options: ['vor der Mahlzeit (noch nichts gegessen)', 'während der Mahlzeit', 'nach der Mahlzeit', 'unabhängig'] })),
+        g(EV, { ...makeField('text', 'Medikamente', { splitList: true }), description: 'Name und Dosis, z. B. Buscopan 10 mg' }),
+        g(EV, { ...makeField('text', 'Maßnahmen', { splitList: true }), description: 'was du gegen Beschwerden gemacht hast – z. B. Wärmflasche, hingelegt, Spaziergang' }),
+        g(SL, makeField('time', 'Wecker gestellt auf')),
+        g(SL, makeField('select', 'Gleich aufgestanden?', { options: ['ja, sofort', 'nach Schlummern', 'blieb länger liegen'] })),
+        g(SL, makeField('scale', 'Schlafqualität', {
+          ...withLevels([
+            { value: 1, label: 'sehr schlecht' },
+            { value: 2, label: 'schlecht' },
+            { value: 3, label: 'okay' },
+            { value: 4, label: 'gut' },
+            { value: 5, label: 'sehr gut' },
+          ]),
+          polarity: 'higher-better',
+        })),
+        g(SL, makeField('time', 'Handy weggelegt um', { overnight: true })),
+        g(BA, symptom('Bauchschmerz')),
+        g(BA, makeField('multiselect', 'Art der Bauchschmerzen', { options: ['krampfartig', 'stechend', 'drückend', 'brennend', 'dumpf', 'Blähungen / Völlegefühl'] })),
+        g(BA, makeField('bodymap', 'Lokalisation', { bodyMap: 'abdomen' })),
+        g(BA, makeField('timerange', 'Uhrzeit von–bis', { aggregation: 'sum', polarity: 'higher-worse', metricName: 'Schmerzdauer' })),
+        g(BA, symptom('Übelkeit')),
+        g(BA, symptom('Würgen / Brechreiz')),
+        g(BA, symptom('Sodbrennen')),
+        g(BA, symptom('Erbrechen')),
+        g(BA, {
+          ...makeField('scale', 'Stuhlgang', { ...withLevels(['kein', 'hart', 'geformt', 'weich', 'flüssig'].map((label, value) => ({ value, label }))), polarity: 'neutral' }),
+          description: '0 = kein, 1 = hart, 2 = geformt, 3 = weich, 4 = flüssig',
+        }),
+        g(KO, symptom('Kopfschmerz')),
+        g(KO, makeField('bodymap', 'Kopf – wo?', { bodyMap: 'head' })),
+        g(KO, makeField('multiselect', 'Art der Kopfschmerzen', { options: ['drückend', 'pochend / pulsierend', 'stechend', 'ziehend', 'dumpf'] })),
+        g(KO, makeField('timerange', 'Kopfschmerz von–bis', { aggregation: 'sum', polarity: 'higher-worse', metricName: 'Kopfschmerzdauer' })),
+        g(TI, symptom('Tinnitus')),
+        g(TI, makeField('select', 'Tinnitus – Ohr', { options: ['links', 'rechts', 'beide', 'eher im Kopf'] })),
+        g(TI, makeField('multiselect', 'Tinnitus – Klang', { options: ['Pfeifen', 'Piepen', 'Rauschen', 'Brummen', 'Summen', 'Pulsieren / Klopfen', 'Zischen'] })),
+        g(TI, makeField('select', 'Tinnitus – Verlauf', { options: ['gleichbleibend', 'schwankend', 'kommt und geht'] })),
+        g(AL, symptom('Müdigkeit')),
+        g(AL, { ...symptom('Erschöpfung'), description: '„fertig“, ausgelaugt' }),
+        g(AL, makeField('multiselect', 'Art der Erschöpfung', { options: ['körperlich', 'Kopf / Konzentration', 'Schweregefühl', 'Schwäche'] })),
+        g(KA, symptom('Kälteempfinden')),
+        g(KA, makeField('multiselect', 'Wo kalt?', { options: ['Hände', 'Füße', 'ganzer Körper'] })),
+        g(KA, makeField('measurement', 'Raumtemperatur', { unit: '°C', step: 0.5, aggregation: 'avg' })),
+        g('Notiz', makeField('text', 'Notiz', { multiline: true })),
+      ];
+      // Details erscheinen erst, wenn die zugehörige Beschwerde angegeben ist.
+      const when: Record<string, string> = {
+        'Art der Bauchschmerzen': 'Bauchschmerz',
+        Lokalisation: 'Bauchschmerz',
+        'Uhrzeit von–bis': 'Bauchschmerz',
+        'Bezug zu Mahlzeiten': 'Bauchschmerz',
+        'Kopf – wo?': 'Kopfschmerz',
+        'Art der Kopfschmerzen': 'Kopfschmerz',
+        'Kopfschmerz von–bis': 'Kopfschmerz',
+        'Tinnitus – Ohr': 'Tinnitus',
+        'Tinnitus – Klang': 'Tinnitus',
+        'Tinnitus – Verlauf': 'Tinnitus',
+        'Art der Erschöpfung': 'Erschöpfung',
+        'Wo kalt?': 'Kälteempfinden',
+        Raumtemperatur: 'Kälteempfinden',
+      };
+      for (const f of fields) {
+        const ref = when[f.label] && fields.find((x) => x.label === when[f.label]);
+        if (ref) f.showIf = { fieldId: ref.id };
+      }
       return {
-        fields: [
-          g(EV, makeField('multiselect', 'Was ist passiert?', {
-            options: ['aufgestanden', 'gegessen', 'getrunken', 'Medikament genommen', 'Toilette', 'Bewegung', 'Pause / hingelegt', 'geschlafen', 'Stress'],
-          })),
-          g(EV, { ...makeField('text', 'Was gegessen?', { splitList: true }), description: 'mit Mengen, durch Komma getrennt – z. B. 3 Eier, 3 Scheiben Toast, Käse, Hummus' }),
-          g(EV, makeField('select', 'Bezug zu Mahlzeiten', { options: ['vor der Mahlzeit (noch nichts gegessen)', 'während der Mahlzeit', 'nach der Mahlzeit', 'unabhängig'] })),
-          g(EV, { ...makeField('text', 'Medikamente', { splitList: true }), description: 'Name und Dosis, z. B. Buscopan 10 mg' }),
-          g(BA, symptom('Bauchschmerz')),
-          g(BA, makeField('timerange', 'Uhrzeit von–bis', { aggregation: 'sum', polarity: 'higher-worse', metricName: 'Schmerzdauer' })),
-          g(BA, makeField('bodymap', 'Lokalisation', { bodyMap: 'abdomen' })),
-          g(BA, symptom('Übelkeit')),
-          g(BA, symptom('Würgen / Brechreiz')),
-          g(BA, symptom('Sodbrennen')),
-          g(BA, symptom('Erbrechen')),
-          g(BA, {
-            ...makeField('scale', 'Stuhlgang', { ...withLevels(['kein', 'hart', 'geformt', 'weich', 'flüssig'].map((label, value) => ({ value, label }))), polarity: 'neutral' }),
-            description: '0 = kein, 1 = hart, 2 = geformt, 3 = weich, 4 = flüssig',
-          }),
-          g(AL, symptom('Müdigkeit')),
-          g(AL, { ...symptom('Erschöpfung'), description: '„fertig“, ausgelaugt' }),
-          g(AL, symptom('Tinnitus')),
-          g(KA, symptom('Kälteempfinden')),
-          g(KA, makeField('multiselect', 'Wo kalt?', { options: ['Hände', 'Füße', 'ganzer Körper'] })),
-          g(KA, makeField('measurement', 'Raumtemperatur', { unit: '°C', step: 0.5, aggregation: 'avg' })),
-          g('Notiz', makeField('text', 'Notiz', { multiline: true })),
-        ],
+        fields,
         schedule: sched({ mode: 'times', times: ['20:00'], repeatMinutes: 30, maxRepeats: 2 }),
         views: ['history', 'table', 'report', 'calendar', 'stats', 'chart', 'compare'],
       };

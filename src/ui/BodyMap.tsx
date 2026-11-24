@@ -59,10 +59,23 @@ const BODY: Shape[] = [
   { id: 'foot-l', el: e(118, 390, 15, 8) },
 ];
 
+// Kopf: links von vorne, rechts von hinten (links im Bild = rechte Kopfseite).
+const HEAD_FRONT_CLIP = 'M60,12 C88,12 104,36 104,66 C104,98 86,124 60,124 C34,124 16,98 16,66 C16,36 32,12 60,12 Z';
+const HEAD_BACK_CLIP = 'M180,12 C208,12 224,36 224,66 C224,98 206,124 180,124 C154,124 136,98 136,66 C136,36 152,12 180,12 Z';
+const HEAD: Shape[] = [
+  { id: 'stirn', el: r(10, 8, 100, 36, 0) },
+  { id: 'augen', el: r(10, 44, 100, 24, 0) },
+  { id: 'kiefer', el: r(10, 68, 100, 62, 0) },
+  { id: 'schlaefe-r', el: r(10, 30, 22, 44, 0) },
+  { id: 'schlaefe-l', el: r(88, 30, 22, 44, 0) },
+  { id: 'scheitel', el: r(130, 8, 100, 34, 0) },
+  { id: 'hinterkopf', el: r(130, 42, 100, 88, 0) },
+];
+
 export function BodyMapSvg({ kind, selected = [], intensity, color = 'var(--primary)', onToggle, size = 'normal' }: Props) {
   const regions = BODY_MAPS[kind].regions;
   const name = (id: string) => regions.find((x) => x.id === id)?.label ?? id;
-  const shapes = kind === 'abdomen' ? ABDOMEN : BODY;
+  const shapes = kind === 'abdomen' ? ABDOMEN : kind === 'head' ? HEAD : BODY;
 
   const props = (id: string): ShapeProps => {
     const on = selected.includes(id);
@@ -100,12 +113,31 @@ export function BodyMapSvg({ kind, selected = [], intensity, color = 'var(--prim
             </text>
           ))}
         </svg>
+      ) : kind === 'head' ? (
+        <svg viewBox="0 0 240 162" role="group" aria-label="Kopf von vorne und von hinten">
+          <defs>
+            <clipPath id="head-front-clip"><path d={HEAD_FRONT_CLIP} /></clipPath>
+            <clipPath id="head-back-clip"><path d={HEAD_BACK_CLIP} /></clipPath>
+          </defs>
+          <g clipPath="url(#head-front-clip)">{body.filter((_, i) => i < 5)}</g>
+          <g clipPath="url(#head-back-clip)">{body.filter((_, i) => i >= 5)}</g>
+          <path d={HEAD_FRONT_CLIP} fill="none" className="outline" />
+          <path d={HEAD_BACK_CLIP} fill="none" className="outline" />
+          <g>
+            <rect x={160} y={124} width={40} height={24} rx={8} {...props('nacken')} />
+            <title>{name('nacken')}</title>
+          </g>
+          <ellipse cx={14} cy={70} rx={5} ry={11} className="outline" fill="none" />
+          <ellipse cx={106} cy={70} rx={5} ry={11} className="outline" fill="none" />
+          <text x={60} y={150} textAnchor="middle" className="map-caption">vorne</text>
+          <text x={180} y={160} textAnchor="middle" className="map-caption">hinten</text>
+        </svg>
       ) : (
         <svg viewBox="0 0 200 404" role="group" aria-label="Lokalisationsschema Körper">
           {body}
         </svg>
       )}
-      <small className="bodymap-hint muted">Ansicht von vorne · links im Bild = deine rechte Seite</small>
+      <small className="bodymap-hint muted">{kind === 'head' ? 'Antippen, wo es weh tut · links im Bild = deine rechte Seite' : 'Ansicht von vorne · links im Bild = deine rechte Seite'}</small>
     </div>
   );
 }

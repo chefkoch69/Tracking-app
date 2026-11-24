@@ -64,7 +64,7 @@ export function factorPhrase(factor: FieldDef, cat: string): string {
   if (/^(nach|vor|während|bei|mit|ohne|unabhängig)\b/i.test(c)) return c.charAt(0).toUpperCase() + c.slice(1);
   const l = factor.label.toLowerCase();
   if (/gegessen|essen|lebensmittel|mahlzeit|getrunken|trinken/.test(l)) return `Nach „${c}“`;
-  if (/medikament|tablette|mittel/.test(l)) return `Mit „${c}“`;
+  if (/medikament|tablette|mittel|maßnahme|massnahme/.test(l)) return `Mit „${c}“`;
   return `Bei „${c}“`;
 }
 
@@ -275,6 +275,8 @@ export function factorInsights(tracker: Tracker, entries: Entry[], minGroup = 3)
 
     for (const factor of tracker.fields) {
       if (factor.id === target.id || sameTopic(factor, target)) continue;
+      // Details einer Beschwerde (z. B. „Bezug zu Mahlzeiten“ bei Bauchschmerz) nur für diese Beschwerde.
+      if (factor.showIf && factor.showIf.fieldId !== target.id) continue;
       const fSpec = fieldSpec(factor);
       const food = isFoodField(factor);
       const catsOf = (e: Entry) => {

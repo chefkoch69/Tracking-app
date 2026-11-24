@@ -10,7 +10,7 @@ import { IS_ARTIFACT } from './env';
 const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
 /** Kompakter Tagesstatus im Kopfbereich: Aufstehzeit, wach seit, Schlaf, Schritte. */
-export function WakeChip({ now }: { now: Date }) {
+export function WakeChip({ now, buttons = true }: { now: Date; buttons?: boolean }) {
   const { data, dispatch } = useStore();
   const key = dayKey(now);
   const today = data.health?.[key];
@@ -33,6 +33,7 @@ export function WakeChip({ now }: { now: Date }) {
     );
   }
   if (!today?.wake) {
+    if (!buttons) return null;
     return (
       <div className="wake-chip">
         <button className="btn small white" onClick={() => save(hhmm(new Date()))}>☀ Ich bin aufgestanden</button>
@@ -84,12 +85,16 @@ export function HealthSettings() {
   };
 
   return (
-    <section className="card">
-      <h2>Apple Health</h2>
+    <section className="card" id="health-settings">
+      <h2>Schlaf & Bewegung vom Armband</h2>
       <p className="muted">
-        Schlaf (Aufstehzeit, Dauer), Bewegung (Schritte, aktive Energie, Trainingsminuten), Ruhepuls und Körperanalyse (Gewicht,
-        Körperfett) fließen in „seit dem Aufstehen“, den Vergleich, „Was auffällt“ und den Arztbericht ein.
-        Eine Web-App darf Health nicht direkt lesen – ein iPhone-Kurzbefehl holt die Werte und übergibt sie hierher.
+        Aufwachzeit und Schlafdauer, Schritte, Training, Ruhepuls und Gewicht fließen in „Aufgestanden“, den Verlauf, „Was
+        auffällt“ und den Arztbericht ein. Eine Web-App darf Apple Health nicht direkt lesen – ein iPhone-Kurzbefehl holt die
+        Werte und übergibt sie hierher.
+      </p>
+      <p className="info small">
+        <b>Amazfit:</b> In der <b>Zepp-App</b> unter Profil → „Apple Health“ verbinden und Schlaf, Schritte und Herzfrequenz
+        freigeben. Dann landet dein Schlaf vom Armband in Apple Health – und der Kurzbefehl unten holt ihn von dort.
       </p>
 
       <label className="field" htmlFor="health-paste">
