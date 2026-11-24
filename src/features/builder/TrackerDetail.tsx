@@ -1,0 +1,110 @@
+import { entriesOf } from '../../core/analysis/analytics';
+import { askConfirm } from '../../components/confirm';
+import { saveFile } from '../../platform/save';
+import { describeSchedule } from '../../core/diary/schedule';
+import { exportCsv } from '../../core/model/storage';
+import type { Tracker, ViewType } from '../../core/model/types';
+import { useStore } from '../../state/store';
+import { navigate } from '../../app/router';
+import { VIEW_INFO } from './TrackerBuilder';
+import { CalendarView } from './views/CalendarView';
+import { ChartView } from './views/ChartView';
+import { CompareView } from './views/CompareView';
+import { DailyView } from './views/DailyView';
+import { HistoryView } from './views/HistoryView';
+import { ReportView } from './views/ReportView';
+import { StatsView } from './views/StatsView';
+import { DataTable } from '../history/DataTable';
+
+const VIEW_COMPONENTS: Record<ViewType, (p: { tracker: Tracker }) => React.ReactNode> = {
+  history: HistoryView,
+  chart: ChartView,
+  calendar: CalendarView,
+  stats: StatsView,
+  daily: DailyView,
+  compare: CompareView,
+  report: ReportView,
+  table: ({ tracker }) => <DataTable key={tracker.id} fixedTracker={tracker} />,
+};
+
+export function TrackerDetail({ tracker, view }: { tracker: Tracker; view?: string }) {
+  const { data, dispatch } = useStore();
+  const entries = entriesOf(tracker, data.entries);
+  // "Tabelle" ist immer verfügbar – auch für Tracker, die vor dieser Ansicht angelegt wurden.
+  const base = tracker.views.length ? tracker.views : (['history'] as ViewType[]);
+  const views = base.includes('table') ? base : [...base, 'table' as ViewType];
+  const active = (views.includes(view as ViewType) ? view : views[0]) as ViewType;
+  const View = VIEW_COMPONENTS[active];
+  const others = data.trackers.filter((t) => t.id !== tracker.id && !t.archived);
+
+  const remove = async () => {
+    if (await askConfirm(`Tracker „${tracker.name}“ und alle ${entries.length} Einträge endgültig löschen?`, { okLabel: 'Tracker löschen' })) {
+      dispatch({ type: 'tracker/delete', id: tracker.id });
+      navigate('/');
+    }
+  };
+
+  return (
+    <div className="page">
+      <section className="hero-band no-print">
+        <div className="hero-inner">
+          <button className="back linkish" onClick={() => navigate('/')}>‹ Übersicht</button>
+          <div className="detail-head">
+            <span className="detail-icon">{tracker.icon}</span>
+            <div>
+              <h1>{tracker.name}</h1>
+              <p className="hero-lead">
+                {tracker.description && <>{tracker.description}<br /></>}
+                {describeSchedule(tracker.schedule)} · {entries.length} Einträge
+              </p>
+            </div>
+          </div>
+          <button className="btn white" onClick={() => navigate(`/t/${tracker.id}/entry`)}>＋ Eintragen</button>
+        </div>
+      </section>
+
+      <nav className="tabs no-print" role="tablist">
+        {views.map((v) => (
+          <button key={v} role="tab" aria-selected={v === active} className={v === active ? 'active' : ''} onClick={() => navigate(`/t/${tracker.id}/${v}`)}>
+            {VIEW_INFO[v].label}
+          </button>
+        ))}
+      </nav>
+
+      <View tracker={tracker} />
+
+      <div className="actions tracker-actions no-print">
+        <button className="btn ghost" onClick={() => navigate(`/t/${tracker.id}/edit`)}>Felder & Erinnerung ändern</button>
+        <button className="btn ghost" onClick={() => void saveFile(`${tracker.name}.csv`, exportCsv(tracker, entries), 'text/csv;charset=utf-8')}>
+          CSV exportieren
+        </button>
+        <button className="btn ghost" onClick={() => dispatch({ type: 'tracker/archive', id: tracker.id, archived: !tracker.archived })}>
+          {tracker.archived ? 'Wiederherstellen' : 'Archivieren'}
+        </button>
+        {others.length > 0 && (
+          <label className="merge-select">
+            <span className="muted small">Zusammenführen mit</span>
+            <select
+              value=""
+              onChange={async (e) => {
+                const target = data.trackers.find((t) => t.id === e.target.value);
+                e.target.value = '';
+                if (!target) return;
+                if (await askConfirm(`„${tracker.name}“ in „${target.name}“ übernehmen? Gleiche Felder werden zusammengelegt, alle ${entries.length} Einträge wandern mit, danach gibt es nur noch „${target.name}“.`, { okLabel: 'Zusammenführen', danger: false })) {
+                  dispatch({ type: 'tracker/merge', sourceId: tracker.id, targetId: target.id });
+                  navigate(`/t/${target.id}`);
+                }
+              }}
+            >
+              <option value="">Tracker wählen …</option>
+              {others.map((t) => (
+                <option key={t.id} value={t.id}>{t.icon} {t.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
+        <button className="btn ghost danger" onClick={remove}>Löschen</button>
+      </div>
+    </div>
+  );
+}

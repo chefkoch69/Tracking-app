@@ -1,0 +1,59 @@
+/* Design-Grundlagen: Farben, Schriften, Abstände */
+/* =========================================================
+   Design-System
+   ========================================================= */
+:root {
+  /* Helles, klares Blau wie in den Referenz-Screens; bewusst nur ein (heller) Look. */
+  --primary: #2b5ff0;
+  --primary-deep: #1f47c9;
+  --hero: linear-gradient(180deg, #3a6df5 0%, #2b5ff0 55%, #2552dc 100%);
+  --bg: #eef3fc;
+  --surface: #ffffff;
+  --surface-2: #f1f5fd;
+  --surface-3: #e2e9f7;
+  --border: #e1e8f5;
+  --outline: #b7c3dc;
+  --text: #13254b;
+  --muted: #6a7896;
+  --good: #2e9e52;
+  --good-bg: #e6f6ea;
+  --bad: #e0464e;
+  --bad-bg: #fde9ea;
+  --warn: #e3920c;
+  --warn-bg: #fff4de;
+  --cell-empty: #e4eaf6;
+  --radius: 20px;
+  --radius-sm: 14px;
+  --shadow: 0 1px 2px rgba(29, 64, 150, 0.04), 0 4px 16px rgba(29, 64, 150, 0.06);
+  --shadow-lg: 0 10px 32px rgba(29, 64, 150, 0.14);
+  --accent: var(--primary);
+  --font: "Montserrat", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --display: "Playfair Display", Georgia, "Times New Roman", serif;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 var(--font);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+
+h1 { font-size: 1.7rem; margin: 0; line-height: 1.15; letter-spacing: -0.01em; text-wrap: balance; }
+h2 { font-size: 1.18rem; margin: 0 0 0.75rem; letter-spacing: -0.01em; font-weight: 700; }
+h3 { font-size: 1.04rem; margin: 0 0 0.6rem; }
+h4 { font-size: 0.9rem; margin: 0.5rem 0; color: var(--muted); }
+p { margin: 0.3rem 0 0.8rem; }
+a { color: inherit; }
+.display { font-size: clamp(2rem, 6vw, 2.8rem); }
+
+.muted { color: var(--muted); }
+.small { font-size: 0.85rem; }
+.lead { font-size: 1.05rem; color: var(--muted); max-width: 60ch; }
+.error { color: var(--bad); }
+.warn { color: var(--warn); }
+.info { background: var(--surface-2); padding: 0.65rem 0.85rem; border-radius: var(--radius-sm); }
+.req { color: var(--bad); margin-left: 2px; }

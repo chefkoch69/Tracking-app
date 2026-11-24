@@ -1,8 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
-import { emptyData, localStorageAdapter, type StorageAdapter } from '../core/storage';
-import { mergeHealth } from '../core/health';
-import { mergeTrackers } from '../core/trackerEdit';
-import type { AppData, DayNote, Entry, Experiment, HealthDay, Profile, ReminderState, Tracker } from '../core/types';
+import { emptyData, localStorageAdapter, type StorageAdapter } from '../core/model/storage';
+import { mergeHealth } from '../core/diary/health';
+import { mergeTrackers } from '../core/fields/trackerEdit';
+import type { AppData, DayNote, Entry, Experiment, HealthDay, Profile, ReminderState, Tracker } from '../core/model/types';
 
 export type Action =
   | { type: 'tracker/save'; tracker: Tracker }

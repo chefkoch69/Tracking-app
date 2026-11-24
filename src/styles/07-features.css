@@ -1,0 +1,124 @@
+/* Momente, Ausprobieren, Einstellungen, Tagebuch */
+/* ---------- Momente & Heute ---------- */
+.moment-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem; }
+@media (min-width: 761px) { .moment-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } .moment-grid.compact { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.moment-tile {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0.15rem; text-align: left;
+  padding: 0.85rem 0.9rem; min-height: 96px; border-radius: var(--radius); border: 1.5px solid var(--border);
+  background: var(--surface); box-shadow: var(--shadow); font: inherit; color: var(--text); cursor: pointer;
+}
+.moment-tile:active { transform: scale(0.98); }
+.moment-tile.suggested { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 7%, var(--surface)); }
+.moment-tile small { color: var(--muted); font-size: 0.78rem; line-height: 1.25; }
+.moment-tile.suggested small { color: var(--primary); font-weight: 700; }
+.mt-icon { font-size: 1.5rem; line-height: 1.1; }
+.mt-label { font-weight: 750; font-size: 1rem; }
+.moment-grid.compact .moment-tile { min-height: 76px; }
+.moment-switch { display: flex; gap: 0.4rem; overflow-x: auto; padding-bottom: 0.2rem; scrollbar-width: none; }
+.moment-switch::-webkit-scrollbar { display: none; }
+.moment-switch .chip { flex: none; }
+.moment-card, .note-card { display: flex; flex-direction: column; gap: 0.2rem; }
+.moment-info { margin: 0 0 0.3rem; }
+.qg-static { margin: 0.2rem 0 0.4rem; font-size: 1rem; }
+.add-more { color: var(--primary); font-weight: 700; padding: 0.4rem 0; }
+.cs-block { border-top: 1px solid var(--border); }
+.cs-block:first-of-type { border-top: 0; }
+.cs-block .cs-row { border-top: 0; }
+.cs-details {
+  margin: 0.1rem 0 0.7rem; padding: 0.2rem 0.8rem 0.4rem; border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--primary) 5%, var(--surface)); border-left: 3px solid color-mix(in srgb, var(--primary) 45%, transparent);
+  animation: pop-in 0.2s ease-out;
+}
+.cs-details .quick-field { padding: 0.6rem 0 0.4rem; border-bottom: 1px solid var(--border); }
+.cs-details .quick-field:last-child { border-bottom: 0; }
+.wake-control .time-input small { flex-basis: 100%; }
+
+.followup-card { border: 1.5px solid color-mix(in srgb, var(--warn) 45%, var(--border)); background: color-mix(in srgb, var(--warn-bg) 55%, var(--surface)); display: flex; flex-direction: column; gap: 0.6rem; }
+.fu-head { display: flex; gap: 0.7rem; align-items: flex-start; }
+.fu-head > div { flex: 1; display: flex; flex-direction: column; }
+.fu-icon { font-size: 1.5rem; }
+.fu-actions { display: flex; gap: 0.5rem; }
+.fu-actions .btn { flex: 1; }
+
+.appt-hint { display: flex; align-items: center; gap: 0.8rem; text-align: left; font: inherit; color: inherit; cursor: pointer; width: 100%; }
+.appt-hint > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; }
+.appt-hint > span:first-child { font-size: 1.4rem; }
+.running-card .exp-list { margin: 0; }
+
+/* ---------- Ausprobieren ---------- */
+.exp-add { display: flex; flex-direction: column; gap: 0.55rem; }
+.exp-add-label { font-weight: 750; }
+.exp-ideas { display: flex; flex-direction: column; gap: 0.35rem; margin-top: 0.3rem; }
+.exp-section { display: flex; flex-direction: column; gap: 0.6rem; }
+.exp-section > h2 { margin: 0.4rem 0 0; font-family: var(--display); font-size: 1.3rem; }
+.exp-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.exp-list li { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.55rem 0; border-bottom: 1px solid var(--border); }
+.exp-list li:last-child { border-bottom: 0; }
+.exp-title { font-weight: 650; min-width: 0; }
+.exp-card { display: flex; flex-direction: column; gap: 0.55rem; }
+.exp-card.running { border: 1.5px solid color-mix(in srgb, var(--primary) 30%, var(--border)); }
+.exp-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.6rem; }
+.exp-head > div { display: flex; flex-direction: column; }
+.exp-effects { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.exp-effects li { display: grid; grid-template-columns: 1fr auto auto; gap: 0.6rem; align-items: baseline; padding: 0.35rem 0.6rem; border-radius: 10px; background: var(--surface-2); font-size: 0.9rem; }
+.exp-effects li.better { background: var(--good-bg); }
+.exp-effects li.better small { color: var(--good); font-weight: 700; }
+.exp-effects li.worse { background: var(--bad-bg); }
+.exp-effects li.worse small { color: var(--bad); font-weight: 700; }
+.exp-effects li.exp-basis { display: block; background: none; padding: 0.1rem 0; font-size: 0.75rem; }
+.exp-note { font-size: 0.9rem; }
+.exp-verdict { display: flex; flex-direction: column; gap: 0.35rem; }
+
+/* ---------- Mehr ---------- */
+.more-links { display: flex; flex-direction: column; gap: 0.6rem; }
+.more-link { display: flex; align-items: center; gap: 0.8rem; text-align: left; font: inherit; color: inherit; cursor: pointer; text-decoration: none; width: 100%; }
+.more-link > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; }
+.ml-icon { font-size: 1.4rem; }
+
+/* Eintragen-Tab hervorgehoben */
+@media (max-width: 760px) {
+  .tabbar a.tab-add .tab-icon { background: var(--primary); color: #fff; width: 46px; height: 32px; box-shadow: 0 3px 10px color-mix(in srgb, var(--primary) 35%, transparent); }
+  .tabbar a.tab-add.active .tab-icon { background: var(--primary-deep); }
+  .tabbar a { font-size: 0.66rem; }
+}
+
+.auto-health { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.8rem; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--primary) 6%, var(--surface)); margin-bottom: 0.8rem; }
+.auto-health p { margin: 0; }
+.ah-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.ah-row span { flex-basis: 100%; }
+.ah-row code { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; background: var(--surface); padding: 0.4rem 0.6rem; border-radius: 8px; font-size: 0.82rem; }
+.try-howto { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.92rem; }
+
+.ws-day { border: 0; font: inherit; color: inherit; cursor: pointer; }
+.ws-day:disabled { cursor: default; opacity: 0.55; }
+.day-filter { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }
+
+/* ---------- Tagebuch: Tage, Monat, Tagesseite ---------- */
+.day-cards { display: flex; flex-direction: column; gap: 0.55rem; }
+.day-card { display: flex; align-items: center; gap: 0.8rem; text-align: left; font: inherit; color: inherit; cursor: pointer; width: 100%; padding: 0.85rem 1rem; }
+.dc-mood { font-size: 1.7rem; width: 2.2rem; text-align: center; flex: none; color: var(--outline); }
+.dc-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dc-note { color: var(--text); font-style: italic; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dc-worst { flex: none; color: #fff; font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.55rem; border-radius: 999px; max-width: 8.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dc-worst.ok { background: var(--good-bg); color: var(--good); }
+.month-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
+.month-head strong { font-size: 1.05rem; text-transform: capitalize; }
+.month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.3rem; }
+.mg-wd { text-align: center; color: var(--muted); font-weight: 700; font-size: 0.72rem; }
+.mg-day { aspect-ratio: 1; border-radius: 12px; border: 1px solid var(--border); background: var(--surface-2); font: inherit; font-weight: 700; font-size: 0.85rem; color: var(--muted); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; cursor: pointer; padding: 0; position: relative; }
+.mg-day.has { color: var(--text); background: var(--good-bg); }
+.mg-day.today { outline: 2px solid var(--primary); outline-offset: 1px; }
+.mg-day:disabled { opacity: 0.4; cursor: default; }
+.mg-day i { font-style: normal; font-size: 0.75rem; line-height: 1; }
+.day-nav { display: flex; align-items: center; gap: 0.6rem; }
+.day-nav h1 { flex: 1; font-size: 1.45rem; text-align: center; }
+.day-mood { display: flex; flex-direction: column; gap: 0.6rem; }
+.day-mood h2 { margin: 0; }
+.mood-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.35rem; }
+.mood-btn { display: flex; flex-direction: column; align-items: center; gap: 0.1rem; padding: 0.5rem 0.1rem; border-radius: 14px; border: 1.5px solid var(--border); background: var(--surface); font: inherit; cursor: pointer; color: var(--muted); }
+.mood-btn span { font-size: 1.6rem; line-height: 1.1; filter: grayscale(0.6); opacity: 0.75; }
+.mood-btn small { font-size: 0.66rem; font-weight: 650; text-align: center; line-height: 1.1; }
+.mood-btn.on { border-color: var(--primary); background: color-mix(in srgb, var(--primary) 10%, var(--surface)); color: var(--text); }
+.mood-btn.on span { filter: none; opacity: 1; }
+.mood-row.compact .mood-btn span { font-size: 1.35rem; }
+.dc-mood-empty { display: inline-block; width: 1.5rem; height: 1.5rem; border-radius: 50%; border: 2px dashed var(--outline); vertical-align: middle; }
