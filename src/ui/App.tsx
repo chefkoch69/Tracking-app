@@ -107,11 +107,11 @@ export function App() {
 function subPage(route: Route, trackerName?: string): { title: string; backLabel: string; fallback: string } | null {
   switch (route.name) {
     case 'now':
-      return { title: route.talk ? 'Erzählen' : 'Eintragen', backLabel: 'Heute', fallback: '/' };
+      return { title: route.talk ? 'Erzählen' : 'Eintragen', backLabel: 'Zurück', fallback: '/' };
     case 'entry':
       return { title: route.entryId ? 'Eintrag bearbeiten' : 'Neuer Eintrag', backLabel: 'Zurück', fallback: '/' };
     case 'data':
-      return route.day ? { title: 'Tag', backLabel: 'Verlauf', fallback: '/data' } : null;
+      return route.day ? { title: 'Tag', backLabel: 'Zurück', fallback: '/data' } : null;
     case 'tracker':
       return { title: trackerName ?? 'Tracker', backLabel: 'Zurück', fallback: '/settings/tracker' };
     case 'edit':
@@ -119,11 +119,11 @@ function subPage(route: Route, trackerName?: string): { title: string; backLabel
     case 'new':
       return { title: 'Neuer Tracker', backLabel: 'Zurück', fallback: '/settings/tracker' };
     case 'doctor':
-      return { title: 'Arzttermin & Bericht', backLabel: 'Einstellungen', fallback: '/settings' };
+      return { title: 'Arzttermin & Bericht', backLabel: 'Zurück', fallback: '/settings' };
     case 'health':
-      return { title: 'Apple Health', backLabel: 'Heute', fallback: '/' };
+      return { title: 'Apple Health', backLabel: 'Zurück', fallback: '/' };
     case 'settings':
-      return route.sub ? { title: SETTINGS_TITLES[route.sub] ?? 'Einstellungen', backLabel: 'Einstellungen', fallback: '/settings' } : null;
+      return route.sub ? { title: SETTINGS_TITLES[route.sub] ?? 'Einstellungen', backLabel: 'Zurück', fallback: '/settings' } : null;
     default:
       return null;
   }

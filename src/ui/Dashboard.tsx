@@ -189,6 +189,7 @@ function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
       <FollowUpCard
         tracker={tracker}
         onSymptoms={() => {
+          setPrimaryOpen(false);
           setFeelOpen(true);
           window.setTimeout(() => document.getElementById('feel-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
         }}
@@ -224,7 +225,7 @@ function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
         />
       )}
 
-      <div id="feel-card">
+      <div id="feel-card" hidden={!!primary && !primaryDone && primaryOpen}>
         <MomentCard
           tracker={tracker}
           momentKey="symptom"

@@ -1235,3 +1235,17 @@ button.ring:disabled { cursor: default; }
 .set-text small { font-size: 0.8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .set-chev { color: var(--muted); font-size: 1.4rem; line-height: 1; }
 .qa-btn { text-align: left; line-height: 1.2; }
+.backbar { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+.backbar::after { content: none; }
+.back-btn { justify-self: start; max-width: 100%; overflow: hidden; white-space: nowrap; }
+.backbar-title { max-width: 55vw; }
+.mc-save { position: sticky; bottom: var(--nav-space); z-index: 2; background: var(--surface); margin: 0 -1.1rem -1rem; padding: 0.6rem 1.1rem calc(0.7rem); border-top: 1px solid var(--border); }
+.cs-name { overflow-wrap: anywhere; hyphens: auto; }
+.try-help summary { font-weight: 750; cursor: pointer; }
+.try-help[open] summary { margin-bottom: 0.5rem; }
+.try-help ol { margin: 0; }
+.back-btn svg { flex-shrink: 0; }
+.back-btn { overflow: visible; }
+.moment-card-inline { overflow: clip; }
+.backbar { grid-template-columns: 6rem minmax(0, 1fr) 6rem; }
+.backbar-title { max-width: none; min-width: 0; }

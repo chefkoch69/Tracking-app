@@ -44,15 +44,6 @@ export function ExperimentsPage() {
         </div>
       </section>
 
-      <section className="card">
-        <h2>So funktioniert’s</h2>
-        <ol className="try-howto">
-          <li>Schreib auf, was du testen willst – oder tipp eine Idee an.</li>
-          <li>Tipp auf <b>Starten</b>, wenn du damit anfängst, und trag wie gewohnt ein, wie es dir geht.</li>
-          <li>Die App vergleicht deine Beschwerden der 2 Wochen davor mit der Zeit seit dem Start.</li>
-          <li>Nach 1–2 Wochen <b>Beenden</b> und festhalten, ob es geholfen hat. Am besten immer nur eine Sache gleichzeitig.</li>
-        </ol>
-      </section>
 
       <section className="card exp-add">
         <label htmlFor="exp-title" className="exp-add-label">Was möchtest du ausprobieren?</label>
@@ -88,6 +79,16 @@ export function ExperimentsPage() {
           </div>
         )}
       </section>
+
+      <details className="card try-help" open={!list.length}>
+        <summary>So funktioniert’s</summary>
+        <ol className="try-howto">
+          <li>Schreib auf, was du testen willst – oder tipp eine Idee an.</li>
+          <li>Tipp auf <b>Starten</b>, wenn du damit anfängst, und trag wie gewohnt ein, wie es dir geht.</li>
+          <li>Die App vergleicht deine Beschwerden der 2 Wochen davor mit der Zeit seit dem Start.</li>
+          <li>Nach 1–2 Wochen <b>Beenden</b> und festhalten, ob es geholfen hat. Am besten immer nur eine Sache gleichzeitig.</li>
+        </ol>
+      </details>
 
       <section className="exp-section">
         <h2>Läuft gerade</h2>
