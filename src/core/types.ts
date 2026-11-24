@@ -165,6 +165,10 @@ export interface Profile {
   appointment?: string;
   /** Fragen für den Termin, eine pro Zeile. */
   questions?: string;
+  /** Arztzettel (von Claude erstellt, selbst bearbeitet) und für welchen Zeitraum. */
+  summary?: string;
+  summaryFrom?: string;
+  summaryTo?: string;
 }
 
 export interface AppData {

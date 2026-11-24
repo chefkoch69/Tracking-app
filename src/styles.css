@@ -956,3 +956,45 @@ button.ring:disabled { cursor: default; }
   .quick-save .quick-count { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .quick-save .btn.ghost { flex: 0 0 auto; }
 }
+.food-groups { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin: 0; font-size: 0.8rem; }
+.food-group { background: color-mix(in srgb, var(--primary) 9%, var(--surface)); color: var(--text); border-radius: 999px; padding: 0.12rem 0.55rem; font-weight: 600; }
+
+/* ---------- Schnell eintragen & Beschwerden kompakt ---------- */
+.fav-card, .core-card { display: flex; flex-direction: column; gap: 0.6rem; }
+.fav-head { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; }
+.fav-head h2 { margin: 0; }
+.fav-chips { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+.fav-chip {
+  display: inline-flex; align-items: center; gap: 0.35rem; min-height: 44px; max-width: 100%;
+  padding: 0.45rem 0.9rem; border-radius: 14px; border: 1.5px solid var(--border); background: var(--surface-2);
+  font: inherit; font-weight: 650; font-size: 0.92rem; color: var(--text); cursor: pointer; text-align: left;
+}
+.fav-chip:active { transform: scale(0.97); background: color-mix(in srgb, var(--primary) 12%, var(--surface)); }
+.core-legend { margin: 0; font-size: 0.78rem; color: var(--muted); }
+.cs-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 0.6rem; padding: 0.35rem 0; border-top: 1px solid var(--border); }
+.cs-row:first-of-type { border-top: 0; }
+.cs-label { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.cs-name { font-weight: 700; }
+.cs-label small { font-size: 0.76rem; min-height: 1em; }
+.cs-steps { display: flex; gap: 0.3rem; }
+.cs-step {
+  --sev: var(--primary);
+  width: 2.45rem; height: 2.75rem; border-radius: 13px; border: 1.5px solid color-mix(in srgb, var(--sev) 40%, var(--border));
+  background: var(--surface); color: var(--text); font: inherit; font-weight: 750; font-size: 0.95rem; cursor: pointer; padding: 0;
+  transition: background 0.12s, transform 0.08s;
+}
+.cs-step:active { transform: scale(0.94); }
+.cs-step.on { background: var(--sev); border-color: transparent; color: #fff; box-shadow: 0 3px 10px color-mix(in srgb, var(--sev) 40%, transparent); }
+@media (max-width: 420px) {
+  .cs-step { width: 2.3rem; font-size: 0.9rem; }
+  .cs-steps { gap: 0.22rem; }
+  .cs-name { font-size: 0.92rem; }
+  .cs-label small { font-size: 0.72rem; }
+}
+@media (max-width: 360px) { .cs-step { width: 2.1rem; } }
+
+/* ---------- Arztzettel ---------- */
+.summary-card { display: flex; flex-direction: column; gap: 0.55rem; border: 1.5px solid color-mix(in srgb, var(--primary) 25%, var(--border)); }
+.summary-card p { margin: 0; }
+.summary-edit { font-size: 0.92rem; line-height: 1.5; min-height: 14rem; }
+.summary-text { white-space: pre-wrap; line-height: 1.5; font-size: 0.95rem; }

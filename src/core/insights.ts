@@ -2,6 +2,7 @@ import { aggregate, dailyValues, entriesOf, numericFields, pairMetrics, pearson 
 import { addDays, dayKey, startOfDay } from './dates';
 import { fieldSpec, metricLabel, polarityOf } from './fieldTypes';
 import { HEALTH_TRACKER_ID } from './health';
+import { GROUP_CAT, foodGroupsOfList, groupByCat, isFoodField } from './foodGroups';
 import type { Entry, FieldDef, Tracker } from './types';
 
 /**
@@ -206,6 +207,8 @@ const EVENT_PHRASES: Record<string, string> = {
 };
 
 function causePhrase(factor: FieldDef, cat: string): string {
+  const group = groupByCat(cat);
+  if (group) return group.phrase;
   if (factor.type === 'multiselect') {
     const p = EVENT_PHRASES[cat.trim().toLocaleLowerCase('de-DE')];
     if (p) return p;
@@ -214,7 +217,9 @@ function causePhrase(factor: FieldDef, cat: string): string {
 }
 
 /** Womit verglichen wird, in Worten. */
-function otherPhrase(factor: FieldDef): string {
+function otherPhrase(factor: FieldDef, cat: string): string {
+  const group = groupByCat(cat);
+  if (group) return `nach Essen ohne ${group.label}`;
   const l = factor.label.toLowerCase();
   if (/gegessen|essen|lebensmittel|mahlzeit/.test(l)) return 'nach anderem Essen';
   if (/medikament|tablette/.test(l)) return 'nach anderen Medikamenten';
@@ -244,8 +249,11 @@ export function factorInsights(tracker: Tracker, entries: Entry[], minGroup = 3)
   const isAttribute = (f: FieldDef) => f.type === 'select';
   const dayCount = new Set(es.map((e) => dayKey(new Date(e.timestamp)))).size;
 
-  /** family: worüber höchstens eine Aussage gemacht wird; moments: welche Einträge sie beschreibt. */
-  type Found = { family: string; moments: string; prefer: number; insight: Insight };
+  /**
+   * family: worüber höchstens eine Aussage gemacht wird; ids: die Einträge, auf denen die Aussage
+   * beruht (gleiche Belege → nur die genaueste Angabe); group: Lebensmittel-Gruppe.
+   */
+  type Found = { family: string; ids: string[]; prefer: number; group?: boolean; insight: Insight };
   const found: Found[] = [];
   const avg = (xs: number[]) => aggregate(xs, 'avg');
 
@@ -268,10 +276,14 @@ export function factorInsights(tracker: Tracker, entries: Entry[], minGroup = 3)
     for (const factor of tracker.fields) {
       if (factor.id === target.id || sameTopic(factor, target)) continue;
       const fSpec = fieldSpec(factor);
-      const catsOf = (e: Entry) =>
-        [...new Set(fSpec.categories(factor, e.values[factor.id] ?? null).map((c) => c.trim()).filter(Boolean))].filter(
+      const food = isFoodField(factor);
+      const catsOf = (e: Entry) => {
+        const cats = [...new Set(fSpec.categories(factor, e.values[factor.id] ?? null).map((c) => c.trim()).filter(Boolean))].filter(
           (c) => !(factor.type === 'checkbox' && c === 'Nein'),
         );
+        // Essen zusätzlich als Gruppen („Milchprodukte“) – die wiederholen sich viel öfter als einzelne Gerichte.
+        return food ? [...cats, ...foodGroupsOfList(cats).map((g) => GROUP_CAT + g.key)] : cats;
+      };
 
       if (isAttribute(factor)) {
         // Merkmal eines Eintrags (z. B. „nach der Mahlzeit“): nur mit den anderen Angaben
@@ -296,7 +308,7 @@ export function factorInsights(tracker: Tracker, entries: Entry[], minGroup = 3)
           if (!notable(effect)) continue;
           found.push({
             family: `attr|${factor.id}`,
-            moments: g.ids.join(','),
+            ids: g.ids,
             prefer: 1,
             insight: {
               id: `factor-${target.id}-${factor.id}-${cat}`,
@@ -343,8 +355,9 @@ export function factorInsights(tracker: Tracker, entries: Entry[], minGroup = 3)
         const mine = occ.filter((o) => o.cats.includes(cat));
         // Routinen (fast jeden Tag, z. B. „aufgestanden“) unterscheiden nichts.
         if (dayCount >= 5 && new Set(mine.map((o) => o.day)).size / dayCount >= 0.8) continue;
-        const moments = mine.map((o) => o.id).join(',');
-        const prefer = factor.type === 'text' ? 2 : 1;
+        const isGroup = !!groupByCat(cat);
+        // Bei denselben Momenten gewinnt die genaueste Angabe: Gericht > Gruppe > „gegessen“.
+        const prefer = factor.type === 'text' ? (groupByCat(cat) ? 1.5 : 2) : 1;
         const family = `${factor.id}|${cat}`;
 
         // 1) Wenn schon Beschwerden da waren (z. B. Medikament): wie ist es später – verglichen mit
@@ -360,11 +373,14 @@ export function factorInsights(tracker: Tracker, entries: Entry[], minGroup = 3)
           const bAfter = hasBase ? avg(base.map((o) => o.later!)) : 0;
           const change = after - before - (hasBase ? bAfter - bBefore : 0);
           const effect = effectOf(change);
-          if (effect >= 0.15 && Math.sign(change) === Math.sign(after - before)) {
+          // Nur Linderung: Ob etwas schadet, beantwortet der Vergleich unten (mit gutem Ausgangszustand) –
+          // „schon Beschwerden und danach mehr“ ist zu oft der normale Verlauf einer Episode.
+          if (effect >= 0.15 && Math.sign(change) === Math.sign(after - before) && toneFor(target, after - before) === 'good') {
             found.push({
               family,
-              moments,
+              ids: relief.map((o) => o.id),
               prefer,
+              group: isGroup,
               insight: {
                 id: `effect-${target.id}-${factor.id}-${cat}`,
                 kind: 'factor',
@@ -386,7 +402,8 @@ export function factorInsights(tracker: Tracker, entries: Entry[], minGroup = 3)
         //    verglichen mit Einträgen OHNE diese Angabe? Nur die ungünstige Richtung: „besser als der
         //    Durchschnitt“ heißt meist nur „kein Auslöser“ (der Durchschnitt enthält die Auslöser).
         const calm = (o: Moment) => o.now === null || !elevated(o.now);
-        const withW = mine.filter(calm).map((o) => o.worst).filter((v): v is number => v !== null);
+        const used = mine.filter((o) => calm(o) && o.worst !== null);
+        const withW = used.map((o) => o.worst as number);
         const othersW = occ.filter((o) => !o.cats.includes(cat) && calm(o)).map((o) => o.worst).filter((v): v is number => v !== null);
         if (withW.length < minGroup || othersW.length < minGroup) continue;
         const a = avg(withW);
@@ -395,14 +412,15 @@ export function factorInsights(tracker: Tracker, entries: Entry[], minGroup = 3)
         if (!notable(effect) || toneFor(target, a - b) !== 'bad') continue;
         found.push({
           family,
-          moments,
+          ids: used.map((o) => o.id),
           prefer,
+          group: isGroup,
           insight: {
             id: `after-${target.id}-${factor.id}-${cat}`,
             kind: 'factor',
             trackerId: tracker.id,
             title: `${causePhrase(factor, cat)}: ${metricLabel(target)} danach ${changeWord(target, a > b)}`,
-            detail: `in den ${EFFECT_WINDOW_H} Std. danach im Schnitt ${fmt(a)} statt ${fmt(b)} ${otherPhrase(factor)} · ${withW.length}× vs. ${othersW.length}×`,
+            detail: `in den ${EFFECT_WINDOW_H} Std. danach im Schnitt ${fmt(a)} statt ${fmt(b)} ${otherPhrase(factor, cat)} · ${withW.length}× vs. ${othersW.length}×`,
             metric: target.type === 'scale' ? `${num(a)} statt ${num(b)}` : changeMetric(target, a - b, b),
             tone: 'bad',
             strength: Math.min(1, effect * 1.6) * weight(withW.length),
@@ -419,10 +437,20 @@ export function factorInsights(tracker: Tracker, entries: Entry[], minGroup = 3)
   for (const f of sorted) if (!byFamily.has(f.family)) byFamily.set(f.family, f);
   const byMoments = new Map<string, Found>();
   for (const f of byFamily.values()) {
-    const cur = byMoments.get(f.moments);
-    if (!cur || f.prefer > cur.prefer) byMoments.set(f.moments, f);
+    const key = [...f.ids].sort().join(',');
+    const cur = byMoments.get(key);
+    if (!cur || f.prefer > cur.prefer) byMoments.set(key, f);
   }
-  return [...byMoments.values()].map((f) => f.insight).sort((x, y) => y.strength - x.strength);
+  // Eine Gruppe, die fast nur aus einem bereits genannten Gericht besteht („Hülsenfrüchte“ ≈
+  // „Linsensuppe“), bringt nichts Neues – das Gericht ist die genauere Spur.
+  const kept = [...byMoments.values()];
+  const items = kept.filter((f) => !f.group && f.prefer >= 2);
+  const result = kept.filter((g) => {
+    if (!g.group) return true;
+    const mine = new Set(g.ids);
+    return !items.some((i) => i.insight.tone === g.insight.tone && i.ids.filter((id) => mine.has(id)).length >= 0.75 * mine.size);
+  });
+  return result.map((f) => f.insight).sort((x, y) => y.strength - x.strength);
 }
 
 export function computeInsights(trackers: Tracker[], entries: Entry[], now = new Date(), limit = 6): Insight[] {

@@ -4,7 +4,8 @@ import { askConfirm } from './confirm';
 import { applyUpgrades, hasUpgrades, templateUpgrades } from '../core/trackerEdit';
 import { entriesOf } from '../core/analytics';
 import { dayKey, formatClock, toLocalInput } from '../core/dates';
-import { FIELD_TYPES, fmtLevel, formatValue, groupFields, isEmptyValue, polarityOf, validateValues } from '../core/fieldTypes';
+import { FIELD_TYPES, fmtLevel, formatValue, groupFields, isEmptyValue, polarityOf, scaleLevels, severity, validateValues } from '../core/fieldTypes';
+import { FAVORITE_ICON, favoriteValues, favorites } from '../core/favorites';
 import { dayRhythm, entryFeedback, levelText, type ValueChange } from '../core/feedback';
 import { DayRhythmChart } from './DayRhythm';
 import { useNow } from './reminders';
@@ -13,7 +14,7 @@ import { TEMPLATES, trackerFromTemplate } from '../core/templates';
 import type { Entry, FieldDef, FieldValue, Tracker } from '../core/types';
 import { useStore } from '../state/store';
 import { EntryDayContext } from './entryContext';
-import { FieldInput } from './fieldInputs';
+import { FieldInput, severityColor } from './fieldInputs';
 import { navigate } from './router';
 import { ValuePills } from './views/shared';
 
@@ -164,7 +165,6 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
   const { data, dispatch } = useStore();
   const now = useNow(30000);
   const visible = tracker.fields.filter((f) => !f.hidden);
-  const groups = groupFields(visible);
   const OPEN_KEY = `byot:open:${tracker.id}`;
   const [open, setOpen] = useState<Record<string, boolean>>(() => {
     try {
@@ -228,29 +228,44 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
   const filled = visible.filter((f) => !isEmptyValue(values[f.id]) && values[f.id] !== false);
   const errors = validateValues(visible.filter((f) => filled.includes(f)), values);
 
-  const save = () => {
-    if (!filled.length || Object.keys(errors).length) return;
+  /** Speichert einen Eintrag und zeigt die Rückmeldung. */
+  const store = (vals: Record<string, FieldValue>) => {
     const ts = timeFor(new Date());
-    const onlyFilled = Object.fromEntries(filled.map((f) => [f.id, values[f.id]]));
-    const entry: Entry = { id: uid(), trackerId: tracker.id, timestamp: ts.toISOString(), values: onlyFilled };
+    const entry: Entry = { id: uid(), trackerId: tracker.id, timestamp: ts.toISOString(), values: vals };
     dispatch({ type: 'entry/save', entry });
     // "aufgestanden" angetippt → Aufstehzeit für den Tag merken (falls noch keine).
     const key = dayKey(ts);
-    const woke = filled.some((f) => Array.isArray(values[f.id]) && (values[f.id] as string[]).some((x) => x.toLowerCase() === 'aufgestanden'));
+    const woke = Object.values(vals).some((v) => Array.isArray(v) && v.some((x) => x.toLowerCase() === 'aufgestanden'));
     if (woke && !data.health?.[key]?.wake) {
       dispatch({ type: 'health/upsert', days: [{ date: key, wake: formatClock(ts), source: 'manual' }] });
     }
     const changes = entryFeedback(tracker, [...data.entries, entry], entry);
     const clip = (t: string, n: number) => (t.length > n ? `${t.slice(0, n - 1)}…` : t);
-    const rest = filled
-      .filter((f) => !changes.some((c) => c.field.id === f.id))
-      .map((f) => (f.type === 'text' && !f.config.multiline ? clip(String(values[f.id]), 90) : short(f, values[f.id])));
-    setSaved({ entry, changes, rest, hint: nextHint(tracker, onlyFilled) });
+    const rest = tracker.fields
+      .filter((f) => vals[f.id] !== undefined && !changes.some((c) => c.field.id === f.id))
+      .map((f) => (f.type === 'text' && !f.config.multiline ? clip(String(vals[f.id]), 90) : short(f, vals[f.id])));
+    setSaved({ entry, changes, rest, hint: nextHint(tracker, vals) });
     setUndone(false);
-    setValues(empty());
     setTimeKey('now');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  const save = () => {
+    if (!filled.length || Object.keys(errors).length) return;
+    store(Object.fromEntries(filled.map((f) => [f.id, values[f.id]])));
+    setValues(empty());
+  };
+
+  const favs = useMemo(() => favorites(tracker, data.entries, new Date(), 6), [tracker, data.entries]);
+  /** Beschwerden (bewertete Skalen) kompakt oben – der Rest steht in den Abschnitten darunter. */
+  const core = visible.filter((f) => f.type === 'scale' && polarityOf(f) === 'higher-worse');
+  const detailGroups = groupFields(visible.filter((f) => !core.includes(f)));
+  const legend = (() => {
+    if (!core.length) return null;
+    const lv = (f: FieldDef) => scaleLevels(f.config).map((l) => `${l.value}:${l.label}`).join('|');
+    if (!core.every((f) => lv(f) === lv(core[0]))) return null;
+    return scaleLevels(core[0].config).map((l) => `${stepText(l.value)} ${l.label}`).join(' · ');
+  })();
 
   const title =
     timeKey === 'now'
@@ -362,8 +377,41 @@ function QuickForm({ tracker, others, onSwitch, talk }: { tracker: Tracker; othe
             save();
           }}
         >
+          {core.length > 0 && (
+            <section className="card core-card">
+              <div className="fav-head">
+                <h2>Beschwerden</h2>
+                {core.some((f) => filled.includes(f)) && (
+                  <button type="button" className="btn ghost small" onClick={() => setValues((v) => ({ ...v, ...Object.fromEntries(core.map((f) => [f.id, null])) }))}>
+                    Zurücksetzen
+                  </button>
+                )}
+              </div>
+              {legend && <p className="core-legend">{legend}</p>}
+              {core.map((f) => (
+                <CompactScale key={f.id} field={f} value={values[f.id] ?? null} prev={last(f)} onChange={(v) => setValues((s) => ({ ...s, [f.id]: v }))} />
+              ))}
+            </section>
+          )}
+
+          {favs.length > 0 && (
+            <section className="card fav-card">
+              <div className="fav-head">
+                <h2>Gegessen, getrunken, genommen</h2>
+                <small className="muted">1 Tipp = gespeichert</small>
+              </div>
+              <div className="fav-chips">
+                {favs.map((f) => (
+                  <button key={`${f.fieldId}|${f.text}`} type="button" className="fav-chip" onClick={() => store(favoriteValues(tracker, f))}>
+                    <span aria-hidden>{FAVORITE_ICON[f.kind]}</span> {f.text}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
           <EntryDayContext.Provider value={dayKey(when)}>
-            {groups.map((g, gi) => {
+            {detailGroups.map((g, gi) => {
               const isOpen = open[g.name] ?? (gi === 0 || g.fields.length <= 2);
               const count = g.fields.filter((f) => filled.includes(f)).length;
               return (
@@ -461,4 +509,49 @@ function short(f: FieldDef, v: FieldValue): string {
   const s = formatValue(f, v);
   if (f.type === 'text') return f.config.multiline ? 'Notiz' : s.length > 28 ? `${s.slice(0, 27)}…` : s;
   return s;
+}
+
+/** ½ statt 0,5 – kurz genug für kleine Knöpfe. */
+function stepText(v: number): string {
+  return v === 0.5 ? '½' : fmtLevel(v);
+}
+
+/** Eine Beschwerde als kompakte Zeile: Name links, Stufen rechts. Nochmal tippen = abwählen. */
+function CompactScale({ field, value, prev, onChange }: { field: FieldDef; value: FieldValue; prev: { v: FieldValue; t: Date } | null; onChange: (v: FieldValue) => void }) {
+  const levels = scaleLevels(field.config);
+  const cur = typeof value === 'number' ? value : null;
+  const label = cur !== null ? levels.find((l) => l.value === cur)?.label : null;
+  const before = prev && typeof prev.v === 'number' ? prev.v : null;
+  const diff = cur !== null && before !== null ? cur - before : null;
+  return (
+    <div className="cs-row">
+      <div className="cs-label">
+        <span className="cs-name">{field.label}</span>
+        <small className="muted">
+          {cur !== null ? label : before !== null ? `zuletzt ${stepText(before)} (${formatClock(prev!.t)})` : ' '}
+          {diff !== null && diff !== 0 && <b className={`delta ${diff < 0 ? 'good' : 'bad'}`}>{diff < 0 ? ' ▼ besser' : ' ▲ schlechter'}</b>}
+        </small>
+      </div>
+      <div className="cs-steps" role="radiogroup" aria-label={field.label}>
+        {levels.map((l) => {
+          const sev = severity(field, l.value) ?? 0;
+          return (
+            <button
+              key={l.value}
+              type="button"
+              role="radio"
+              aria-checked={cur === l.value}
+              aria-label={`${field.label}: ${fmtLevel(l.value)} ${l.label}`}
+              title={`${fmtLevel(l.value)} ${l.label}`}
+              className={`cs-step ${cur === l.value ? 'on' : ''}`}
+              style={{ '--sev': severityColor(sev) } as React.CSSProperties}
+              onClick={() => onChange(cur === l.value ? null : l.value)}
+            >
+              {stepText(l.value)}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }

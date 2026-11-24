@@ -23,6 +23,9 @@ import { applyUpgrades, hasUpgrades, mergeTrackers, optionRenames, setupState, t
 import { interpretNarrative, narrativePrompt } from './narrative';
 import { reducer } from '../state/store';
 import { computeInsights, factorInsights, trendInsights } from './insights';
+import { foodGroupsOf } from './foodGroups';
+import { favoriteValues, favorites } from './favorites';
+import { doctorSummaryPrompt } from './doctorSummary';
 import { appointmentLabel, dayRhythm, daysUntil, entryFeedback, insightReadiness, levelText, questionList } from './feedback';
 import { healthAsTracker, minutesSinceWake, parseHealthText, sinceWakeDistribution } from './health';
 import { daySlotStatus, dueSlot, nextSlot, reminderToFire, slotKey, slotMinutesForDay } from './schedule';
@@ -765,5 +768,112 @@ describe('Rückmeldung, Tagesrhythmus, Termin', () => {
     const es = [entry(t, at(9), { [id(t, 'Müdigkeit')]: 1 })];
     const txt = reportText([t], es, undefined, '2026-11-20', '2026-11-23', { name: 'Test', questions: 'Laktose testen?' });
     expect(txt).toContain('MEINE FRAGEN\n1. Laktose testen?');
+  });
+});
+
+describe('Lebensmittel-Gruppen', () => {
+  const keys = (x: string) => foodGroupsOf(x).map((g) => g.key);
+  it('ordnet Gerichte Gruppen zu – auch österreichisch und zusammengesetzt', () => {
+    expect(keys('Milchkaffee')).toEqual(['milch', 'koffein']);
+    expect(keys('2 Scheiben Toast mit Käse')).toEqual(['milch', 'weizen']);
+    expect(keys('Topfenstrudel')).toEqual(['milch', 'weizen', 'suess']);
+    expect(keys('Leberkässemmel')).toEqual(['weizen', 'fett']);
+    expect(keys('Linsensuppe')).toEqual(['huelsen']);
+    expect(keys('Melange')).toEqual(['milch', 'koffein']);
+  });
+  it('vermeidet typische Fehlgriffe', () => {
+    expect(keys('Reis mit Gemüse')).toEqual([]); // „Reis“ ist kein Eis
+    expect(keys('Schweinsbraten mit Erdäpfeln')).toEqual(['fett']); // kein Wein, kein Obst
+    expect(keys('Nudeln mit Tomatensoße')).toEqual(['weizen']); // „Tomate“ ist kein Mate-Tee
+    expect(keys('Hafermilch Cappuccino')).toEqual(['koffein']); // Pflanzenmilch
+    expect(keys('Kräutertee')).toEqual([]); // „Kräuter“ ist kein Kraut
+    expect(keys('Ginger Ale')).toEqual([]); // „Ginger“ ist kein Gin
+    expect(keys('Stilles Mineralwasser')).toEqual([]);
+  });
+  it('findet Auslöser-Gruppen, auch wenn kein einzelnes Gericht oft genug vorkommt', () => {
+    const t: Tracker = {
+      ...trackerFromTemplate(TEMPLATES.find((x) => x.key === 'reading')!),
+      fields: [
+        { ...makeField('scale', 'Bauchschmerz', { min: 0, max: 3, polarity: 'higher-worse' }), group: 'Bauch' },
+        { ...makeField('text', 'Was gegessen?', { splitList: true }), group: 'Essen' },
+      ],
+    };
+    const [pain, food] = t.fields.map((f) => f.id);
+    const dairy = ['Joghurt', 'Käsebrot', 'Kakao', 'Milchreis', 'Topfen', 'Latte'];
+    const other = ['Reis mit Gemüse', 'Apfel', 'Hühnersuppe', 'Kartoffeln', 'Banane', 'Gurkensalat'];
+    const es: Entry[] = [];
+    for (let n = 0; n < 12; n++) {
+      const d = new Date(2026, 9, 1 + n);
+      const meal = n % 2 === 0 ? dairy[n / 2] : other[(n - 1) / 2];
+      es.push(entry(t, at(12, 0, d), { [food]: meal }));
+      es.push(entry(t, at(13, 30, d), { [pain]: n % 2 === 0 ? 2 : 0.5 }));
+    }
+    const f = factorInsights(t, es);
+    const g = f.find((i) => i.title.startsWith('Nach Milchprodukten'));
+    expect(g?.tone).toBe('bad');
+    expect(g?.detail).toContain('nach Essen ohne Milchprodukte');
+    // Kein einzelnes Milchprodukt kommt oft genug vor
+    expect(f.some((i) => dairy.some((x) => i.title.includes(`„${x}“`)))).toBe(false);
+  });
+});
+
+describe('Ein-Tipp-Favoriten', () => {
+  const tpl = () => trackerFromTemplate(TEMPLATES.find((x) => x.key === 'now')!);
+  const id = (t: Tracker, l: string) => t.fields.find((f) => f.label === l)!.id;
+  it('macht Häufiges zu Knöpfen – Mahlzeiten erst, wenn sie sich wiederholen', () => {
+    const t = tpl();
+    const food = id(t, 'Was gegessen?');
+    const med = id(t, 'Medikamente');
+    const es = [
+      entry(t, at(7, 0, new Date(2026, 10, 20)), { [food]: '3 Eier, Toast' }),
+      entry(t, at(7, 0, new Date(2026, 10, 21)), { [food]: '3 Eier, Toast' }),
+      entry(t, at(9, 0, new Date(2026, 10, 21)), { [food]: 'Milchkaffee' }),
+      entry(t, at(9, 0, new Date(2026, 10, 22)), { [food]: 'Milchkaffee' }),
+      entry(t, at(9, 0, new Date(2026, 10, 23)), { [food]: 'Milchkaffee' }),
+      entry(t, at(12, 0, new Date(2026, 10, 22)), { [food]: 'Linsensuppe, Brot' }),
+      entry(t, at(13, 0, new Date(2026, 10, 22)), { [med]: 'Buscopan 10 mg' }),
+      entry(t, at(9, 0, new Date(2026, 8, 1)), { [food]: 'Uralt-Essen' }), // älter als 30 Tage
+    ];
+    const fav = favorites(t, es, at(21));
+    const texts = fav.map((f) => f.text);
+    expect(texts[0]).toBe('Milchkaffee');
+    expect(texts).toContain('3 Eier, Toast');
+    expect(texts).not.toContain('Linsensuppe, Brot'); // nur einmal gegessen
+    expect(texts).toContain('Linsensuppe');
+    expect(texts).not.toContain('Uralt-Essen');
+    expect(fav.find((f) => f.text === 'Milchkaffee')?.kind).toBe('drink');
+    expect(fav.find((f) => f.text === 'Buscopan 10 mg')?.kind).toBe('med');
+  });
+  it('setzt beim Speichern das passende Ereignis', () => {
+    const t = tpl();
+    const fav = favorites(t, [entry(t, at(9), { [id(t, 'Medikamente')]: 'Buscopan 10 mg' }), entry(t, at(10), { [id(t, 'Was gegessen?')]: 'Kaffee' })], at(21));
+    const med = favoriteValues(t, fav.find((f) => f.kind === 'med')!);
+    expect(med[id(t, 'Was ist passiert?')]).toEqual(['Medikament genommen']);
+    const drink = favoriteValues(t, fav.find((f) => f.kind === 'drink')!);
+    expect(drink[id(t, 'Was ist passiert?')]).toEqual(['getrunken']);
+    expect(drink[id(t, 'Was gegessen?')]).toBe('Kaffee');
+  });
+});
+
+describe('Arztzettel mit Claude', () => {
+  it('gibt Claude nur die Daten, die Fragen und klare Regeln', () => {
+    const t = trackerFromTemplate(TEMPLATES.find((x) => x.key === 'now')!);
+    const pain = t.fields.find((f) => f.label === 'Bauchschmerz')!.id;
+    const es = [entry(t, at(9, 0, new Date(2026, 10, 21)), { [pain]: 2 }), entry(t, at(9, 0, new Date(2026, 10, 22)), { [pain]: 1 })];
+    const p = doctorSummaryPrompt({
+      trackers: [t], entries: es, from: '2026-11-20', to: '2026-11-23',
+      profile: { questions: 'Laktose testen?', summary: 'ALTE FASSUNG' }, insights: [],
+    });
+    expect(p).toContain('NUR Angaben aus den Daten');
+    expect(p).toContain('Keine Diagnosen');
+    expect(p).toContain('nicht wiederholen');
+    expect(p).toContain('1. Laktose testen?');
+    expect(p).toContain('Bauchschmerz 2');
+    expect(p).not.toContain('ALTE FASSUNG');
+  });
+  it('setzt eine vorhandene Zusammenfassung an den Anfang der Textfassung', () => {
+    const t = trackerFromTemplate(TEMPLATES.find((x) => x.key === 'now')!);
+    const txt = reportText([t], [], undefined, '2026-11-20', '2026-11-23', { summary: 'Kurz: Bauchschmerz an 5 von 7 Tagen.' });
+    expect(txt.indexOf('ZUSAMMENFASSUNG')).toBeLessThan(txt.indexOf('Kurz:'));
   });
 });

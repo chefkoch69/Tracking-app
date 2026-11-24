@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { SymptomTrendCard } from './SymptomTrendCard';
 import { entriesOf } from '../core/analytics';
 import { addDays, dayKey, parseDayKey, startOfDay } from '../core/dates';
@@ -10,6 +10,10 @@ import { ReportActions } from './ReportActions';
 import { ReportSheet } from './views/ReportSheet';
 import { appointmentLabel, questionList } from '../core/feedback';
 import { useDictation } from './useDictation';
+import { doctorSummaryPrompt } from '../core/doctorSummary';
+import { claudeUse } from './claudeRuntime';
+import { copyText } from './save';
+import { notify } from './confirm';
 
 /**
  * Arztbericht: alle (gewählten) Tracker eines Zeitraums auf einen Blick –
@@ -113,6 +117,15 @@ export function DoctorReport() {
         />
       </div>
 
+      <SummaryCard
+        from={from}
+        to={to}
+        hasEntries={trackers.some((t) => inRange(entriesOf(t, data.entries), from, to).length > 0)}
+        prompt={() =>
+          doctorSummaryPrompt({ trackers, entries: data.entries, health: showHealth ? data.health : undefined, from, to, profile: data.profile, insights })
+        }
+      />
+
       <article className="report card" ref={sheet}>
         <header className="report-head">
           <h2>Symptomtagebuch</h2>
@@ -122,6 +135,13 @@ export function DoctorReport() {
             <span>Zeitraum: <b>{fmtDay(from)} – {fmtDay(to)}</b></span>
           </div>
         </header>
+
+        {data.profile?.summary?.trim() && (
+          <section className="report-section report-summary">
+            <h3>Zusammenfassung</h3>
+            <div className="summary-text">{data.profile.summary.trim()}</div>
+          </section>
+        )}
 
         {questions.length > 0 && (
           <section className="report-section report-questions">
@@ -272,6 +292,137 @@ function QuestionsCard() {
           </button>
         </div>
       )}
+    </section>
+  );
+}
+
+const SUMMARY_ERRORS: Record<string, string> = {
+  not_granted: 'Claude ist für diese Seite nicht erlaubt. Du kannst den Bericht unten als Text kopieren und in einen Chat mit Claude einfügen.',
+  sampling_disabled: 'Claude ist für dein Konto hier nicht verfügbar. Kopiere den Bericht als Text und füge ihn in einen Chat mit Claude ein.',
+  rate_limited: 'Gerade zu viele Anfragen oder dein Nutzungslimit ist erreicht. Bitte später nochmal.',
+  refused: 'Claude konnte daraus keine Zusammenfassung schreiben.',
+  session_expired: 'Bitte in claude.ai neu anmelden.',
+};
+
+/**
+ * Arztzettel mit Claude: eine Seite Zusammenfassung des gewählten Zeitraums – nur aus den
+ * Einträgen, ohne Diagnosen. Bearbeitbar, wird mit den Daten gespeichert und steht im Bericht.
+ */
+function SummaryCard({ from, to, prompt, hasEntries }: { from: string; to: string; prompt: () => string; hasEntries: boolean }) {
+  const { data, dispatch } = useStore();
+  const saved = data.profile?.summary ?? '';
+  const [draft, setDraft] = useState(saved);
+  const [phase, setPhase] = useState<'idle' | 'thinking' | 'writing'>('idle');
+  const [error, setError] = useState<string | null>(null);
+  const [can, setCan] = useState<boolean | null>(null);
+  const ctl = useRef<AbortController | null>(null);
+  useEffect(() => {
+    claudeUse('sample').then((s) => setCan(!!s));
+  }, []);
+  // Änderungen von einem anderen Gerät übernehmen, solange hier nichts läuft.
+  useEffect(() => {
+    if (phase === 'idle') setDraft(saved);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saved]);
+  const store = (summary: string, range?: { summaryFrom: string; summaryTo: string }) =>
+    dispatch({ type: 'profile/update', patch: { summary: summary || undefined, ...(range ?? {}) } });
+  const fmt = (k: string) => parseDayKey(k).toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric' });
+  const madeFor = data.profile?.summaryFrom && data.profile?.summaryTo ? `${fmt(data.profile.summaryFrom)}–${fmt(data.profile.summaryTo)}` : null;
+  const stale = !!saved && (data.profile?.summaryFrom !== from || data.profile?.summaryTo !== to);
+
+  const run = async () => {
+    const sample = await claudeUse('sample');
+    if (!sample) {
+      setCan(false);
+      return;
+    }
+    setError(null);
+    setPhase('thinking');
+    ctl.current = new AbortController();
+    try {
+      const { text, truncated } = await sample(prompt(), {
+        signal: ctl.current.signal,
+        cache: false,
+        onText: ({ text }: { text: string }) => {
+          setPhase('writing');
+          setDraft(text);
+        },
+      });
+      setDraft(text.trim());
+      store(text.trim(), { summaryFrom: from, summaryTo: to });
+      if (truncated) setError('Die Zusammenfassung wurde abgeschnitten. Wähle einen kürzeren Zeitraum und versuch es nochmal.');
+    } catch (e) {
+      const err = e as { code?: string; text?: string };
+      const code = err?.code ?? 'upstream_error';
+      setDraft(saved);
+      if (code !== 'cancelled') setError(SUMMARY_ERRORS[code] ?? 'Das hat gerade nicht geklappt. Bitte nochmal versuchen.');
+      if (code === 'not_granted' || code === 'sampling_disabled') setCan(false);
+    } finally {
+      setPhase('idle');
+    }
+  };
+
+  return (
+    <section className="card no-print summary-card">
+      <div className="section-head">
+        <h2>✦ Arztzettel mit Claude</h2>
+        {madeFor && <span className={`pill ${stale ? 'warn-pill' : ''}`}>für {madeFor}</span>}
+      </div>
+      <p className="muted small">
+        Claude fasst den gewählten Zeitraum auf einer Seite zusammen – nur aus deinen Einträgen, ohne Diagnosen. Lies ihn vor
+        dem Termin durch und ändere, was nicht stimmt. Dafür gehen die Einträge des Zeitraums an Claude (über dein Konto).
+      </p>
+      {(draft || phase !== 'idle') && (
+        <textarea
+          className="summary-edit"
+          rows={14}
+          value={draft}
+          readOnly={phase !== 'idle'}
+          aria-label="Zusammenfassung"
+          onChange={(e) => {
+            setDraft(e.target.value);
+            store(e.target.value);
+          }}
+        />
+      )}
+      {phase === 'thinking' && <p className="thinking">Claude liest dein Tagebuch …</p>}
+      {stale && phase === 'idle' && <p className="muted small">Der Zeitraum oben hat sich geändert – erstelle die Zusammenfassung neu, damit sie passt.</p>}
+      <div className="actions start">
+        {phase !== 'idle' ? (
+          <button className="btn ghost" onClick={() => ctl.current?.abort()}>Stopp</button>
+        ) : (
+          can !== false && (
+            <button className="btn primary" disabled={!hasEntries} onClick={run}>
+              {draft ? 'Neu erstellen' : '✦ Zusammenfassung erstellen'}
+            </button>
+          )
+        )}
+        {draft && phase === 'idle' && (
+          <>
+            <button
+              className="btn"
+              onClick={async () => {
+                if (await copyText(draft)) await notify('Zusammenfassung kopiert.');
+                else await notify('Die Zwischenablage ist hier gesperrt. Markiere den Text und kopiere ihn selbst:', draft);
+              }}
+            >
+              Kopieren
+            </button>
+            <button
+              className="btn ghost danger"
+              onClick={() => {
+                setDraft('');
+                dispatch({ type: 'profile/update', patch: { summary: undefined, summaryFrom: undefined, summaryTo: undefined } });
+              }}
+            >
+              Entfernen
+            </button>
+          </>
+        )}
+      </div>
+      {!hasEntries && <p className="muted small">Im gewählten Zeitraum gibt es noch keine Einträge.</p>}
+      {can === false && <p className="muted small">Das geht nur in claude.ai. Alternativ: unten „Als Text kopieren“ und in einen Chat mit Claude einfügen.</p>}
+      {error && <p className="error small">{error}</p>}
     </section>
   );
 }

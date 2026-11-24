@@ -4,6 +4,7 @@ import { EntryDayContext } from './entryContext';
 import { BODY_MAPS } from '../core/bodyMaps';
 import { AGGREGATION_LABELS, FIELD_TYPES, fmtLevel, formatDuration, isTimeRange, itemName, listItems, rangeMinutes, scaleLevels, severity, withLevels } from '../core/fieldTypes';
 import { useDragReorder } from './useDragReorder';
+import { foodGroupsOfList, isFoodField } from '../core/foodGroups';
 import type { Aggregation, BodyMapKind, FieldConfig, FieldDef, FieldType, FieldValue, Polarity, ScaleLevel } from '../core/types';
 import { BodyMapSvg } from './BodyMap';
 
@@ -191,9 +192,18 @@ function ListTextInput({ field, value, onChange, id }: { field: FieldDef; value:
   const have = new Set(listItems(value).map((x) => itemName(x).toLocaleLowerCase('de-DE')));
   const open = suggestions.filter(([k]) => !have.has(k));
   const add = (item: string) => onChange(value.trim() ? `${value.trim().replace(/,$/, '')}, ${item}` : item);
+  const groups = isFoodField(field) && value.trim() ? foodGroupsOfList(listItems(value)) : [];
   return (
     <div className="list-text">
       <input id={id} type="text" value={value} onChange={(e) => onChange(e.target.value)} />
+      {groups.length > 0 && (
+        <p className="food-groups" aria-live="polite">
+          <span className="muted">Erkannt:</span>
+          {groups.map((g) => (
+            <span key={g.key} className="food-group">{g.icon} {g.label}</span>
+          ))}
+        </p>
+      )}
       {open.length > 0 && (
         <div className="chips suggest" aria-label="Zuletzt verwendet">
           {open.map(([k, s]) => (

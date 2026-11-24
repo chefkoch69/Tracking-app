@@ -203,6 +203,11 @@ export function reportText(
   lines.push(`Symptomtagebuch ${d(from)} – ${d(to)}`);
   if (profile?.name) lines.push(`Name: ${profile.name}${profile.birthdate ? `, geb. ${d(profile.birthdate)}` : ''}`);
   lines.push('');
+  if (profile?.summary?.trim()) {
+    lines.push('ZUSAMMENFASSUNG');
+    lines.push(profile.summary.trim());
+    lines.push('');
+  }
   const questions = questionList(profile?.questions);
   if (questions.length) {
     lines.push('MEINE FRAGEN');
