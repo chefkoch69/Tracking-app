@@ -11,7 +11,7 @@ export type Route =
   | { name: 'try' }
   | { name: 'doctor' }
   | { name: 'health'; payload?: string }
-  | { name: 'settings' };
+  | { name: 'settings'; sub?: string };
 
 export function parseRoute(hash: string): Route {
   const [path, query = ''] = hash.replace(/^#\/?/, '').split('?');
@@ -23,7 +23,7 @@ export function parseRoute(hash: string): Route {
   if (parts[0] === 'try') return { name: 'try' };
   if (parts[0] === 'arzt') return { name: 'doctor' };
   if (parts[0] === 'health') return { name: 'health', payload: params.get('data') ?? undefined };
-  if (parts[0] === 'settings') return { name: 'settings' };
+  if (parts[0] === 'settings') return { name: 'settings', sub: parts[1] };
   if (parts[0] === 't' && parts[1]) {
     if (parts[2] === 'edit') return { name: 'edit', id: parts[1] };
     if (parts[2] === 'entry') return { name: 'entry', id: parts[1], entryId: parts[3], date: params.get('d') ?? undefined };
@@ -36,10 +36,24 @@ export function navigate(path: string) {
   window.location.hash = path;
 }
 
+/** Besuchte Seiten seit dem Start der App – damit „Zurück“ weiß, ob es ein Zurück gibt. */
+const visited: string[] = [typeof window === 'undefined' ? '' : window.location.hash];
+function track(hash: string) {
+  if (visited.length > 1 && visited[visited.length - 2] === hash) visited.pop();
+  else if (visited[visited.length - 1] !== hash) visited.push(hash);
+}
+
+/** Zurück zur vorherigen Seite – oder zur übergeordneten, wenn die App hier gestartet wurde. */
+export function goBack(fallback: string) {
+  if (visited.length > 1) window.history.back();
+  else navigate(fallback);
+}
+
 export function useRoute(): Route {
   const [route, setRoute] = useState(() => parseRoute(window.location.hash));
   useEffect(() => {
     const on = () => {
+      track(window.location.hash);
       setRoute(parseRoute(window.location.hash));
       window.scrollTo(0, 0);
     };

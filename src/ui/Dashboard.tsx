@@ -1,25 +1,27 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { SetupCard } from './SetupCard';
 import { TEMPLATES, trackerFromTemplate } from '../core/templates';
-import { WakeChip } from './HealthPanel';
 import { askConfirm } from './confirm';
+import { entriesOf } from '../core/analytics';
 import { dayKey, formatClock } from '../core/dates';
+import { fmtLevel } from '../core/fieldTypes';
+import { FAVORITE_ICON, favoriteValues, favorites } from '../core/favorites';
+import { uid } from '../core/id';
 import { slotKey } from '../core/schedule';
 import type { Tracker } from '../core/types';
 import { useStore } from '../state/store';
-import { combinedDayState, WeekStrip } from './Adherence';
 import { DayRhythmChart } from './DayRhythm';
 import { appointmentLabel, dayRhythm, daysUntil, questionList } from '../core/feedback';
-import { MOMENTS, suggestedMoment } from '../core/moments';
 import { experimentDay } from '../core/experiments';
-import { FollowUpCard } from './QuickPage';
+import { MomentCard, type SavedNote } from './MomentCard';
+import { FollowUpCard, SavedCard } from './QuickPage';
 import { useDueTrackers, useNow } from './reminders';
 import { navigate } from './router';
 import { ValuePills } from './views/shared';
 
 function greeting(d: Date) {
   const h = d.getHours();
-  return h < 11 ? 'Guten Morgen' : h < 18 ? 'Hallo' : 'Guten Abend';
+  return h < 4 ? 'Gute Nacht' : h < 11 ? 'Guten Morgen' : h < 18 ? 'Hallo' : 'Guten Abend';
 }
 
 export function Dashboard() {
@@ -31,64 +33,33 @@ export function Dashboard() {
   if (!data.trackers.length) {
     return (
       <div className="page">
-        <section className="hero-band">
-          <div className="hero-inner center">
-            <h1 className="display">Dein Körper-Tagebuch</h1>
-            <p className="hero-lead">
-              Aufstehen, Essen, Beschwerden, Schlafen gehen – kurz antippen. Die App zeigt dir, was auffällt, und hilft,
-              Dinge auszuprobieren.
-            </p>
-            <div className="actions center">
-              <button
-                className="btn white big"
-                onClick={() => {
-                  dispatch({ type: 'tracker/save', tracker: trackerFromTemplate(TEMPLATES.find((t) => t.key === 'now')!) });
-                  navigate('/now');
-                }}
-              >
-                💙 „Mein Befinden“ starten
-              </button>
-            </div>
-          </div>
-        </section>
-        <div className="feature-grid">
-          {[
-            ['☀️', 'Nach Moment eintragen', 'Aufgestanden, Essen & Trinken, Beschwerde, Schlafen gehen – jeweils nur, was dazu gehört.'],
-            ['🤕', 'Details, wenn nötig', 'Bauchweh, Kopfweh, Tinnitus: die Details klappen erst auf, wenn du etwas angibst.'],
-            ['🔍', 'Was auffällt', 'Mögliche Auslöser, was geholfen hat und wie es sich entwickelt.'],
-            ['🧪', 'Ausprobieren', 'Eine Liste, was du testen willst – mit Vergleich vorher und währenddessen.'],
-          ].map(([icon, title, text]) => (
-            <div key={title} className="feature card">
-              <span className="feature-icon">{icon}</span>
-              <strong>{title}</strong>
-              <small className="muted">{text}</small>
-            </div>
-          ))}
-        </div>
+        <header className="page-head">
+          <h1>Dein Körper-Tagebuch</h1>
+          <p className="muted">Aufstehen, Essen, Beschwerden, Schlafen gehen – kurz antippen. Die App zeigt dir, was auffällt.</p>
+        </header>
+        <button
+          className="btn primary big"
+          onClick={() => dispatch({ type: 'tracker/save', tracker: trackerFromTemplate(TEMPLATES.find((t) => t.key === 'now')!) })}
+        >
+          💙 Tagebuch starten
+        </button>
       </div>
     );
   }
 
-  // Haupt-Tracker für den Verlauf: der Schnell-Check-in, sonst der mit den meisten Symptomen.
+  // Haupt-Tracker: der Schnell-Check-in, sonst der mit den meisten Symptomen.
   const mainTracker =
     active.find((t) => t.quick && !t.demo) ??
     active.find((t) => t.quick) ??
     [...active].sort((a, b) => b.fields.filter((f) => f.type === 'scale').length - a.fields.filter((f) => f.type === 'scale').length).find((t) => t.fields.filter((f) => f.type === 'scale').length >= 2);
 
   return (
-    <div className="page">
-      <section className="hero-band">
-        <div className="hero-inner">
-          <p className="hero-date">{now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-          <h1 className="display">{greeting(now)}</h1>
-          <div className="hero-cta">
-            <button className="btn outline-white" onClick={() => navigate('/now/talk')}>🎙 Erzählen</button>
-          </div>
-          {/* Aufstehen wird über „Aufgestanden“ eingetragen – hier nur die Werte vom Armband/Health */}
-          <WakeChip now={now} buttons={!mainTracker?.quick} />
-          <WeekStrip now={now} state={(d) => combinedDayState(active, data.entries, d, now)} onPick={(k) => navigate(k === dayKey(now) ? '/' : `/data?d=${k}`)} />
-        </div>
-      </section>
+    <div className="page today">
+      <header className="page-head today-head">
+        <p className="today-date">{now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+        <h1>{greeting(now)}</h1>
+        <BandLine now={now} />
+      </header>
 
       <SetupCard />
 
@@ -137,34 +108,193 @@ export function Dashboard() {
         </section>
       )}
 
-      {mainTracker && <FollowUpCard tracker={mainTracker} />}
-
-      {mainTracker?.quick && <MomentShortcuts tracker={mainTracker} now={now} />}
-
-      <RunningExperiments />
+      {mainTracker?.quick ? <TodayLog key={mainTracker.id} tracker={mainTracker} now={now} /> : mainTracker && <FollowUpCard tracker={mainTracker} />}
 
       <TodayTimeline trackers={active} now={now} main={mainTracker} />
 
-      <AppointmentHint now={now} />
+      <RunningExperiments />
 
+      <AppointmentHint now={now} />
     </div>
   );
 }
 
-/** Die Momente des Tages als Abkürzung – passend zur Tageszeit hervorgehoben. */
-function MomentShortcuts({ tracker, now }: { tracker: Tracker; now: Date }) {
+/** Aufwachzeit, Schlaf und Schritte vom Armband – eine Zeile. */
+function BandLine({ now }: { now: Date }) {
   const { data } = useStore();
-  const suggestion = suggestedMoment(tracker, data.entries, now);
+  const h = data.health?.[dayKey(now)];
+  if (!h || (h.wake === undefined && h.sleepHours === undefined && h.steps === undefined)) return null;
   return (
-    <section className="moment-grid compact" aria-label="Eintragen">
-      {MOMENTS.filter((m) => ['morning', 'meal', 'symptom', 'evening'].includes(m.key)).map((m) => (
-        <button key={m.key} className={`moment-tile ${suggestion === m.key ? 'suggested' : ''}`} onClick={() => navigate(`/now?m=${m.key}`)}>
-          <span className="mt-icon" aria-hidden>{m.icon}</span>
-          <span className="mt-label">{m.label}</span>
-          {suggestion === m.key && <small>jetzt passend</small>}
-        </button>
-      ))}
-    </section>
+    <div className="band-line">
+      {h.wake && <span>☀ wach {h.wake}</span>}
+      {h.sleepHours !== undefined && <span>☾ {fmtLevel(h.sleepHours)} h Schlaf</span>}
+      {h.steps !== undefined && <span>👣 {h.steps.toLocaleString('de-DE')}</span>}
+    </div>
+  );
+}
+
+type Extra = 'meal' | 'med' | 'evening' | null;
+
+/**
+ * Eintragen direkt auf „Heute“: oben der Moment, der gerade dran ist (morgens Aufgestanden,
+ * abends Schlafen gehen), dann „Wie geht’s dir gerade?“ und Knöpfe für Essen, Medikament usw.
+ * Alles klappt an Ort und Stelle auf – keine Unterseiten.
+ */
+function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
+  const { data, dispatch } = useStore();
+  const h = now.getHours();
+  const today = dayKey(now);
+  const todays = entriesOf(tracker, data.entries).filter((e) => dayKey(new Date(e.timestamp)) === today);
+  const find = (ev: string) => [...todays].reverse().find((e) => Object.values(e.values).some((v) => Array.isArray(v) && v.includes(ev)));
+  const woke = find('aufgestanden');
+  const slept = find('schlafen gegangen');
+  const primary: 'morning' | 'evening' | null = h >= 4 && h < 15 ? 'morning' : h >= 19 || h < 4 ? 'evening' : null;
+  const primaryDone = primary === 'morning' ? woke : primary === 'evening' ? slept : undefined;
+  const [primaryOpen, setPrimaryOpen] = useState(!!primary && !primaryDone);
+  const [feelOpen, setFeelOpen] = useState(!primary || !!primaryDone);
+  const [extra, setExtra] = useState<Extra>(null);
+  const [saved, setSaved] = useState<SavedNote | null>(null);
+  const [undone, setUndone] = useState(false);
+  const favs = useMemo(() => favorites(tracker, data.entries, new Date(), 5), [tracker, data.entries]);
+
+  const onSaved = (s: SavedNote) => {
+    setSaved(s);
+    setUndone(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  const at = (e?: { timestamp: string }) => (e ? formatClock(new Date(e.timestamp)) : '');
+  const actions: { key: Exclude<Extra, null> | 'talk'; icon: string; label: string }[] = [
+    { key: 'meal', icon: '🍽', label: 'Essen & Trinken' },
+    { key: 'med', icon: '💊', label: 'Medikament' },
+    ...(primary !== 'evening' ? [{ key: 'evening' as const, icon: '🌙', label: 'Schlafen gehen' }] : []),
+    { key: 'talk', icon: '🎙', label: 'Erzählen' },
+  ];
+
+  return (
+    <>
+      {saved && (
+        <SavedCard
+          saved={{ ...saved, rest: [] }}
+          undone={undone}
+          today={today}
+          onClose={() => setSaved(null)}
+          onUndo={() => {
+            dispatch({ type: 'entry/delete', id: saved.entry.id });
+            setUndone(true);
+          }}
+          onEdit={() => navigate(`/t/${tracker.id}/entry/${saved.entry.id}`)}
+        />
+      )}
+
+      <FollowUpCard
+        tracker={tracker}
+        onSymptoms={() => {
+          setFeelOpen(true);
+          window.setTimeout(() => document.getElementById('feel-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+        }}
+      />
+
+      {primary === 'morning' && (
+        <MomentCard
+          tracker={tracker}
+          momentKey="morning"
+          icon="☀️"
+          title={woke ? 'Aufgestanden' : 'Guten Morgen – wie hast du geschlafen?'}
+          subtitle="Aufwachzeit, Wecker, Schlaf und wie es dir geht"
+          done={woke ? `um ${at(woke)} eingetragen` : undefined}
+          open={primaryOpen}
+          onToggle={setPrimaryOpen}
+          onSaved={(s) => {
+            onSaved(s);
+            setFeelOpen(false);
+          }}
+        />
+      )}
+      {primary === 'evening' && (
+        <MomentCard
+          tracker={tracker}
+          momentKey="evening"
+          icon="🌙"
+          title={slept ? 'Schlafen gehen' : 'Bevor du schlafen gehst'}
+          subtitle="Wie war der Tag, Handy weg, Wecker, getrunken?"
+          done={slept ? `um ${at(slept)} eingetragen` : undefined}
+          open={primaryOpen}
+          onToggle={setPrimaryOpen}
+          onSaved={onSaved}
+        />
+      )}
+
+      <div id="feel-card">
+        <MomentCard
+          tracker={tracker}
+          momentKey="symptom"
+          icon="🤕"
+          title="Wie geht’s dir gerade?"
+          subtitle="Bauch, Kopf, Tinnitus, Erschöpfung, Kälte …"
+          open={feelOpen}
+          onToggle={setFeelOpen}
+          closeOnSave={false}
+          onSaved={onSaved}
+        />
+      </div>
+
+      <section className="quick-actions" aria-label="Weiteres eintragen">
+        {actions.map((a) => (
+          <button
+            key={a.key}
+            type="button"
+            className={`qa-btn ${extra === a.key ? 'active' : ''}`}
+            aria-expanded={a.key === 'talk' ? undefined : extra === a.key}
+            onClick={() => (a.key === 'talk' ? navigate('/now/talk') : setExtra(extra === a.key ? null : a.key))}
+          >
+            <span aria-hidden>{a.icon}</span>
+            {a.label}
+          </button>
+        ))}
+      </section>
+
+      {extra && (
+        <MomentCard
+          key={extra}
+          tracker={tracker}
+          momentKey={extra}
+          icon={extra === 'meal' ? '🍽' : extra === 'med' ? '💊' : '🌙'}
+          title={extra === 'meal' ? 'Essen & Trinken' : extra === 'med' ? 'Medikament & Maßnahme' : 'Schlafen gehen'}
+          open
+          onToggle={(o) => !o && setExtra(null)}
+          onSaved={(s) => {
+            onSaved(s);
+            setExtra(null);
+          }}
+        />
+      )}
+
+      {favs.length > 0 && (
+        <section className="fav-inline" aria-label="Schnell eintragen">
+          <small className="muted">Mit einem Tipp gespeichert:</small>
+          <div className="fav-chips">
+            {favs.map((f) => (
+              <button
+                key={`${f.fieldId}|${f.text}`}
+                type="button"
+                className="fav-chip"
+                onClick={() => {
+                  const entry = { id: uid(), trackerId: tracker.id, timestamp: new Date().toISOString(), values: favoriteValues(tracker, f) };
+                  dispatch({ type: 'entry/save', entry });
+                  onSaved({ entry, changes: [], hint: null });
+                }}
+              >
+                <span aria-hidden>{FAVORITE_ICON[f.kind]}</span> {f.text}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <button className="linkish more-entry" onClick={() => navigate('/now?m=all')}>
+        Alle Felder auf einmal oder zu einer anderen Uhrzeit ›
+      </button>
+    </>
   );
 }
 
@@ -174,20 +304,14 @@ function RunningExperiments() {
   const running = (data.experiments ?? []).filter((x) => x.status === 'running');
   if (!running.length) return null;
   return (
-    <section className="card running-card">
-      <div className="section-head">
-        <h2>Läuft gerade</h2>
-        <button className="btn ghost small" onClick={() => navigate('/try')}>Ausprobieren</button>
-      </div>
-      <ul className="exp-list">
-        {running.map((x) => (
-          <li key={x.id}>
-            <span className="exp-title">🧪 {x.title}</span>
-            <span className="pill">Tag {experimentDay(x, new Date())}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <button className="card appt-hint" onClick={() => navigate('/try')}>
+      <span aria-hidden>🧪</span>
+      <span>
+        <strong>{running.map((x) => x.title).join(', ')}</strong>
+        <small className="muted">Ausprobieren · {running.map((x) => `Tag ${experimentDay(x, new Date())}`).join(', ')}</small>
+      </span>
+      <span aria-hidden>›</span>
+    </button>
   );
 }
 
@@ -224,23 +348,22 @@ function TodayTimeline({ trackers, now, main }: { trackers: Tracker[]; now: Date
       return t ? [{ e, t }] : [];
     });
   if (!items.length) return null;
-  const ago = (iso: string) => {
-    const m = Math.round((now.getTime() - new Date(iso).getTime()) / 60000);
-    return m < 1 ? 'gerade eben' : m < 60 ? `vor ${m} Min` : `vor ${Math.floor(m / 60)} h`;
-  };
+  const single = trackers.length === 1;
   return (
     <section className="card timeline-card">
-      <h2>Heute</h2>
+      <div className="section-head">
+        <h2>Bisher heute</h2>
+        <button className="btn ghost small" onClick={() => navigate(`/data?d=${today}`)}>Ganzer Tag ›</button>
+      </div>
       {rhythm && main && <DayRhythmChart rhythm={rhythm} onPick={(id) => navigate(`/t/${main.id}/entry/${id}`)} />}
       <ul className="timeline">
         {(showAll ? items : items.slice(0, 4)).map(({ e, t }) => (
           <li key={e.id} style={{ '--accent': t.color } as React.CSSProperties}>
             <button className="tl-item" onClick={() => navigate(`/t/${t.id}/entry/${e.id}`)}>
-              <span className="tl-icon">{t.icon}</span>
+              <span className="tl-time-big">{formatClock(new Date(e.timestamp))}</span>
               <span className="tl-body">
-                <strong>{t.name}</strong>
-                <small className="muted">{formatClock(new Date(e.timestamp))} ({ago(e.timestamp)})</small>
-                <ValuePills tracker={t} entry={e} limit={4} />
+                {!single && <strong>{t.name}</strong>}
+                <ValuePills tracker={t} entry={e} limit={5} />
               </span>
             </button>
           </li>
@@ -248,7 +371,7 @@ function TodayTimeline({ trackers, now, main }: { trackers: Tracker[]; now: Date
       </ul>
       {items.length > 4 && (
         <button className="btn ghost small show-more" onClick={() => setShowAll((v) => !v)}>
-          {showAll ? 'Weniger zeigen' : `Alle ${items.length} Einträge von heute zeigen`}
+          {showAll ? 'Weniger zeigen' : `Alle ${items.length} Einträge von heute`}
         </button>
       )}
     </section>

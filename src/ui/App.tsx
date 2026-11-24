@@ -7,9 +7,9 @@ import { ConfirmHost } from './confirm';
 import { Dashboard } from './Dashboard';
 import { EntryForm } from './EntryForm';
 import { useReminderEngine } from './reminders';
-import { navigate, useRoute } from './router';
+import { goBack, navigate, useRoute, type Route } from './router';
 import { TabBar, TopNav, useTypingClass } from './Nav';
-import { Settings } from './Settings';
+import { Settings, SETTINGS_TITLES } from './Settings';
 import { DiaryPage } from './DiaryPage';
 import { ExperimentsPage } from './ExperimentsPage';
 import { useAutoUpgrade } from './autoUpgrade';
@@ -26,6 +26,7 @@ export function App() {
   const { data } = useStore();
   const tracker = 'id' in route ? data.trackers.find((t) => t.id === route.id) : undefined;
 
+  const sub = subPage(route, tracker?.name);
   let page: React.ReactNode;
   if ('id' in route && !tracker) {
     page = (
@@ -69,7 +70,7 @@ export function App() {
         page = <HealthImportPage payload={route.payload} />;
         break;
       case 'settings':
-        page = <Settings />;
+        page = <Settings key={route.sub ?? 'main'} sub={route.sub} />;
         break;
     }
   }
@@ -86,9 +87,44 @@ export function App() {
         <TopNav route={route} />
         <SyncBadge />
       </header>
-      <main>{page}</main>
+      {sub && (
+        <div className="backbar no-print">
+          <button className="back-btn" onClick={() => goBack(sub.fallback)} aria-label="Zurück">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M15 5l-7 7 7 7" /></svg>
+            <span>{sub.backLabel}</span>
+          </button>
+          <span className="backbar-title">{sub.title}</span>
+        </div>
+      )}
+      <main className={sub ? 'has-back' : ''}>{page}</main>
       <TabBar route={route} />
       <ConfirmHost />
     </>
   );
+}
+
+/** Unterseiten bekommen oben eine Leiste mit „Zurück“ – Hauptseiten (Tabs) nicht. */
+function subPage(route: Route, trackerName?: string): { title: string; backLabel: string; fallback: string } | null {
+  switch (route.name) {
+    case 'now':
+      return { title: route.talk ? 'Erzählen' : 'Eintragen', backLabel: 'Heute', fallback: '/' };
+    case 'entry':
+      return { title: route.entryId ? 'Eintrag bearbeiten' : 'Neuer Eintrag', backLabel: 'Zurück', fallback: '/' };
+    case 'data':
+      return route.day ? { title: 'Tag', backLabel: 'Verlauf', fallback: '/data' } : null;
+    case 'tracker':
+      return { title: trackerName ?? 'Tracker', backLabel: 'Zurück', fallback: '/settings/tracker' };
+    case 'edit':
+      return { title: 'Felder anpassen', backLabel: 'Zurück', fallback: '/settings/tracker' };
+    case 'new':
+      return { title: 'Neuer Tracker', backLabel: 'Zurück', fallback: '/settings/tracker' };
+    case 'doctor':
+      return { title: 'Arzttermin & Bericht', backLabel: 'Einstellungen', fallback: '/settings' };
+    case 'health':
+      return { title: 'Apple Health', backLabel: 'Heute', fallback: '/' };
+    case 'settings':
+      return route.sub ? { title: SETTINGS_TITLES[route.sub] ?? 'Einstellungen', backLabel: 'Einstellungen', fallback: '/settings' } : null;
+    default:
+      return null;
+  }
 }

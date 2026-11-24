@@ -1,22 +1,29 @@
 import { useRef, useState } from 'react';
 import { SyncInfo, useSyncStatus } from './cloudSync';
 import { HealthSettings } from './HealthPanel';
+import { dayKey, parseDayKey } from '../core/dates';
 import { copyText, saveFile } from './save';
 import { askConfirm, notify } from './confirm';
-import { IS_ARTIFACT, IS_WORKER } from './env';
-import { generateDemo } from '../core/demo';
+import { IS_WORKER } from './env';
 import { emptyData, exportJson, normalize } from '../core/storage';
 import { useStore } from '../state/store';
-import { notificationsSupported, requestNotificationPermission } from './reminders';
 import { navigate } from './router';
 
-/** „Mehr“: Feedback, eigene Tracker, Gesundheitsdaten, Erinnerungen, Speicher und Sicherung. */
-export function Settings() {
+export const SETTINGS_TITLES: Record<string, string> = {
+  tracker: 'Felder & Tracker',
+  health: 'Apple Health & Armband',
+  data: 'Daten & Sicherung',
+};
+
+/**
+ * Einstellungen: eine kurze, gegliederte Liste. Alles mit Erklärungen liegt eine Ebene tiefer,
+ * damit die Hauptseite übersichtlich bleibt.
+ */
+export function Settings({ sub }: { sub?: string }) {
   const { data, dispatch } = useStore();
   const sync = useSyncStatus();
   const fileRef = useRef<HTMLInputElement>(null);
   const [msg, setMsg] = useState<string | null>(null);
-  const [perm, setPerm] = useState(notificationsSupported() ? Notification.permission : 'unsupported');
   const online = sync.status !== 'local';
   const own = data.trackers.filter((t) => !t.demo);
 
@@ -31,38 +38,19 @@ export function Settings() {
     }
   };
 
-  return (
-    <div className="page">
-      <section className="hero-band compact">
-        <div className="hero-inner">
-          <h1>Mehr</h1>
-          <p className="hero-lead">Arzttermin, Armband-Daten, Felder anpassen und wo deine Daten liegen.</p>
-        </div>
-      </section>
+  if (sub === 'health')
+    return (
+      <div className="page">
+        <HealthSettings />
+      </div>
+    );
 
-      <section className="more-links">
-        <button className="card more-link" onClick={() => navigate('/arzt')}>
-          <span className="ml-icon" aria-hidden>🩺</span>
-          <span>
-            <strong>Arzttermin & Bericht</strong>
-            <small className="muted">Termin, Fragen, Zusammenfassung und Bericht mit allen Einträgen</small>
-          </span>
-          <span aria-hidden>›</span>
-        </button>
-        <a className="card more-link" href="#health-settings">
-          <span className="ml-icon" aria-hidden>❤️</span>
-          <span>
-            <strong>Schlaf & Bewegung vom Armband</strong>
-            <small className="muted">Apple Health / Amazfit: Aufwachzeit, Schlaf, Schritte übernehmen</small>
-          </span>
-          <span aria-hidden>›</span>
-        </a>
-      </section>
-
-
+  if (sub === 'tracker')
+    return (
+      <div className="page">
       <section className="card">
         <div className="section-head">
-          <h2>Felder & Tracker anpassen</h2>
+          <h2>Deine Tracker</h2>
           <button className="btn small" onClick={() => navigate('/new')}>＋ Neuen bauen</button>
         </div>
         {data.trackers.length ? (
@@ -82,36 +70,12 @@ export function Settings() {
         )}
         <p className="muted small">Im Baukasten kannst du Felder hinzufügen, umbenennen, verschieben oder ausblenden – deine Einträge bleiben dabei erhalten.</p>
       </section>
+      </div>
+    );
 
-      <HealthSettings />
-
-      <section className="card">
-        <h2>Erinnerungen</h2>
-        {IS_ARTIFACT ? (
-          <p className="muted">
-            In claude.ai darf die Seite keine Mitteilungen aufs Handy schicken. Fällige Einträge siehst du oben in der
-            Übersicht, sobald du die App öffnest. Für feste Zeiten hilft ein Wecker oder eine Erinnerung in der
-            Erinnerungen-App deines iPhones.
-          </p>
-        ) : (
-          <>
-            <p className="muted">
-              Mitteilungen der App kommen nur, solange sie geöffnet ist. Zuverlässig erinnert dich dein Kalender – z. B. um 9, 14
-              und 20 Uhr: „Befinden eintragen“.
-            </p>
-            <p>
-              Mitteilungen:{' '}
-              <b>{perm === 'granted' ? 'erlaubt ✓' : perm === 'denied' ? 'blockiert – in den Browser-Einstellungen freigeben' : perm === 'unsupported' ? 'hier nicht möglich' : 'noch nicht erlaubt'}</b>
-            </p>
-            {perm === 'default' && (
-              <button className="btn primary" onClick={async () => setPerm(await requestNotificationPermission())}>
-                Mitteilungen erlauben
-              </button>
-            )}
-          </>
-        )}
-      </section>
-
+  if (sub === 'data')
+    return (
+      <div className="page">
       <section className="card">
         <h2>Wo deine Daten liegen</h2>
         <SyncInfo />
@@ -139,22 +103,6 @@ export function Settings() {
           </p>
         )}
       </section>
-
-      <section className="card">
-        <h2>Für den Arztbericht</h2>
-        <p className="muted">Steht oben im Bericht. Wird mit deinen Einträgen gespeichert.</p>
-        <div className="cfg-grid">
-          <label className="cfg-row">
-            <span>Name</span>
-            <input value={data.profile?.name ?? ''} autoComplete="name" onChange={(e) => dispatch({ type: 'profile/update', patch: { name: e.target.value } })} />
-          </label>
-          <label className="cfg-row">
-            <span>Geburtsdatum</span>
-            <input type="date" value={data.profile?.birthdate ?? ''} onChange={(e) => dispatch({ type: 'profile/update', patch: { birthdate: e.target.value } })} />
-          </label>
-        </div>
-      </section>
-
       <section className="card">
         <h2>Sichern & übertragen</h2>
         <p className="muted">
@@ -179,24 +127,20 @@ export function Settings() {
         </div>
         {msg && <p className="info">{msg}</p>}
       </section>
-
       <section className="card">
-        <h2>Beispieldaten ansehen</h2>
-        <p className="muted">
-          Fügt Beispiel-Tracker („Mein Befinden (Demo)“ und „Liegestütze (Demo)“) mit 60 Tagen erfundener Einträge hinzu – so
-          siehst du, wie Verlauf und Auswertungen aussehen. Mit einem Tipp in der Übersicht wieder entfernt.
-        </p>
-        <button
-          className="btn"
-          onClick={() => {
-            dispatch({ type: 'data/merge', ...generateDemo() });
-            navigate('/');
-          }}
-        >
-          Beispieldaten hinzufügen
-        </button>
+        <h2>Für den Arztbericht</h2>
+        <p className="muted">Steht oben im Bericht. Wird mit deinen Einträgen gespeichert.</p>
+        <div className="cfg-grid">
+          <label className="cfg-row">
+            <span>Name</span>
+            <input value={data.profile?.name ?? ''} autoComplete="name" onChange={(e) => dispatch({ type: 'profile/update', patch: { name: e.target.value } })} />
+          </label>
+          <label className="cfg-row">
+            <span>Geburtsdatum</span>
+            <input type="date" value={data.profile?.birthdate ?? ''} onChange={(e) => dispatch({ type: 'profile/update', patch: { birthdate: e.target.value } })} />
+          </label>
+        </div>
       </section>
-
       <section className="card danger-zone">
         <h2>Alles löschen</h2>
         <p className="muted small">{own.length ? 'Löscht alle Tracker und Einträge, auch deine eigenen.' : 'Löscht alle Tracker und Einträge.'}</p>
@@ -207,6 +151,74 @@ export function Settings() {
           Alle Daten löschen
         </button>
       </section>
+      </div>
+    );
+
+  const main = data.trackers.find((t) => t.quick && !t.demo && !t.archived);
+  const lastHealth = Object.values(data.health ?? {})
+    .filter((h) => h.source === 'health')
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  const healthStatus = lastHealth
+    ? `Verbunden · zuletzt ${lastHealth.date === dayKey(new Date()) ? 'heute' : parseDayKey(lastHealth.date).toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric' })}`
+    : 'Noch nicht verbunden';
+  const appt = data.profile?.appointment;
+
+  return (
+    <div className="page">
+      <header className="page-head">
+        <h1>Einstellungen</h1>
+      </header>
+
+      <SettingsGroup title="Tagebuch">
+        {main && <Row icon="✏️" title="Felder anpassen" text={`Was „${main.name}“ abfragt`} href={`/t/${main.id}/edit`} />}
+        <Row icon="🧩" title="Weitere Tracker" text="Eigene Tracker bauen, z. B. für Gewohnheiten" href="/settings/tracker" />
+      </SettingsGroup>
+
+      <SettingsGroup title="Verbindungen">
+        <Row icon="❤️" title="Apple Health & Armband" text={healthStatus} href="/settings/health" />
+      </SettingsGroup>
+
+      <SettingsGroup title="Arzt">
+        <Row icon="🩺" title="Arzttermin & Bericht" text={appt ? `Termin am ${parseDayKey(appt).toLocaleDateString('de-DE')}` : 'Bericht mit allen Einträgen'} href="/arzt" />
+      </SettingsGroup>
+
+      <SettingsGroup title="Daten">
+        <Row icon="☁️" title="Daten & Sicherung" text={online ? `${data.entries.length} Einträge · online gespeichert` : `${data.entries.length} Einträge · auf diesem Gerät`} href="/settings/data" />
+        {IS_WORKER && <Row icon="↩︎" title="Abmelden" text="Auf diesem Gerät abmelden" link="/logout" />}
+      </SettingsGroup>
     </div>
+  );
+}
+
+function SettingsGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="set-group">
+      <h2 className="set-group-title">{title}</h2>
+      <div className="set-list">{children}</div>
+    </section>
+  );
+}
+
+function Row({ icon, title, text, href, link }: { icon: string; title: string; text?: string; href?: string; link?: string }) {
+  const inner = (
+    <>
+      <span className="set-icon" aria-hidden>{icon}</span>
+      <span className="set-text">
+        <strong>{title}</strong>
+        {text && <small className="muted">{text}</small>}
+      </span>
+      <span className="set-chev" aria-hidden>›</span>
+    </>
+  );
+  if (link)
+    return (
+      <a className="set-row" href={link}>
+        {inner}
+      </a>
+    );
+  return (
+    <button className="set-row" onClick={() => href && navigate(href)}>
+      {inner}
+    </button>
   );
 }

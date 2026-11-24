@@ -60,7 +60,6 @@ export function EntryForm({ tracker, entry, date }: { tracker: Tracker; entry?: 
     <div className="page">
       <section className="hero-band compact">
         <div className="hero-inner">
-          <button className="back linkish" onClick={() => navigate(`/t/${tracker.id}`)}>‹ {tracker.name}</button>
           <h1>
             {tracker.icon} {entry ? 'Eintrag bearbeiten' : 'Neuer Eintrag'}
           </h1>

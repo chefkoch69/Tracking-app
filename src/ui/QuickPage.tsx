@@ -65,7 +65,7 @@ export function QuickPage({ talk, moment, at }: { talk?: boolean; moment?: strin
         </section>
         <div className="card empty">
           <div className="empty-icon">💙</div>
-          <p>Richte „Mein Befinden“ ein. Alles lässt sich später unter „Mehr“ anpassen.</p>
+          <p>Richte „Mein Befinden“ ein. Alles lässt sich später unter „Einstellungen“ anpassen.</p>
           <button className="btn primary" onClick={() => dispatch({ type: 'tracker/save', tracker: trackerFromTemplate(tpl) })}>
             „Mein Befinden“ einrichten
           </button>
@@ -77,7 +77,7 @@ export function QuickPage({ talk, moment, at }: { talk?: boolean; moment?: strin
 }
 
 /** Schnelle Zeitwahl: die meisten Einträge passieren „jetzt“ oder kurz davor. */
-const TIME_CHOICES = [
+export const TIME_CHOICES = [
   { key: 'now', label: 'Jetzt', minutes: 0 },
   { key: '15', label: 'vor 15 Min', minutes: 15 },
   { key: '30', label: 'vor 30 Min', minutes: 30 },
@@ -86,14 +86,14 @@ const TIME_CHOICES = [
 ] as const;
 
 /** Nach dem Speichern: was sich verändert hat und ein Anstoß für den nächsten Eintrag. */
-interface SavedInfo {
+export interface SavedInfo {
   entry: Entry;
   changes: ValueChange[];
   rest: string[];
   hint: string | null;
 }
 
-function nextHint(tracker: Tracker, values: Record<string, FieldValue>): string | null {
+export function nextHint(tracker: Tracker, values: Record<string, FieldValue>): string | null {
   const texts = tracker.fields
     .filter((f) => !isEmptyValue(values[f.id]) && (f.type === 'multiselect' || (f.type === 'text' && f.config.splitList)))
     .flatMap((f) => (Array.isArray(values[f.id]) ? (values[f.id] as string[]) : [`${f.label} ${values[f.id]}`]))
@@ -494,7 +494,7 @@ function MomentEntry({ tracker, talk, initial, at }: { tracker: Tracker; talk?: 
 }
 
 /** Ein Feld mit Bezeichnung, letztem Wert und Eingabe. */
-function QuickField({ field: f, label, value, prev, error, onChange }: { field: FieldDef; label?: string; value: FieldValue; prev: { v: FieldValue; t: Date } | null; error?: string; onChange: (v: FieldValue) => void }) {
+export function QuickField({ field: f, label, value, prev, error, onChange }: { field: FieldDef; label?: string; value: FieldValue; prev: { v: FieldValue; t: Date } | null; error?: string; onChange: (v: FieldValue) => void }) {
   const delta = typeof value === 'number' && prev && typeof prev.v === 'number' ? value - prev.v : null;
   const better = delta !== null && (delta < 0) === (f.config.polarity !== 'higher-better');
   return (
@@ -516,7 +516,7 @@ function QuickField({ field: f, label, value, prev, error, onChange }: { field: 
 }
 
 /** Aufwachzeit: aus Apple Health (Amazfit) übernommen oder selbst eintragen. */
-function WakeControl({ day }: { day: string }) {
+export function WakeControl({ day }: { day: string }) {
   const { data, dispatch } = useStore();
   const h = data.health?.[day];
   return (
@@ -532,14 +532,14 @@ function WakeControl({ day }: { day: string }) {
           value={h?.wake ?? ''}
           onChange={(e) => e.target.value && dispatch({ type: 'health/upsert', days: [{ date: day, wake: e.target.value, source: h?.source === 'health' ? 'health' : 'manual' }] })}
         />
-        {!h?.wake && <small className="muted">Mit dem Health-Kurzbefehl kommt die Zeit von deinem Armband (siehe „Mehr“).</small>}
+        {!h?.wake && <small className="muted">Mit dem Health-Kurzbefehl kommt die Zeit von deinem Armband (siehe Einstellungen).</small>}
       </div>
     </div>
   );
 }
 
 /** Abends: wann zuletzt gegessen wurde – aus den Einträgen, nicht nochmal fragen. */
-function LastMealLine({ tracker, entries, now }: { tracker: Tracker; entries: Entry[]; now: Date }) {
+export function LastMealLine({ tracker, entries, now }: { tracker: Tracker; entries: Entry[]; now: Date }) {
   const food = tracker.fields.filter((f) => isFoodField(f) && /gegessen|essen/i.test(f.label));
   const today = dayKey(now);
   const meals = entries.filter((e) => dayKey(new Date(e.timestamp)) === today && food.some((f) => typeof e.values[f.id] === 'string' && e.values[f.id]));
@@ -553,7 +553,7 @@ function LastMealLine({ tracker, entries, now }: { tracker: Tracker; entries: En
   );
 }
 
-function SavedCard({ saved, undone, today, onClose, onUndo, onEdit }: { saved: SavedInfo; undone: boolean; today: string; onClose: () => void; onUndo: () => void; onEdit: () => void }) {
+export function SavedCard({ saved, undone, today, onClose, onUndo, onEdit }: { saved: SavedInfo; undone: boolean; today: string; onClose: () => void; onUndo: () => void; onEdit: () => void }) {
   const ts = new Date(saved.entry.timestamp);
   return (
     <section className={`saved-card ${undone ? 'undone' : ''}`} role="status">
@@ -590,7 +590,7 @@ function SavedCard({ saved, undone, today, onClose, onUndo, onEdit }: { saved: S
   );
 }
 
-function short(f: FieldDef, v: FieldValue): string {
+export function short(f: FieldDef, v: FieldValue): string {
   if (f.type === 'scale' && typeof v === 'number') return `${f.label} ${fmtLevel(v)}`;
   if (Array.isArray(v)) return f.type === 'bodymap' ? formatValue(f, v) : v.join(', ');
   if (f.type === 'scale') return f.label;
@@ -606,7 +606,7 @@ function stepText(v: number): string {
 }
 
 /** Eine Beschwerde als kompakte Zeile: Name links, Stufen rechts. Nochmal tippen = abwählen. */
-function CompactScale({ field, value, prev, onChange }: { field: FieldDef; value: FieldValue; prev: { v: FieldValue; t: Date } | null; onChange: (v: FieldValue) => void }) {
+export function CompactScale({ field, value, prev, onChange }: { field: FieldDef; value: FieldValue; prev: { v: FieldValue; t: Date } | null; onChange: (v: FieldValue) => void }) {
   const levels = scaleLevels(field.config);
   const cur = typeof value === 'number' ? value : null;
   const label = cur !== null ? levels.find((l) => l.value === cur)?.label : null;
@@ -646,7 +646,7 @@ function CompactScale({ field, value, prev, onChange }: { field: FieldDef; value
 }
 
 /** Abends: „Wie war der Tag?“ mit einem Tipp (gilt für den ganzen Tag). */
-function DayMoodControl({ day }: { day: string }) {
+export function DayMoodControl({ day }: { day: string }) {
   const { data, dispatch } = useStore();
   const mood = data.days?.[day]?.mood;
   return (

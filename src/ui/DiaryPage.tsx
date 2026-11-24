@@ -255,7 +255,6 @@ function DayPage({ day, trackers }: { day: string; trackers: Tracker[] }) {
         )}
       </section>
 
-      <button className="btn ghost show-more" onClick={() => navigate('/data')}>‹ Alle Tage</button>
     </div>
   );
 }

@@ -3,7 +3,7 @@ import type { Route } from './router';
 
 /**
  * Hauptnavigation: oben als Leiste (breite Bildschirme), unten als Tab-Leiste (Handy).
- * Fünf feste Ziele – Eintragen steht vorne, weil es am häufigsten gebraucht wird.
+ * Vier feste Ziele. Eingetragen wird direkt auf „Heute“; Unterseiten haben oben einen Zurück-Knopf.
  */
 
 type Tab = { key: string; href: string; label: string; icon: React.ReactNode; match: Route['name'][] };
@@ -15,7 +15,7 @@ export const TABS: Tab[] = [
     key: 'dashboard',
     href: '#/',
     label: 'Heute',
-    match: ['dashboard'],
+    match: ['dashboard', 'now', 'entry'],
     icon: (
       <svg viewBox="0 0 24 24" {...stroke}>
         <circle cx="12" cy="12" r="4.2" />
@@ -36,17 +36,6 @@ export const TABS: Tab[] = [
     ),
   },
   {
-    key: 'now',
-    href: '#/now',
-    label: 'Eintragen',
-    match: ['now', 'entry'],
-    icon: (
-      <svg viewBox="0 0 24 24" {...stroke} strokeWidth={2.4}>
-        <path d="M12 5.5v13M5.5 12h13" />
-      </svg>
-    ),
-  },
-  {
     key: 'try',
     href: '#/try',
     label: 'Ausprobieren',
@@ -61,13 +50,12 @@ export const TABS: Tab[] = [
   {
     key: 'more',
     href: '#/settings',
-    label: 'Mehr',
+    label: 'Einstellungen',
     match: ['settings', 'health', 'doctor', 'tracker', 'edit', 'new'],
     icon: (
-      <svg viewBox="0 0 24 24" fill="currentColor">
-        <circle cx="5.5" cy="12" r="1.8" />
-        <circle cx="12" cy="12" r="1.8" />
-        <circle cx="18.5" cy="12" r="1.8" />
+      <svg viewBox="0 0 24 24" {...stroke}>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.6.85 1 1.51 1H21a2 2 0 1 1 0 4h-.09c-.66 0-1.25.4-1.51 1z" />
       </svg>
     ),
   },
@@ -91,7 +79,7 @@ export function TabBar({ route }: { route: Route }) {
       {TABS.map((t) => {
         const active = t.match.includes(route.name);
         return (
-          <a key={t.key} href={t.href} className={`${active ? 'active' : ''} ${t.key === 'now' ? 'tab-add' : ''}`} aria-current={active ? 'page' : undefined}>
+          <a key={t.key} href={t.href} className={active ? 'active' : ''} aria-current={active ? 'page' : undefined}>
             <span className="tab-icon" aria-hidden>{t.icon}</span>
             <span>{t.label}</span>
           </a>
