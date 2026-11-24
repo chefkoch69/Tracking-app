@@ -63,7 +63,7 @@ export function App() {
         page = <DoctorReport />;
         break;
       case 'data':
-        page = <DiaryPage />;
+        page = <DiaryPage key={route.day ?? 'all'} day={route.day} />;
         break;
       case 'health':
         page = <HealthImportPage payload={route.payload} />;

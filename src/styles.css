@@ -1099,3 +1099,7 @@ button.ring:disabled { cursor: default; }
 .ah-row span { flex-basis: 100%; }
 .ah-row code { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; background: var(--surface); padding: 0.4rem 0.6rem; border-radius: 8px; font-size: 0.82rem; }
 .try-howto { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.92rem; }
+
+.ws-day { border: 0; font: inherit; color: inherit; cursor: pointer; }
+.ws-day:disabled { cursor: default; opacity: 0.55; }
+.day-filter { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; }

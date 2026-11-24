@@ -86,7 +86,7 @@ export function Dashboard() {
           </div>
           {/* Aufstehen wird über „Aufgestanden“ eingetragen – hier nur die Werte vom Armband/Health */}
           <WakeChip now={now} buttons={!mainTracker?.quick} />
-          <WeekStrip now={now} state={(d) => combinedDayState(active, data.entries, d, now)} />
+          <WeekStrip now={now} state={(d) => combinedDayState(active, data.entries, d, now)} onPick={(k) => navigate(k === dayKey(now) ? '/' : `/data?d=${k}`)} />
         </div>
       </section>
 

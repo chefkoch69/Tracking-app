@@ -34,7 +34,7 @@ export function combinedDayState(trackers: Tracker[], entries: Entry[], day: Dat
 
 const WD = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 
-export function WeekStrip({ state, now }: { state: (d: Date) => DayState; now: Date }) {
+export function WeekStrip({ state, now, onPick }: { state: (d: Date) => DayState; now: Date; onPick?: (key: string) => void }) {
   const today = startOfDay(now);
   const monday = addDays(today, -((today.getDay() + 6) % 7));
   return (
@@ -44,13 +44,20 @@ export function WeekStrip({ state, now }: { state: (d: Date) => DayState; now: D
         const s = state(d);
         const isToday = dayKey(d) === dayKey(today);
         return (
-          <div key={i} className={`ws-day ${isToday ? 'today' : ''}`}>
+          <button
+            key={i}
+            type="button"
+            className={`ws-day ${isToday ? 'today' : ''}`}
+            disabled={!onPick || d > today}
+            onClick={() => onPick?.(dayKey(d))}
+            aria-label={d.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}
+          >
             <small>{WD[d.getDay()]}</small>
             <span className="ws-num">
               {d.getDate()}
               {(s === 'done' || s === 'partial' || s === 'missed') && <i className={`ws-badge ${s}`}>{s === 'missed' ? '!' : '✓'}</i>}
             </span>
-          </div>
+          </button>
         );
       })}
     </div>

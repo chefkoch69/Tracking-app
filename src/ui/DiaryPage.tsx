@@ -46,7 +46,7 @@ function worstOfDay(items: { e: Entry; t: Tracker }[]): string | null {
  * Tagebuch: alles, was du eingetragen hast – Tag für Tag, neueste zuerst. Zum Nachsehen und
  * Korrigieren. Die Tabelle (suchen, sortieren, exportieren) ist eine Ansicht davon.
  */
-export function DiaryPage() {
+export function DiaryPage({ day }: { day?: string } = {}) {
   const { data } = useStore();
   const [view, setView] = useState<'list' | 'patterns' | 'table'>('list');
   const insights = useMemo(() => {
@@ -63,7 +63,7 @@ export function DiaryPage() {
     })
     .sort((a, b) => b.e.timestamp.localeCompare(a.e.timestamp));
   const groups = new Map<string, { e: Entry; t: Tracker }[]>();
-  for (const it of items) {
+  for (const it of day ? items.filter((x) => dayKey(new Date(x.e.timestamp)) === day) : items) {
     const k = dayKey(new Date(it.e.timestamp));
     if (!groups.has(k) && groups.size >= days) break;
     groups.set(k, [...(groups.get(k) ?? []), it]);
@@ -86,7 +86,19 @@ export function DiaryPage() {
         <button role="tab" aria-selected={view === 'table'} className={view === 'table' ? 'active' : ''} onClick={() => setView('table')}>Tabelle</button>
       </div>
 
-      {view === 'table' ? (
+      {day && view === 'list' && (
+        <div className="day-filter">
+          <strong>{parseDayKey(day).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}</strong>
+          <button className="btn small" onClick={() => navigate('/data')}>Alle Tage</button>
+        </div>
+      )}
+      {day && view === 'list' && !groups.size ? (
+        <div className="card empty">
+          <p>An diesem Tag hast du nichts eingetragen.</p>
+          <button className="btn primary" onClick={() => navigate('/now')}>Nachtragen</button>
+          <small className="muted">Beim Eintragen oben „Andere Zeit…“ wählen und den Tag einstellen.</small>
+        </div>
+      ) : view === 'table' ? (
         <DataTable />
       ) : view === 'patterns' ? (
         <>

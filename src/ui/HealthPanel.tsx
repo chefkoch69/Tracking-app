@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { dayKey, formatDay, parseDayKey } from '../core/dates';
-import { formatDuration } from '../core/fieldTypes';
-import { minutesSinceWake, parseHealthText } from '../core/health';
+import { parseHealthText } from '../core/health';
 import type { HealthDay } from '../core/types';
 import { useStore } from '../state/store';
 import { askConfirm, notify } from './confirm';
@@ -17,7 +16,6 @@ export function WakeChip({ now, buttons = true }: { now: Date; buttons?: boolean
   const today = data.health?.[key];
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(today?.wake ?? hhmm(now));
-  const since = minutesSinceWake(data.health, now);
   const save = (wake: string) => {
     dispatch({ type: 'health/upsert', days: [{ date: key, wake, source: today?.source === 'health' ? 'health' : 'manual' }] });
     setEditing(false);
@@ -46,7 +44,6 @@ export function WakeChip({ now, buttons = true }: { now: Date; buttons?: boolean
     <div className="wake-chip">
       <button className="wake-pill" onClick={() => { setDraft(today.wake!); setEditing(true); }} title="Aufstehzeit ändern">
         ☀ Aufgestanden {today.wake}
-        {since !== null && <span> · seit {formatDuration(since)} wach</span>}
       </button>
       {today.sleepHours !== undefined && <span className="wake-pill static">☾ {today.sleepHours.toLocaleString('de-DE')} h Schlaf</span>}
       {today.steps !== undefined && <span className="wake-pill static">👣 {today.steps.toLocaleString('de-DE')} Schritte</span>}
