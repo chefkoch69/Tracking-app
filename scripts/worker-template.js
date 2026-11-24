@@ -190,6 +190,30 @@ async function listDocs(env) {
 async function handleApi(request, env, url) {
   if (!env.DATA) return json({ error: 'Kein Speicher verbunden.' }, 500);
   if (url.pathname === '/api/docs' && request.method === 'GET') return json({ docs: await listDocs(env) });
+  if (url.pathname === '/api/health-key' && request.method === 'POST') {
+    // Neuer Schlüssel für den Kurzbefehl; nur der Hash wird gespeichert, ein alter Schlüssel wird ungültig.
+    const key = b64url(crypto.getRandomValues(new Uint8Array(24)));
+    await env.DATA.put('auth:healthkey', await sha(key));
+    return json({ key });
+  }
+  if (url.pathname === '/api/feedback' && request.method === 'POST') {
+    const text = (await request.text()).slice(0, 4000).trim();
+    if (!text) return json({ error: 'Leer.' }, 400);
+    await env.DATA.put(`feedback:${new Date().toISOString()}`, text);
+    return json({ ok: true });
+  }
+  if (url.pathname === '/api/health-inbox') {
+    if (request.method === 'GET') {
+      const page = await env.DATA.list({ prefix: 'healthin:' });
+      const items = await Promise.all(page.keys.map(async (k) => ({ id: k.name, text: await env.DATA.get(k.name) })));
+      return json({ items: items.filter((x) => x.text) });
+    }
+    if (request.method === 'DELETE') {
+      const id = url.searchParams.get('id') || '';
+      if (id.startsWith('healthin:')) await env.DATA.delete(id);
+      return json({ ok: true });
+    }
+  }
   if (url.pathname === '/api/doc') {
     const path = url.searchParams.get('path') || '';
     if (!DOC_PATH.test(path)) return json({ error: 'Ungültiger Pfad.' }, 400);
@@ -277,6 +301,18 @@ export default {
         status: 303,
         headers: { location: '/login', 'set-cookie': `${COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`, 'cache-control': 'no-store' },
       });
+    }
+
+    // Apple-Health-Kurzbefehl: eigener Schlüssel statt Anmeldung (Kurzbefehle haben kein Cookie).
+    if (path === '/api/health' && request.method === 'POST') {
+      const auth = request.headers.get('authorization') || '';
+      const key = auth.replace(/^Bearer\s+/i, '').trim();
+      const expected = env.DATA ? await env.DATA.get('auth:healthkey') : null;
+      if (!key || !expected || !same(await sha(key), expected)) return json({ error: 'Schlüssel fehlt oder stimmt nicht.' }, 401);
+      const text = await request.text();
+      if (!text.trim() || text.length > 20000) return json({ error: 'Leer oder zu groß.' }, 400);
+      await env.DATA.put(`healthin:${Date.now()}`, text, { expirationTtl: 60 * 60 * 24 * 30 });
+      return new Response('Gespeichert ✓ – „Mein Befinden“ übernimmt die Werte beim nächsten Öffnen.', { headers: { 'content-type': 'text/plain; charset=utf-8' } });
     }
 
     const isApi = path.startsWith('/api/');

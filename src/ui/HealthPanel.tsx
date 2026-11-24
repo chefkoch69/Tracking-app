@@ -4,8 +4,9 @@ import { formatDuration } from '../core/fieldTypes';
 import { minutesSinceWake, parseHealthText } from '../core/health';
 import type { HealthDay } from '../core/types';
 import { useStore } from '../state/store';
-import { askConfirm } from './confirm';
-import { IS_ARTIFACT } from './env';
+import { askConfirm, notify } from './confirm';
+import { copyText } from './save';
+import { IS_ARTIFACT, IS_WORKER } from './env';
 
 const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
@@ -97,8 +98,10 @@ export function HealthSettings() {
         freigeben. Dann landet dein Schlaf vom Armband in Apple Health – und der Kurzbefehl unten holt ihn von dort.
       </p>
 
+      {IS_WORKER && <AutoHealth />}
+
       <label className="field" htmlFor="health-paste">
-        <span>Daten vom Kurzbefehl einfügen</span>
+        <span>{IS_WORKER ? 'Oder von Hand: Text vom Kurzbefehl einfügen' : 'Daten vom Kurzbefehl einfügen'}</span>
         <textarea
           id="health-paste"
           rows={3}
@@ -121,7 +124,7 @@ export function HealthSettings() {
       {msg && <p className={msg.ok ? 'info' : 'error'}>{msg.text}</p>}
 
       <details className="howto">
-        <summary>So richtest du den Kurzbefehl ein (einmalig, ca. 5 Minuten)</summary>
+        <summary>So richtest du den Kurzbefehl ein (einmalig, ca. 10 Minuten)</summary>
         <ol>
           <li>Öffne die App <b>Kurzbefehle</b> → <b>+</b> → neuer Kurzbefehl, Name z. B. „Tracker Health“.</li>
           <li>
@@ -145,8 +148,25 @@ export function HealthSettings() {
             Datum als „yyyy-MM-dd“, Zeit als „HH:mm“; was du nicht abfragst, einfach weglassen):
             <code className="code-block">{'BYOT-HEALTH {"date":"[Aktuelles Datum]","wake":"[Enddatum]","schlaf":[Schlafminuten],"steps":[Schritte],"kcal":[Aktive Energie],"training":[Trainingsminuten],"gewicht":[Gewicht],"fett":[Körperfettanteil],"ruhepuls":[Ruheherzfrequenz]}'}</code>
           </li>
-          <li>Aktion <b>In Zwischenablage kopieren</b>.</li>
-          <li>Morgens: Kurzbefehl antippen (oder per Automation „Wecker gestoppt“ automatisch starten), dann hier ins Feld einfügen.</li>
+          {IS_WORKER ? (
+            <>
+              <li>
+                Aktion <b>Inhalte von URL abrufen</b>: die <b>Adresse</b> von oben einsetzen, auf „Mehr anzeigen“ tippen →
+                Methode <b>POST</b> → Header hinzufügen: Schlüssel <code>Authorization</code>, Wert <code>Bearer </code> + dein
+                Verbindungs-Schlüssel → Anfragetext <b>Datei</b> → den <b>Text</b> aus dem Schritt davor wählen.
+              </li>
+              <li>Einmal antippen zum Testen – es sollte „Gespeichert ✓“ erscheinen.</li>
+              <li>
+                Automatisch jeden Morgen: Kurzbefehle → <b>Automation</b> → <b>+</b> → <b>Wecker</b> → „Wenn gestoppt“ (oder
+                <b> Tageszeit</b> 9:00) → <b>Sofort ausführen</b> → deinen Kurzbefehl wählen.
+              </li>
+            </>
+          ) : (
+            <>
+              <li>Aktion <b>In Zwischenablage kopieren</b>.</li>
+              <li>Morgens: Kurzbefehl antippen (oder per Automation „Wecker gestoppt“ automatisch starten), dann hier ins Feld einfügen.</li>
+            </>
+          )}
         </ol>
         <p className="muted small">
           Die Bezeichnungen der Aktionen können je nach iOS-Version leicht abweichen. Die App versteht auch Schlaf in Minuten,
@@ -235,6 +255,55 @@ export function HealthImportPage({ payload }: { payload?: string }) {
         {result.length ? <p className="info">Übernommen: {result.map(describe).join(' · ')}</p> : <p className="error">Keine Gesundheitsdaten im Link gefunden.</p>}
         <a className="btn primary" href="#/">Zur Übersicht</a>
       </section>
+    </div>
+  );
+}
+
+/** Eigene Cloudflare-Version: Kurzbefehl schickt die Werte direkt an den Server. */
+function AutoHealth() {
+  const [key, setKey] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const url = `${window.location.origin}/api/health`;
+  const create = async () => {
+    if (key === null && !(await askConfirm('Neuen Verbindungs-Schlüssel erstellen? Ein früherer Schlüssel funktioniert danach nicht mehr.', { okLabel: 'Erstellen', danger: false }))) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await fetch('/api/health-key', { method: 'POST', credentials: 'same-origin' });
+      if (!res.ok) throw new Error();
+      setKey(((await res.json()) as { key: string }).key);
+    } catch {
+      setErr('Das hat gerade nicht geklappt. Bitte nochmal versuchen.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const copy = async (t: string) => {
+    if (!(await copyText(t))) await notify('Bitte selbst markieren und kopieren:', t);
+  };
+  return (
+    <div className="auto-health">
+      <p>
+        <b>Automatisch:</b> Ein iPhone-Kurzbefehl liest jeden Morgen Apple Health und schickt die Werte direkt hierher. Die App
+        übernimmt sie beim nächsten Öffnen – ohne Kopieren.
+      </p>
+      <div className="ah-row">
+        <span className="muted small">Adresse</span>
+        <code>{url}</code>
+        <button className="btn small" onClick={() => copy(url)}>Kopieren</button>
+      </div>
+      {key ? (
+        <div className="ah-row">
+          <span className="muted small">Verbindungs-Schlüssel (nur jetzt sichtbar)</span>
+          <code>{key}</code>
+          <button className="btn small" onClick={() => copy(`Bearer ${key}`)}>„Bearer …“ kopieren</button>
+        </div>
+      ) : (
+        <button className="btn primary" disabled={busy} onClick={create}>Verbindungs-Schlüssel erstellen</button>
+      )}
+      {err && <p className="error small">{err}</p>}
+      <p className="muted small">Wie der Kurzbefehl aufgebaut ist, steht unten Schritt für Schritt.</p>
     </div>
   );
 }

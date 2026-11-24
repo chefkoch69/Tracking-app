@@ -13,6 +13,7 @@ import { Settings } from './Settings';
 import { DiaryPage } from './DiaryPage';
 import { ExperimentsPage } from './ExperimentsPage';
 import { useAutoUpgrade } from './autoUpgrade';
+import { useHealthInbox } from './healthInbox';
 import { TrackerBuilder } from './TrackerBuilder';
 import { TrackerDetail } from './TrackerDetail';
 
@@ -20,6 +21,7 @@ export function App() {
   useReminderEngine();
   useTypingClass();
   useAutoUpgrade();
+  useHealthInbox();
   const route = useRoute();
   const { data } = useStore();
   const tracker = 'id' in route ? data.trackers.find((t) => t.id === route.id) : undefined;

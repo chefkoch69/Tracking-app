@@ -142,20 +142,6 @@ export function reminderToFire(
   return { key, slot: due.slot, attempt };
 }
 
-/** Anteil erledigter Slots je Tag (für Kalender/Erfüllungsquote). */
-export function adherence(tracker: Tracker, entries: Entry[], from: Date, to: Date) {
-  let total = 0;
-  let done = 0;
-  for (let d = startOfDay(from); d <= to; d = addDays(d, 1)) {
-    for (const s of daySlotStatus(tracker, entries, d)) {
-      if (s.slot > to) continue;
-      total++;
-      if (s.done) done++;
-    }
-  }
-  return { total, done, rate: total ? done / total : null };
-}
-
 export function describeSchedule(schedule: Schedule): string {
   if (schedule.mode === 'manual') return 'Manuell';
   const all = schedule.weekdays.length === 7;

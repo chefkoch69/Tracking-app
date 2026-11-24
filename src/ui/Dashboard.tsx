@@ -3,15 +3,11 @@ import { SetupCard } from './SetupCard';
 import { TEMPLATES, trackerFromTemplate } from '../core/templates';
 import { WakeChip } from './HealthPanel';
 import { askConfirm } from './confirm';
-import { bucketize, consistencyScore, currentStreak, entriesOf, numericFields, series } from '../core/analytics';
-import { ConsistencyRing } from './ConsistencyRing';
-import { addDays, dayKey, formatClock, startOfDay } from '../core/dates';
-import { aggregationOf } from '../core/fieldTypes';
-import { daySlotStatus, describeSchedule, nextSlot, slotKey } from '../core/schedule';
+import { dayKey, formatClock } from '../core/dates';
+import { slotKey } from '../core/schedule';
 import type { Tracker } from '../core/types';
 import { useStore } from '../state/store';
 import { combinedDayState, WeekStrip } from './Adherence';
-import { Sparkline } from './charts/Charts';
 import { DayRhythmChart } from './DayRhythm';
 import { appointmentLabel, dayRhythm, daysUntil, questionList } from '../core/feedback';
 import { MOMENTS, suggestedMoment } from '../core/moments';
@@ -218,63 +214,6 @@ function AppointmentHint({ now }: { now: Date }) {
   );
 }
 
-export function TrackerCard({ tracker, now }: { tracker: Tracker; now: Date }) {
-  const { data } = useStore();
-  const entries = entriesOf(tracker, data.entries);
-  const last = entries[entries.length - 1];
-  const today = dayKey(now);
-  const todayCount = entries.filter((e) => dayKey(new Date(e.timestamp)) === today).length;
-  const streak = currentStreak(entries, now);
-  const main = numericFields(tracker)[0];
-  const spark = main
-    ? bucketize(series(main, entries), 'day', aggregationOf(main))
-        .filter((b) => b.key >= dayKey(addDays(startOfDay(now), -29)))
-        .map((b) => b.v)
-    : [];
-  const slots = daySlotStatus(tracker, data.entries, now);
-  const next = nextSlot(tracker, now);
-  const score = consistencyScore(tracker, data.entries, now);
-
-  return (
-    <article className="tracker-card" style={{ '--accent': tracker.color } as React.CSSProperties}>
-      <button className="tracker-card-main" onClick={() => navigate(`/t/${tracker.id}`)}>
-        <div className="tc-head">
-          <span className="tc-icon">{tracker.icon}</span>
-          <span className="tc-title">
-            <strong>{tracker.name}</strong>
-            <small className="muted">{tracker.category || describeSchedule(tracker.schedule)}</small>
-          </span>
-          {score !== null && (
-            <span className="tc-ring" title="Regelmäßigkeit">
-              <ConsistencyRing value={score} color={tracker.color} size={38} />
-            </span>
-          )}
-        </div>
-        <div className="tc-chips">
-          {slots.length > 0 && (
-            <span className={`pill ${slots.every((s) => s.done) ? 'good' : ''}`}>
-              Heute {slots.filter((s) => s.done).length}/{slots.length}
-            </span>
-          )}
-          {slots.length === 0 && <span className="pill">{todayCount} heute</span>}
-          {streak > 1 && <span className="pill">🔥 {streak} Tage</span>}
-          {next && <span className="pill">⏰ {dayKey(next) === today ? formatClock(next) : next.toLocaleDateString('de-DE', { weekday: 'short' }) + ' ' + formatClock(next)}</span>}
-        </div>
-        {spark.length > 1 && (
-          <div className="tc-spark">
-            <small className="muted">{main.label} · 30 Tage</small>
-            <Sparkline values={spark} color={tracker.color} />
-          </div>
-        )}
-        {last ? <ValuePills tracker={tracker} entry={last} limit={3} /> : <small className="muted">Noch keine Einträge</small>}
-      </button>
-      <button className="quick-add" onClick={() => navigate(`/t/${tracker.id}/entry`)} aria-label={`${tracker.name}: Eintrag hinzufügen`}>
-        ＋
-      </button>
-    </article>
-  );
-}
-
 function TodayTimeline({ trackers, now, main }: { trackers: Tracker[]; now: Date; main?: Tracker }) {
   const { data } = useStore();
   const [showAll, setShowAll] = useState(false);
@@ -316,35 +255,5 @@ function TodayTimeline({ trackers, now, main }: { trackers: Tracker[]; now: Date
         </button>
       )}
     </section>
-  );
-}
-
-/** Tracker nach Kategorie gruppiert (nur wenn es mehrere Kategorien gibt). */
-export function TrackerGroups({ trackers, now }: { trackers: Tracker[]; now: Date }) {
-  const groups = new Map<string, Tracker[]>();
-  for (const t of trackers) {
-    const k = t.category.trim() || 'Ohne Kategorie';
-    groups.set(k, [...(groups.get(k) ?? []), t]);
-  }
-  if (groups.size <= 1 || trackers.length < 4) {
-    return (
-      <div className="tracker-grid">
-        {trackers.map((t) => <TrackerCard key={t.id} tracker={t} now={now} />)}
-      </div>
-    );
-  }
-  return (
-    <>
-      {[...groups].map(([name, ts]) => (
-        <details key={name} className="tracker-group" open>
-          <summary>
-            {name} <small className="muted">{ts.length}</small>
-          </summary>
-          <div className="tracker-grid">
-            {ts.map((t) => <TrackerCard key={t.id} tracker={t} now={now} />)}
-          </div>
-        </details>
-      ))}
-    </>
   );
 }

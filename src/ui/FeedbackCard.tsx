@@ -3,6 +3,7 @@ import { claudeUse } from './claudeRuntime';
 import { copyText } from './save';
 import { notify } from './confirm';
 import { useDictation } from './useDictation';
+import { IS_WORKER } from './env';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
@@ -53,6 +54,20 @@ export function FeedbackCard({ compact = false }: { compact?: boolean }) {
     dict.stop();
     setError(null);
     const message = `Feedback zur App: ${body}`;
+    if (IS_WORKER) {
+      // Eigene App: im eigenen Speicher ablegen – Claude liest es auf Wunsch im Chat.
+      setPhase('sending');
+      try {
+        const res = await fetch('/api/feedback', { method: 'POST', credentials: 'same-origin', body });
+        if (!res.ok) throw new Error();
+        setPhase('saved');
+        setText('');
+      } catch {
+        setPhase('error');
+        setError('Speichern hat nicht geklappt. Bitte nochmal versuchen.');
+      }
+      return;
+    }
     const c = comments.current;
     if (!c || !card.current) {
       if (await copyText(message)) setPhase('copied');
@@ -88,7 +103,9 @@ export function FeedbackCard({ compact = false }: { compact?: boolean }) {
     phase === 'sent'
       ? 'Gesendet ✓ Claude bekommt Bescheid und antwortet im Kommentar an dieser Seite.'
       : phase === 'saved'
-        ? 'Gespeichert ✓ Dein Feedback hängt als Kommentar an dieser Seite – Claude liest es, wenn ihr das nächste Mal schreibt.'
+        ? IS_WORKER
+          ? 'Gespeichert ✓ Schreib Claude im Chat „lies mein Feedback“ – dann wird es umgesetzt.'
+          : 'Gespeichert ✓ Dein Feedback hängt als Kommentar an dieser Seite – Claude liest es, wenn ihr das nächste Mal schreibt.'
         : phase === 'copied'
           ? 'Kopiert ✓ Füge den Text im Chat mit Claude ein.'
           : null;
@@ -118,7 +135,7 @@ export function FeedbackCard({ compact = false }: { compact?: boolean }) {
           </button>
         )}
         <button type="button" className="btn primary" disabled={!text.trim() || phase === 'sending'} onClick={send}>
-          {phase === 'sending' ? 'Wird gesendet …' : mode === 'copy' ? 'Text kopieren' : mode === 'comment' ? 'Als Kommentar speichern' : 'An Claude senden'}
+          {phase === 'sending' ? 'Wird gesendet …' : IS_WORKER ? 'Für Claude speichern' : mode === 'copy' ? 'Text kopieren' : mode === 'comment' ? 'Als Kommentar speichern' : 'An Claude senden'}
         </button>
       </div>
       {done && <p className="info" role="status">{done}</p>}

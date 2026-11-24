@@ -40,8 +40,18 @@ export function ExperimentsPage() {
       <section className="hero-band compact">
         <div className="hero-inner">
           <h1>Ausprobieren</h1>
-          <p className="hero-lead">Was du testen willst, gerade testest und schon getestet hast – mit Vergleich deiner Beschwerden vorher und währenddessen.</p>
+          <p className="hero-lead">Finde heraus, ob dir etwas wirklich hilft – z. B. laktosefrei essen oder das Handy früher weglegen.</p>
         </div>
+      </section>
+
+      <section className="card">
+        <h2>So funktioniert’s</h2>
+        <ol className="try-howto">
+          <li>Schreib auf, was du testen willst – oder tipp eine Idee an.</li>
+          <li>Tipp auf <b>Starten</b>, wenn du damit anfängst, und trag wie gewohnt ein, wie es dir geht.</li>
+          <li>Die App vergleicht deine Beschwerden der 2 Wochen davor mit der Zeit seit dem Start.</li>
+          <li>Nach 1–2 Wochen <b>Beenden</b> und festhalten, ob es geholfen hat. Am besten immer nur eine Sache gleichzeitig.</li>
+        </ol>
       </section>
 
       <section className="card exp-add">

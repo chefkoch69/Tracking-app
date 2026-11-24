@@ -1092,3 +1092,10 @@ button.ring:disabled { cursor: default; }
   .tabbar a.tab-add.active .tab-icon { background: var(--primary-deep); }
   .tabbar a { font-size: 0.66rem; }
 }
+
+.auto-health { display: flex; flex-direction: column; gap: 0.5rem; padding: 0.8rem; border-radius: var(--radius-sm); background: color-mix(in srgb, var(--primary) 6%, var(--surface)); margin-bottom: 0.8rem; }
+.auto-health p { margin: 0; }
+.ah-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.ah-row span { flex-basis: 100%; }
+.ah-row code { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; background: var(--surface); padding: 0.4rem 0.6rem; border-radius: 8px; font-size: 0.82rem; }
+.try-howto { margin: 0; padding-left: 1.2rem; display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.92rem; }
