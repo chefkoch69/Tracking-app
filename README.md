@@ -71,13 +71,18 @@ npm run typecheck    # TypeScript prüfen
 
 | Ziel | Befehl | Daten |
 | --- | --- | --- |
-| Cloudflare Worker (Hauptversion) | `npm run deploy` | online in Cloudflare KV, mit Passwort |
+| Cloudflare Worker (Hauptversion) | `npm run deploy` | online in einer Cloudflare-D1-Datenbank (SQLite, Westeuropa), mit Passwort |
 | GitHub Pages | `npm run build:pages` | nur auf dem Gerät |
 | claude.ai-Artifact | `npm run build:artifact` | privater Artifact-Speicher |
 
 Der Worker (`scripts/worker-template.js`) liefert die App aus, schützt sie mit Passwort
 (PBKDF2, Sitzungs-Cookie, Sperre nach Fehlversuchen) und bietet die Daten-API
-(`/api/docs`, `/api/doc`) sowie den Eingang für Apple-Health-Werte (`/api/health`, mit Schlüssel).
+(`/api/docs`, `/api/doc`, `/api/status`) sowie den Eingang für Apple-Health-Werte (`/api/health`, mit Schlüssel).
+
+Datenbank: Tabelle `docs` (Einstellungen/Tracker in `diary/meta`, Einträge je Kalenderwoche in
+`entries/JJJJ-Www`) und `doc_versions` (die letzten 30 Fassungen je Dokument). D1 bietet zusätzlich
+„Time Travel“: Wiederherstellung der ganzen Datenbank auf jeden Zeitpunkt der letzten 30 Tage.
+Anmeldung, Health-Schlüssel und Health-Eingang liegen im KV-Speicher.
 
 ## Bekannte Grenzen
 

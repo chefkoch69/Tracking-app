@@ -173,7 +173,38 @@ const DOC_PATH = /^(diary\/meta|entries\/\d{4}-W\d{2})$/;
 const json = (obj, status = 200) =>
   new Response(JSON.stringify(obj), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...SECURITY } });
 
-async function listDocs(env) {
+// Datenbank (Cloudflare D1, SQLite): eine Tabelle mit den Tagebuch-Dokumenten und eine mit
+// früheren Fassungen. Cloudflare sichert D1 zusätzlich automatisch (Wiederherstellung bis 30 Tage).
+// Ohne D1-Bindung (lokaler Test) dient der KV-Speicher als Ablage.
+const KEEP_VERSIONS = 30;
+let dbReady = null;
+function ensureDb(env) {
+  if (!env.DB) return Promise.resolve(false);
+  dbReady ??= (async () => {
+    await env.DB.batch([
+      env.DB.prepare('CREATE TABLE IF NOT EXISTS docs (path TEXT PRIMARY KEY, body TEXT NOT NULL, updated_at TEXT NOT NULL)'),
+      env.DB.prepare('CREATE TABLE IF NOT EXISTS doc_versions (id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT NOT NULL, body TEXT NOT NULL, saved_at TEXT NOT NULL)'),
+      env.DB.prepare('CREATE INDEX IF NOT EXISTS doc_versions_path ON doc_versions (path, id)'),
+    ]);
+    // Einmalig: bisherige Daten aus dem KV-Speicher übernehmen (der KV-Stand bleibt als Kopie liegen).
+    const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM docs').first('n');
+    if (!n && env.DATA) {
+      const old = await listKvDocs(env);
+      const now = new Date().toISOString();
+      const rows = Object.entries(old).map(([path, body]) =>
+        env.DB.prepare('INSERT OR IGNORE INTO docs (path, body, updated_at) VALUES (?, ?, ?)').bind(path, JSON.stringify(body), now),
+      );
+      if (rows.length) await env.DB.batch(rows);
+    }
+    return true;
+  })().catch((e) => {
+    dbReady = null;
+    throw e;
+  });
+  return dbReady;
+}
+
+async function listKvDocs(env) {
   const out = {};
   let cursor;
   do {
@@ -187,20 +218,46 @@ async function listDocs(env) {
   return out;
 }
 
+async function listDocs(env) {
+  if (!(await ensureDb(env))) return listKvDocs(env);
+  const { results } = await env.DB.prepare('SELECT path, body FROM docs').all();
+  return Object.fromEntries(results.map((r) => [r.path, JSON.parse(r.body)]));
+}
+
+async function putDoc(env, path, text) {
+  if (!(await ensureDb(env))) return env.DATA.put(`doc:${path}`, text);
+  const now = new Date().toISOString();
+  await env.DB.batch([
+    // alte Fassung aufheben, dann überschreiben, dann nur die letzten Fassungen behalten
+    env.DB.prepare('INSERT INTO doc_versions (path, body, saved_at) SELECT path, body, updated_at FROM docs WHERE path = ? AND body <> ?').bind(path, text),
+    env.DB.prepare('INSERT INTO docs (path, body, updated_at) VALUES (?, ?, ?) ON CONFLICT(path) DO UPDATE SET body = excluded.body, updated_at = excluded.updated_at').bind(path, text, now),
+    env.DB.prepare('DELETE FROM doc_versions WHERE path = ? AND id NOT IN (SELECT id FROM doc_versions WHERE path = ? ORDER BY id DESC LIMIT ?)').bind(path, path, KEEP_VERSIONS),
+  ]);
+}
+
+async function deleteDoc(env, path) {
+  if (!(await ensureDb(env))) return env.DATA.delete(`doc:${path}`);
+  await env.DB.batch([
+    env.DB.prepare('INSERT INTO doc_versions (path, body, saved_at) SELECT path, body, updated_at FROM docs WHERE path = ?').bind(path),
+    env.DB.prepare('DELETE FROM docs WHERE path = ?').bind(path),
+  ]);
+}
+
 async function handleApi(request, env, url) {
   if (!env.DATA) return json({ error: 'Kein Speicher verbunden.' }, 500);
   if (url.pathname === '/api/docs' && request.method === 'GET') return json({ docs: await listDocs(env) });
+  if (url.pathname === '/api/status' && request.method === 'GET') {
+    // Für „Daten & Sicherung“: wo und wie viel gespeichert ist.
+    if (!(await ensureDb(env))) return json({ storage: 'kv' });
+    const docs = await env.DB.prepare('SELECT COUNT(*) AS n, MAX(updated_at) AS last FROM docs').first();
+    const versions = await env.DB.prepare('SELECT COUNT(*) AS n FROM doc_versions').first('n');
+    return json({ storage: 'd1', docs: docs.n, lastSaved: docs.last, versions });
+  }
   if (url.pathname === '/api/health-key' && request.method === 'POST') {
     // Neuer Schlüssel für den Kurzbefehl; nur der Hash wird gespeichert, ein alter Schlüssel wird ungültig.
     const key = b64url(crypto.getRandomValues(new Uint8Array(24)));
     await env.DATA.put('auth:healthkey', await sha(key));
     return json({ key });
-  }
-  if (url.pathname === '/api/feedback' && request.method === 'POST') {
-    const text = (await request.text()).slice(0, 4000).trim();
-    if (!text) return json({ error: 'Leer.' }, 400);
-    await env.DATA.put(`feedback:${new Date().toISOString()}`, text);
-    return json({ ok: true });
   }
   if (url.pathname === '/api/health-inbox') {
     if (request.method === 'GET') {
@@ -225,11 +282,11 @@ async function handleApi(request, env, url) {
       } catch {
         return json({ error: 'Kein gültiges JSON.' }, 400);
       }
-      await env.DATA.put(`doc:${path}`, text);
+      await putDoc(env, path, text);
       return json({ ok: true });
     }
     if (request.method === 'DELETE') {
-      await env.DATA.delete(`doc:${path}`);
+      await deleteDoc(env, path);
       return json({ ok: true });
     }
   }

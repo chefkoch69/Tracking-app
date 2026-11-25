@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SyncInfo, useSyncStatus } from '../../platform/cloudSync';
 import { HealthSettings } from './HealthPanel';
 import { dayKey, parseDayKey } from '../../core/model/dates';
@@ -81,13 +81,13 @@ export function SettingsPage({ sub }: { sub?: string }) {
         <SyncInfo />
         {IS_WORKER ? (
           <>
+            <DbStatus />
             <p className="muted">
-              Deine Einträge liegen in deinem eigenen, kostenlosen Cloudflare-Konto – nur mit deinem Passwort erreichbar und auf
-              all deinen Geräten gleich. Zusätzlich bleibt eine Kopie auf diesem Gerät, damit die App auch ohne Netz startet.
+              Deine Einträge liegen in einer eigenen Datenbank in deinem kostenlosen Cloudflare-Konto (Rechenzentrum in Westeuropa) –
+              nur mit deinem Passwort erreichbar und auf all deinen Geräten gleich. Bei jeder Änderung wird die vorige Fassung
+              aufgehoben, und Cloudflare kann die ganze Datenbank bis zu 30 Tage zurück wiederherstellen. Eine Kopie bleibt auf diesem
+              Gerät, damit die App auch ohne Netz startet.
             </p>
-            <div className="actions start">
-              <a className="btn" href="/logout">Abmelden</a>
-            </div>
           </>
         ) : online ? (
           <p className="muted">
@@ -176,6 +176,39 @@ export function SettingsPage({ sub }: { sub?: string }) {
         {IS_WORKER && <Row icon="↩︎" title="Abmelden" text="Auf diesem Gerät abmelden" link="/logout" />}
       </SettingsGroup>
     </div>
+  );
+}
+
+/** Was in der Datenbank liegt – direkt vom Server. */
+function DbStatus() {
+  const [st, setSt] = useState<{ storage: string; docs?: number; lastSaved?: string; versions?: number } | null>(null);
+  useEffect(() => {
+    fetch('/api/status', { credentials: 'same-origin' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setSt)
+      .catch(() => setSt(null));
+  }, []);
+  if (!st) return null;
+  if (st.storage !== 'd1') return <p className="info small">Gespeichert im Cloudflare-Speicher.</p>;
+  return (
+    <ul className="db-status">
+      <li>
+        <span>Datenbank</span>
+        <b>Cloudflare D1 · verbunden ✓</b>
+      </li>
+      <li>
+        <span>Zuletzt gespeichert</span>
+        <b>{st.lastSaved ? new Date(st.lastSaved).toLocaleString('de-DE', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }) : '–'}</b>
+      </li>
+      <li>
+        <span>Gespeicherte Wochen</span>
+        <b>{Math.max(0, (st.docs ?? 1) - 1)}</b>
+      </li>
+      <li>
+        <span>Frühere Fassungen</span>
+        <b>{st.versions ?? 0}</b>
+      </li>
+    </ul>
   );
 }
 
