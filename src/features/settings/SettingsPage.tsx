@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Doodle } from '../../components/Doodle';
 import { SyncInfo, useSyncStatus } from '../../platform/cloudSync';
 import { HealthSettings } from './HealthPanel';
 import { RemindersPanel } from './RemindersPanel';
@@ -237,7 +238,7 @@ function SettingsGroup({ title, children }: { title: string; children: React.Rea
 function Row({ icon, title, text, href, link }: { icon: string; title: string; text?: string; href?: string; link?: string }) {
   const inner = (
     <>
-      <span className="set-icon" aria-hidden>{icon}</span>
+      <span className="set-icon" aria-hidden><Doodle name={icon} size={24} /></span>
       <span className="set-text">
         <strong>{title}</strong>
         {text && <small className="muted">{text}</small>}

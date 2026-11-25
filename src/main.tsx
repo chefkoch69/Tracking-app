@@ -3,11 +3,12 @@ import { CloudSyncProvider } from './platform/cloudSync';
 import { createRoot } from 'react-dom/client';
 import { StoreProvider } from './state/store';
 import { App } from './app/App';
-import '@fontsource/montserrat/latin-400.css';
-import '@fontsource/montserrat/latin-500.css';
-import '@fontsource/montserrat/latin-600.css';
-import '@fontsource/montserrat/latin-700.css';
-import '@fontsource/playfair-display/latin-700.css';
+import '@fontsource/nunito/latin-400.css';
+import '@fontsource/nunito/latin-600.css';
+import '@fontsource/nunito/latin-700.css';
+import '@fontsource/nunito/latin-800.css';
+import '@fontsource/caveat/latin-600.css';
+import '@fontsource/caveat/latin-700.css';
 import './styles/index.css';
 import { startAutoUpdate } from './platform/autoUpdate';
 

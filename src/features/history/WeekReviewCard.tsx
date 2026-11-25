@@ -1,11 +1,11 @@
-import { MOODS } from '../../core/diary/feedback';
+import { Doodle } from '../../components/Doodle';
 import { weekReview } from '../../core/diary/week';
 import { fmtLevel } from '../../core/fields/fieldTypes';
 import { parseDayKey } from '../../core/model/dates';
 import { useStore } from '../../state/store';
 import { navigate } from '../../app/router';
 
-const moodIcon = (m: number | null) => (m === null ? null : MOODS.find((x) => x.value === Math.round(m))?.icon);
+const moodIcon = (m: number | null) => (m === null ? null : <Doodle name={`face${Math.round(m)}`} size={22} />);
 const weekday = (k: string) => parseDayKey(k).toLocaleDateString('de-DE', { weekday: 'long' });
 
 /** Diese Woche bis heute im Vergleich zu denselben Tagen der Vorwoche. */

@@ -9,8 +9,18 @@ import type { Aggregation, BodyMapKind, FieldConfig, FieldDef, FieldType, FieldV
 import { BodyMapSvg } from './BodyMap';
 
 /** Ampelfarbe für einen Schweregrad 0 (gut) … 1 (schlecht). */
+/** Stärke 0 … 1 → Salbei → Senf → Terrakotta (sanft statt Ampel). */
 export function severityColor(t: number): string {
-  return `hsl(${Math.round(135 * (1 - t))} 62% 44%)`;
+  const stops = [
+    [129, 178, 154], // #81B29A
+    [233, 180, 76], // #E9B44C
+    [217, 100, 74], // #D9644A
+  ];
+  const x = Math.max(0, Math.min(1, t)) * 2;
+  const i = Math.min(1, Math.floor(x));
+  const f = x - i;
+  const [a, b] = [stops[i], stops[i + 1]];
+  return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * f)).join(' ')})`;
 }
 
 /**

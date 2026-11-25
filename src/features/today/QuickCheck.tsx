@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Doodle } from '../../components/Doodle';
 import { MOODS } from '../../core/diary/feedback';
 import { entryFeedback } from '../../core/diary/feedback';
 import { detailsOf, symptomFields } from '../../core/diary/moments';
@@ -12,14 +13,15 @@ import type { SavedNote } from './MomentCard';
 
 /** Kurze Namen für die Kacheln. */
 const TILE: Record<string, { icon: string; name: string }> = {
-  Bauchschmerz: { icon: '🫃', name: 'Bauch' },
-  Übelkeit: { icon: '🤢', name: 'Übel' },
-  Kopfschmerz: { icon: '🤕', name: 'Kopf' },
-  Tinnitus: { icon: '👂', name: 'Tinnitus' },
-  Müdigkeit: { icon: '🥱', name: 'Müde' },
-  Erschöpfung: { icon: '🪫', name: 'Erschöpft' },
-  Kälteempfinden: { icon: '🥶', name: 'Kalt' },
+  Bauchschmerz: { icon: 'belly', name: 'Bauch' },
+  Übelkeit: { icon: 'nausea', name: 'Übel' },
+  Kopfschmerz: { icon: 'head', name: 'Kopf' },
+  Tinnitus: { icon: 'ear', name: 'Tinnitus' },
+  Müdigkeit: { icon: 'tired', name: 'Müde' },
+  Erschöpfung: { icon: 'battery', name: 'Erschöpft' },
+  Kälteempfinden: { icon: 'cold', name: 'Kalt' },
 };
+export const MOOD_BLOB = ['', '#E07A5F', '#F2A65A', '#F2CC8F', '#9CC5A1', '#81B29A'];
 const STEP_NAME: Record<number, string> = { 1: 'leicht', 2: 'mittel', 3: 'stark' };
 const next = (v: number | undefined) => (v === undefined ? 1 : v >= 3 ? undefined : v + 1);
 
@@ -72,13 +74,13 @@ export function QuickCheck({ tracker, onSaved }: { tracker: Tracker; onSaved: (s
       <div className="qc-moods" role="radiogroup" aria-label="Wie geht’s dir?">
         {MOODS.map((m) => (
           <button key={m.value} type="button" role="radio" aria-checked={mood === m.value} className={`qc-mood ${mood === m.value ? 'on' : ''}`} onClick={() => pickMood(m.value)}>
-            <span aria-hidden>{m.icon}</span>
+            <Doodle name={`face${m.value}`} size={40} blob={mood === m.value ? MOOD_BLOB[m.value] : undefined} />
             <small>{m.label}</small>
           </button>
         ))}
       </div>
 
-      {done && !open && <p className="qc-thanks">Danke 💚 Wenn sich etwas ändert, tipp einfach nochmal.</p>}
+      {done && !open && <p className="qc-thanks"><Doodle name="sprout" size={22} /> Danke. Wenn sich etwas ändert, tipp einfach nochmal.</p>}
       {!done && !open && mood !== undefined && (
         <button type="button" className="linkish qc-more" onClick={() => setOpen(true)}>
           Beschwerden eintragen
@@ -107,7 +109,7 @@ export function QuickCheck({ tracker, onSaved }: { tracker: Tracker; onSaved: (s
                     return copy;
                   })}
                 >
-                  <span className="qc-ticon" aria-hidden>{t.icon}</span>
+                  <Doodle className="qc-ticon" name={t.icon} size={36} blob={v ? severityColor(v / 3) : undefined} />
                   <span className="qc-tname">{t.name}</span>
                   <span className="qc-level">{v ? STEP_NAME[v] : ' '}</span>
                   {v ? <span className="qc-dots" aria-hidden>{'●'.repeat(v)}{'○'.repeat(3 - v)}</span> : null}

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Doodle } from '../../components/Doodle';
 import { entriesOf } from '../../core/analysis/analytics';
 import { dayKey, formatClock } from '../../core/model/dates';
 import { conditionMet, FIELD_TYPES, isEmptyValue, validateValues } from '../../core/fields/fieldTypes';
@@ -110,7 +111,7 @@ export function MomentCard({
 
   const head = (
     <span className="mc-head-inner">
-      <span className="mc-icon" aria-hidden>{done ? '✓' : icon}</span>
+      <span className="mc-icon" aria-hidden><Doodle name={done ? 'check' : icon} size={26} /></span>
       <span className="mc-titles">
         <strong>{title}</strong>
         {(done || subtitle) && <small className="muted">{done ?? subtitle}</small>}

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Doodle } from '../../components/Doodle';
 import { SetupCard } from './SetupCard';
 import { TEMPLATES, trackerFromTemplate } from '../../core/fields/templates';
 import { askConfirm } from '../../components/confirm';
@@ -129,9 +130,9 @@ function BandLine({ now }: { now: Date }) {
   if (!h || (h.wake === undefined && h.sleepHours === undefined && h.steps === undefined)) return null;
   return (
     <div className="band-line">
-      {h.wake && <span>☀ wach {h.wake}</span>}
-      {h.sleepHours !== undefined && <span>☾ {fmtLevel(h.sleepHours)} h Schlaf</span>}
-      {h.steps !== undefined && <span>👣 {h.steps.toLocaleString('de-DE')}</span>}
+      {h.wake && <span><Doodle name="sun" size={18} /> wach {h.wake}</span>}
+      {h.sleepHours !== undefined && <span><Doodle name="moon" size={18} /> {fmtLevel(h.sleepHours)} h Schlaf</span>}
+      {h.steps !== undefined && <span><Doodle name="steps" size={18} /> {h.steps.toLocaleString('de-DE')}</span>}
     </div>
   );
 }
@@ -208,7 +209,7 @@ function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
             aria-expanded={a.key === 'talk' ? undefined : extra === a.key}
             onClick={() => (a.key === 'talk' ? navigate('/now/talk') : setExtra(extra === a.key ? null : a.key))}
           >
-            <span className="qa-icon" aria-hidden>{a.icon}</span>
+            <Doodle className="qa-icon" name={a.icon} size={34} blob={a.hot ? '#F2CC8F' : undefined} />
             <span className="qa-text">
               {a.label}
               {a.done && <small>{a.done}</small>}
@@ -248,7 +249,7 @@ function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
                   onSaved({ entry, changes: [], hint: null });
                 }}
               >
-                <span aria-hidden>{FAVORITE_ICON[f.kind]}</span> {f.text}
+                <Doodle name={FAVORITE_ICON[f.kind]} size={20} /> {f.text}
               </button>
             ))}
           </div>

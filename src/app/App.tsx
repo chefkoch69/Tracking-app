@@ -4,6 +4,7 @@ import { EntryPage } from '../features/entry/EntryPage';
 import { DoctorReport } from '../features/doctor/DoctorReport';
 import { HealthImportPage } from '../features/settings/HealthPanel';
 import { ConfirmHost } from '../components/confirm';
+import { DoodleDefs } from '../components/Doodle';
 import { TodayPage } from '../features/today/TodayPage';
 import { EntryForm } from '../features/entry/EntryForm';
 import { useReminderEngine } from '../platform/reminders';
@@ -101,6 +102,7 @@ export function App() {
       <main className={sub ? 'has-back' : ''}>{page}</main>
       <TabBar route={route} />
       <ConfirmHost />
+      <DoodleDefs />
     </>
   );
 }

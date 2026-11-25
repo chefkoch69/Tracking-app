@@ -279,3 +279,45 @@
 .quick-actions.big .qa-text { align-items: center; hyphens: manual; }
 .quick-actions.big .qa-icon { font-size: 1.55rem !important; }
 .quick-actions .qa-btn span.qa-text { font-size: 0.8rem; font-weight: 700; }
+
+/* ===== Skizzenbuch ===== */
+/* Papier: ganz feines Punktraster wie im Notizbuch */
+body {
+  background-color: var(--bg);
+  background-image: radial-gradient(color-mix(in srgb, var(--text) 9%, transparent) 0.8px, transparent 0.9px);
+  background-size: 22px 22px;
+}
+/* Handschrift nur für große Überschriften – sie braucht Größe, um gut lesbar zu sein */
+.page-head h1 { font-size: 2.5rem; font-weight: 700; line-height: 1; letter-spacing: 0; }
+.qc-question { font-size: 2.15rem; font-weight: 700; line-height: 1.05; }
+.section-head h2, .card > h2:first-child { font-size: 1.75rem; line-height: 1.1; }
+.exp-section > h2 { font-size: 1.7rem; }
+.hero-band.compact h1 { font-family: var(--display); font-size: 2.3rem; }
+.today-date { font-weight: 700; letter-spacing: 0.02em; color: var(--accent-2); text-transform: none; }
+/* Karten: leicht unregelmäßige Ecken, wie ausgeschnitten */
+.card { border-radius: 22px 18px 24px 19px; border-color: var(--border); }
+.qc-tile, .qa-btn { border-radius: 20px 16px 22px 17px; }
+.qc-mood { border-radius: 18px 14px 19px 15px; background: transparent; padding-top: 0.35rem; }
+.qc-mood .doodle, .qc-tile .doodle, .qa-btn .doodle { color: var(--text); }
+.qc-mood.on { background: transparent; border-color: transparent; }
+.qc-mood.on small { color: var(--text); }
+.qc-mood:not(.on) .doodle { opacity: 0.75; }
+.qc-tile.on { background: var(--surface); border-color: var(--sev); border-width: 2px; }
+.qa-btn.hot { border-color: var(--mustard); background: var(--surface); }
+.band-line span { display: inline-flex; align-items: center; gap: 0.25rem; }
+.fav-chip { display: inline-flex; align-items: center; gap: 0.3rem; }
+.set-icon { background: transparent; color: var(--primary); }
+.er-icon { color: var(--muted); }
+.mc-icon { background: transparent; color: var(--text); }
+.dc-mood { display: inline-flex; color: var(--text); }
+.qc-thanks { display: inline-flex; align-items: center; justify-content: center; gap: 0.35rem; color: var(--good); }
+.streak-dots { color: var(--sage); }
+.btn.primary { border-radius: 16px 13px 17px 14px; }
+.tab-icon svg { filter: url(#sketchy); }
+.mood-btn .doodle { color: var(--text); }
+.qc-tiles { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.45rem; }
+.qc-tile { min-height: 88px; padding: 0.55rem 0.15rem 0.45rem; }
+.qc-tname { font-size: 0.82rem; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .btn.primary { color: #1d2030; }
+}

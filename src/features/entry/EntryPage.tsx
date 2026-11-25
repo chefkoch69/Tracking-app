@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Doodle } from '../../components/Doodle';
 import { SpeakCard } from './SpeakCard';
 import { entriesOf } from '../../core/analysis/analytics';
 import { dayKey, formatClock, toLocalInput } from '../../core/model/dates';
@@ -330,7 +331,7 @@ function MomentEntry({ tracker, talk, initial, at }: { tracker: Tracker; talk?: 
         <section className="moment-grid" aria-label="Was möchtest du eintragen?">
           {MOMENTS.filter((x) => x.key !== 'all').map((x) => (
             <button key={x.key} className={`moment-tile ${suggestion === x.key ? 'suggested' : ''}`} onClick={() => setMoment(x.key)}>
-              <span className="mt-icon" aria-hidden>{x.icon}</span>
+              <Doodle className="mt-icon" name={x.icon} size={30} />
               <span className="mt-label">{x.label}</span>
               <small>{suggestion === x.key ? 'jetzt passend' : x.hint}</small>
             </button>
@@ -363,7 +364,7 @@ function MomentEntry({ tracker, talk, initial, at }: { tracker: Tracker; talk?: 
           <div className="fav-chips">
             {favs.map((f) => (
               <button key={`${f.fieldId}|${f.text}`} type="button" className="fav-chip" onClick={() => store(favoriteValues(tracker, f))}>
-                <span aria-hidden>{FAVORITE_ICON[f.kind]}</span> {f.text}
+                <Doodle name={FAVORITE_ICON[f.kind]} size={20} /> {f.text}
               </button>
             ))}
           </div>
@@ -672,7 +673,7 @@ export function DayMoodControl({ day }: { day: string }) {
             className={`mood-btn ${mood === m.value ? 'on' : ''}`}
             onClick={() => dispatch({ type: 'day/update', date: day, patch: { mood: mood === m.value ? undefined : m.value } })}
           >
-            <span aria-hidden>{m.icon}</span>
+            <Doodle name={`face${m.value}`} size={32} />
             <small>{m.label}</small>
           </button>
         ))}

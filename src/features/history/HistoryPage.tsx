@@ -13,10 +13,12 @@ import { InsightList, InsightReadiness } from './Insights';
 import { navigate } from '../../app/router';
 import { SymptomTrendCard } from './SymptomTrendCard';
 import { EntryRow } from '../../components/EntryRow';
+import { Doodle } from '../../components/Doodle';
+import { MOOD_BLOB } from '../today/QuickCheck';
 import { WeekReviewCard } from './WeekReviewCard';
 
 const DAYS = 14;
-const moodIcon = (m?: number) => MOODS.find((x) => x.value === m)?.icon;
+const moodIcon = (m?: number) => (m ? <Doodle name={`face${m}`} size={30} blob={MOOD_BLOB[m]} /> : undefined);
 
 function dayTitle(key: string): string {
   const today = dayKey(new Date());
@@ -167,7 +169,7 @@ function MonthView({ trackers }: { trackers: Tracker[] }) {
               aria-label={`${formatDay(parseDayKey(k))}${s.worst ? `, ${s.worst.label} ${s.worst.text}` : ''}`}
             >
               <span>{Number(k.slice(8))}</span>
-              {moodIcon(s.mood) && <i aria-hidden>{moodIcon(s.mood)}</i>}
+              {s.mood && <i aria-hidden><Doodle name={`face${s.mood}`} size={14} /></i>}
             </button>
           );
         })}
@@ -226,7 +228,7 @@ function DayPage({ day, trackers }: { day: string; trackers: Tracker[] }) {
               className={`mood-btn ${s.mood === m.value ? 'on' : ''}`}
               onClick={() => dispatch({ type: 'day/update', date: day, patch: { mood: s.mood === m.value ? undefined : m.value } })}
             >
-              <span aria-hidden>{m.icon}</span>
+              <Doodle name={`face${m.value}`} size={34} blob={s.mood === m.value ? MOOD_BLOB[m.value] : undefined} />
               <small>{m.label}</small>
             </button>
           ))}

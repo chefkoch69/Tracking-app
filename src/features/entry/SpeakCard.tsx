@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Doodle } from '../../components/Doodle';
 import { dayKey, formatClock } from '../../core/model/dates';
 import { formatValue, isEmptyValue, scaleLevels } from '../../core/fields/fieldTypes';
 import { fieldByLabel } from '../../core/diary/moments';
@@ -123,7 +124,7 @@ export function SpeakCard({ tracker, onDone }: { tracker: Tracker; onDone?: () =
         {next && (
           <p className="speak-next">
             <b>
-              {next.icon} {next.title}:
+              {next.title}:
             </b>{' '}
             {next.say}
           </p>
@@ -149,7 +150,7 @@ export function SpeakCard({ tracker, onDone }: { tracker: Tracker; onDone?: () =
             return (
               <li key={p.key} className={`sp-point ${done ? 'done' : ''} ${next === p ? 'next' : ''}`}>
                 <div className="sp-head">
-                  <span className="sp-icon" aria-hidden>{done ? '✓' : p.icon}</span>
+                  <span className="sp-icon" aria-hidden><Doodle name={done ? 'check' : p.icon} size={20} /></span>
                   <strong>{p.title}</strong>
                 </div>
                 {done && (

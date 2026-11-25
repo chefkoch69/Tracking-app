@@ -3,32 +3,35 @@
    Design-System
    ========================================================= */
 :root {
-  /* Warm und ruhig: Sand-Hintergrund, Salbei-Grün als Akzent – nichts, was schreit. */
-  --primary: #2f7d6d;
-  --primary-deep: #22604f;
-  --hero: linear-gradient(180deg, #3a8a79 0%, #2f7d6d 100%);
-  --bg: #f6f2ec;
-  --surface: #fffdf9;
-  --surface-2: #f2ece3;
-  --surface-3: #e6ded2;
-  --border: #e9e1d5;
-  --outline: #c8bdae;
-  --text: #2b2723;
-  --muted: #7b7168;
-  --good: #3f9a5e;
-  --good-bg: #e7f3e9;
-  --bad: #cf5a4f;
-  --bad-bg: #fbe9e6;
-  --warn: #d38f2b;
-  --warn-bg: #fbf0dc;
-  --cell-empty: #ece5da;
-  --radius: 24px;
-  --radius-sm: 16px;
-  --shadow: 0 1px 2px rgba(80, 60, 30, 0.04), 0 6px 20px rgba(80, 60, 30, 0.06);
-  --shadow-lg: 0 12px 36px rgba(80, 60, 30, 0.14);
+  /* Skizzenbuch: Papier-Creme, Tinten-Blau, Salbei, Senf, Terrakotta – warm, ruhig, stimmig. */
+  --primary: #3d5a80;
+  --primary-deep: #2c4463;
+  --accent-2: #e07a5f;
+  --sage: #81b29a;
+  --mustard: #f2cc8f;
+  --hero: linear-gradient(180deg, #46658f 0%, #3d5a80 100%);
+  --bg: #f8f3e9;
+  --surface: #fffdf7;
+  --surface-2: #f3ecdf;
+  --surface-3: #e9dfcd;
+  --border: #e7dccb;
+  --outline: #c9b99f;
+  --text: #2f3550;
+  --muted: #6f6a7d;
+  --good: #4f8f6e;
+  --good-bg: #e5f1e8;
+  --bad: #d0604a;
+  --bad-bg: #fbe6df;
+  --warn: #c98a26;
+  --warn-bg: #fbefd6;
+  --cell-empty: #efe6d6;
+  --radius: 22px;
+  --radius-sm: 14px;
+  --shadow: 0 1px 0 rgba(47, 53, 80, 0.05), 0 4px 14px rgba(120, 90, 40, 0.07);
+  --shadow-lg: 0 12px 32px rgba(120, 90, 40, 0.16);
   --accent: var(--primary);
-  --font: "Montserrat", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --display: "Playfair Display", Georgia, "Times New Roman", serif;
+  --font: "Nunito", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --display: "Caveat", "Nunito", cursive;
   color-scheme: light;
 }
 
@@ -61,26 +64,27 @@ a { color: inherit; }
 /* Dunkelmodus: folgt der Einstellung des iPhones (abends im Bett blendet nichts). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --primary: #6fc3ae;
-    --primary-deep: #9ad8c8;
-    --hero: linear-gradient(180deg, #24463e 0%, #1d3a33 100%);
-    --bg: #141311;
-    --surface: #1e1c19;
-    --surface-2: #27241f;
-    --surface-3: #332f29;
-    --border: #322e28;
-    --outline: #5a5248;
-    --text: #efe9e0;
-    --muted: #a69b8d;
-    --good: #6cc48a;
-    --good-bg: #1c3324;
-    --bad: #ef7d70;
-    --bad-bg: #3a201c;
-    --warn: #e9ad55;
-    --warn-bg: #392b15;
-    --cell-empty: #2a2621;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
-    --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.45);
+    --primary: #98b6dc;
+    --primary-deep: #bcd0ea;
+    --accent-2: #ee9a80;
+    --hero: linear-gradient(180deg, #2d3a55 0%, #263149 100%);
+    --bg: #1d2030;
+    --surface: #262a3d;
+    --surface-2: #2e3349;
+    --surface-3: #383e57;
+    --border: #363b54;
+    --outline: #59607d;
+    --text: #f3eee4;
+    --muted: #aaa6b9;
+    --good: #8cc5a6;
+    --good-bg: #23382f;
+    --bad: #f08f78;
+    --bad-bg: #42282a;
+    --warn: #f0c27a;
+    --warn-bg: #3d3220;
+    --cell-empty: #2b3044;
+    --shadow: 0 1px 0 rgba(0, 0, 0, 0.25), 0 4px 14px rgba(0, 0, 0, 0.25);
+    --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
     color-scheme: dark;
   }
 }

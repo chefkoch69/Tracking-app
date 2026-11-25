@@ -1,4 +1,5 @@
 import { formatClock } from '../core/model/dates';
+import { Doodle } from './Doodle';
 import { entryStory } from '../core/diary/story';
 import type { Entry, Tracker } from '../core/model/types';
 import { navigate } from '../app/router';
@@ -11,7 +12,7 @@ export function EntryRow({ tracker, entry, showTracker }: { tracker: Tracker; en
     <li className="entry-row">
       <button className="er-btn" onClick={() => navigate(`/t/${tracker.id}/entry/${entry.id}`)} aria-label={`${formatClock(new Date(entry.timestamp))}: ${s.title} – bearbeiten`}>
         <span className="er-time">{formatClock(new Date(entry.timestamp))}</span>
-        <span className="er-icon" aria-hidden>{s.icon}</span>
+        <Doodle className="er-icon" name={s.icon} size={24} />
         <span className="er-body">
           <strong className="er-title">
             {showTracker ? `${tracker.name}: ` : ''}
