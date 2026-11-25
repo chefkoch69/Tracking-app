@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { withHealth } from '../../core/diary/health';
 import { computeInsights } from '../../core/analysis/insights';
 import { MOODS, dayRhythm, daySummary, insightReadiness, type DaySummary } from '../../core/diary/feedback';
-import { addDays, dayKey, formatClock, formatDay, parseDayKey, startOfDay } from '../../core/model/dates';
+import { addDays, dayKey, formatDay, parseDayKey, startOfDay } from '../../core/model/dates';
 import { fmtLevel } from '../../core/fields/fieldTypes';
 import type { Entry, Tracker } from '../../core/model/types';
 import { useStore } from '../../state/store';
@@ -12,7 +12,8 @@ import { severityColor } from '../../components/fieldInputs';
 import { InsightList, InsightReadiness } from './Insights';
 import { navigate } from '../../app/router';
 import { SymptomTrendCard } from './SymptomTrendCard';
-import { EntryCard } from '../../components/entryViews';
+import { EntryRow } from '../../components/EntryRow';
+import { WeekReviewCard } from './WeekReviewCard';
 
 const DAYS = 14;
 const moodIcon = (m?: number) => MOODS.find((x) => x.value === m)?.icon;
@@ -76,12 +77,14 @@ export function HistoryPage({ day }: { day?: string } = {}) {
         </>
       )}
 
+      {view === 'list' && <WeekReviewCard />}
+
       {view === 'list' &&
         (!summaries.length ? (
           <div className="card empty">
             <div className="empty-icon">📓</div>
-            <p>Noch keine Einträge. Was du unter „Eintragen“ speicherst, steht hier – Tag für Tag.</p>
-            <button className="btn primary" onClick={() => navigate('/now')}>Jetzt eintragen</button>
+            <p>Noch keine Einträge. Was du auf „Heute“ einträgst, steht hier – Tag für Tag.</p>
+            <button className="btn primary" onClick={() => navigate('/')}>Zu „Heute“</button>
           </div>
         ) : (
           <div className="day-cards">
@@ -242,14 +245,11 @@ function DayPage({ day, trackers }: { day: string; trackers: Tracker[] }) {
           <button className="btn small" onClick={() => navigate(isToday ? '/now' : `/now?at=${day}`)}>＋ Eintragen</button>
         </div>
         {items.length ? (
-          <div className="timeline-rail">
+          <ul className="entry-list">
             {items.map(({ e, t: tr }) => (
-              <div key={e.id}>
-                <small className="diary-tracker">{formatClock(new Date(e.timestamp))}{trackers.length > 1 ? ` · ${tr.icon} ${tr.name}` : ''}</small>
-                <EntryCard tracker={tr} entry={e} />
-              </div>
+              <EntryRow key={e.id} tracker={tr} entry={e} showTracker={trackers.length > 1} />
             ))}
-          </div>
+          </ul>
         ) : (
           <p className="muted">An diesem Tag hast du nichts eingetragen.</p>
         )}

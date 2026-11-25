@@ -17,7 +17,7 @@ import { MomentCard, type SavedNote } from './MomentCard';
 import { FollowUpCard, SavedCard } from '../entry/EntryPage';
 import { useDueTrackers, useNow } from '../../platform/reminders';
 import { navigate } from '../../app/router';
-import { ValuePills } from '../../components/entryViews';
+import { EntryRow } from '../../components/EntryRow';
 
 function greeting(d: Date) {
   const h = d.getHours();
@@ -357,17 +357,9 @@ function TodayTimeline({ trackers, now, main }: { trackers: Tracker[]; now: Date
         <button className="btn ghost small" onClick={() => navigate(`/data?d=${today}`)}>Ganzer Tag ›</button>
       </div>
       {rhythm && main && <DayRhythmChart rhythm={rhythm} onPick={(id) => navigate(`/t/${main.id}/entry/${id}`)} />}
-      <ul className="timeline">
+      <ul className="entry-list">
         {(showAll ? items : items.slice(0, 4)).map(({ e, t }) => (
-          <li key={e.id} style={{ '--accent': t.color } as React.CSSProperties}>
-            <button className="tl-item" onClick={() => navigate(`/t/${t.id}/entry/${e.id}`)}>
-              <span className="tl-time-big">{formatClock(new Date(e.timestamp))}</span>
-              <span className="tl-body">
-                {!single && <strong>{t.name}</strong>}
-                <ValuePills tracker={t} entry={e} limit={5} />
-              </span>
-            </button>
-          </li>
+          <EntryRow key={e.id} tracker={t} entry={e} showTracker={!single} />
         ))}
       </ul>
       {items.length > 4 && (

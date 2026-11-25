@@ -1,0 +1,57 @@
+import { describe, expect, it } from 'vitest';
+import { TEMPLATES, trackerFromTemplate } from '../fields/templates';
+import { entryStory } from '../diary/story';
+import { weekReview } from '../diary/week';
+import type { Entry, FieldValue } from '../model/types';
+
+const t = trackerFromTemplate(TEMPLATES.find((x) => x.key === 'now')!);
+const id = (l: string) => t.fields.find((f) => f.label === l)!.id;
+let n = 0;
+const entry = (ts: string, vals: Record<string, FieldValue>): Entry => ({
+  id: `e${n++}`, trackerId: t.id, timestamp: new Date(ts).toISOString(),
+  values: Object.fromEntries(Object.entries(vals).map(([l, v]) => [id(l), v])),
+});
+
+describe('Eintrag als lesbare Zeile', () => {
+  it('Essen mit Getränk als Titel', () => {
+    const s = entryStory(t, entry('2026-11-24T08:00', { 'Was ist passiert?': ['gegessen'], 'Was gegessen?': 'Apfel, Joghurt', 'Was getrunken?': 'Kaffee' }));
+    expect(s.icon).toBe('🍽');
+    expect(s.title).toBe('Gegessen: Apfel, Joghurt · Getrunken: Kaffee');
+    expect(s.facts).toEqual([]);
+  });
+  it('Beschwerden mit Details, keine-Angaben getrennt', () => {
+    const s = entryStory(t, entry('2026-11-24T14:00', { Bauchschmerz: 2, 'Art der Bauchschmerzen': ['krampfartig'], Übelkeit: 0, Stuhlgang: 3 }));
+    expect(s.icon).toBe('🤕');
+    expect(s.symptoms[0].label).toBe('Bauchschmerz');
+    expect(s.symptoms[0].details).toEqual(['krampfartig']);
+    expect(s.none).toEqual(['Übelkeit']);
+    expect(s.facts[0]).toMatch(/^Stuhlgang: 3/);
+  });
+  it('Aufgestanden mit Schlaf', () => {
+    const s = entryStory(t, entry('2026-11-24T06:30', { 'Was ist passiert?': ['aufgestanden'], Schlafqualität: 4 }));
+    expect(s.title).toBe('Aufgestanden');
+    expect(s.facts[0]).toMatch(/^Schlaf: 4/);
+  });
+});
+
+describe('Wochenrückblick', () => {
+  it('vergleicht mit denselben Tagen der Vorwoche', () => {
+    const es = [
+      entry('2026-11-16T10:00', { Bauchschmerz: 2 }),
+      entry('2026-11-17T10:00', { Bauchschmerz: 3 }),
+      entry('2026-11-18T10:00', { Bauchschmerz: 1 }),
+      entry('2026-11-23T10:00', { Bauchschmerz: 1 }),
+      entry('2026-11-24T10:00', { Bauchschmerz: 0 }),
+      entry('2026-11-25T10:00', { Kopfschmerz: 2 }),
+    ];
+    const r = weekReview([t], es, new Date('2026-11-25T18:00'), { '2026-11-23': { mood: 2 }, '2026-11-24': { mood: 4 } });
+    expect(r.from).toBe('2026-11-23');
+    expect(r.span).toBe(3);
+    expect(r.logged).toBe(3);
+    const belly = r.symptoms.find((s) => s.label === 'Bauchschmerz')!;
+    expect([belly.days, belly.prevDays, belly.direction]).toEqual([1, 3, 'better']);
+    expect(r.symptoms.find((s) => s.label === 'Kopfschmerz')!.direction).toBe('worse');
+    expect(r.mood).toBe(3);
+    expect(r.best).toBe('2026-11-24');
+  });
+});
