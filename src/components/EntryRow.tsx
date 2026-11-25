@@ -5,6 +5,8 @@ import type { Entry, Tracker } from '../core/model/types';
 import { navigate } from '../app/router';
 import { severityColor } from './fieldInputs';
 
+const ICON_COLOR: Record<string, string> = { '☀️': '#F0B43C', '🌙': '#7F8FD6', '🍽': '#E8835F', '🥤': '#5E9FD8', '💊': '#4FAF92', '🤕': '#E06A78', '😊': '#8DBA5E', '📝': '#A584D6' };
+
 /** Ein Eintrag als lesbare Zeile – antippen öffnet ihn zum Bearbeiten (dort auch Löschen). */
 export function EntryRow({ tracker, entry, showTracker }: { tracker: Tracker; entry: Entry; showTracker?: boolean }) {
   const s = entryStory(tracker, entry);
@@ -12,7 +14,7 @@ export function EntryRow({ tracker, entry, showTracker }: { tracker: Tracker; en
     <li className="entry-row">
       <button className="er-btn" onClick={() => navigate(`/t/${tracker.id}/entry/${entry.id}`)} aria-label={`${formatClock(new Date(entry.timestamp))}: ${s.title} – bearbeiten`}>
         <span className="er-time">{formatClock(new Date(entry.timestamp))}</span>
-        <Doodle className="er-icon" name={s.icon} size={24} />
+        <span className="er-icon" style={{ '--cat': ICON_COLOR[s.icon] ?? '#8a8fa8' } as React.CSSProperties}><Doodle name={s.icon} size={22} /></span>
         <span className="er-body">
           <strong className="er-title">
             {showTracker ? `${tracker.name}: ` : ''}

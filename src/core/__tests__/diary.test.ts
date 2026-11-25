@@ -63,3 +63,19 @@ describe('Kurzbefehl: Datumsformate vom iPhone', () => {
       expect(parseHealthText(JSON.stringify({ wake: w }))[0].wake).toBe('06:42');
   });
 });
+
+import { correctText } from '../diary/autocorrect';
+describe('Einträge ausbessern', () => {
+  it('korrigiert Diktier- und Tippfehler', () => {
+    expect(correctText('Brathuhn, Mod Kartoffeln')).toBe('Brathuhn mit Kartoffeln');
+    expect(correctText('brathuhn mod kartofeln')).toBe('Brathuhn mit Kartoffeln');
+    expect(correctText('2 scheiben brot mit kaese unt marmelade')).toBe('2 Scheiben Brot mit Käse und Marmelade');
+    expect(correctText('kafee, 0,5 l wasser')).toBe('Kaffee, 0,5 l Wasser');
+    expect(correctText('ibuprofen 400 mg')).toBe('Ibuprofen 400 mg');
+  });
+  it('lässt Richtiges und Unbekanntes in Ruhe', () => {
+    expect(correctText('Reis mit Eis')).toBe('Reis mit Eis');
+    expect(correctText('Omas Spezialauflauf')).toBe('Omas Spezialauflauf');
+    expect(correctText('Linsensuppe, Tee')).toBe('Linsensuppe, Tee');
+  });
+});

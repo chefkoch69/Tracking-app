@@ -164,13 +164,13 @@ function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const at = (e?: { timestamp: string }) => (e ? formatClock(new Date(e.timestamp)) : '');
-  const actions: { key: Exclude<Extra, null> | 'talk'; icon: string; label: string; done?: string; hot?: boolean }[] = [
+  const actions: { key: Exclude<Extra, null> | 'talk'; icon: string; label: string; color: string; done?: string; hot?: boolean }[] = [
     evening
-      ? { key: 'evening', icon: '🌙', label: 'Schlafen', done: slept && `✓ ${at(slept)}`, hot: !slept }
-      : { key: 'morning', icon: '☀️', label: 'Aufstehen', done: woke && `✓ ${at(woke)}`, hot: !woke && h >= 4 && h < 12 },
-    { key: 'meal', icon: '🍽', label: 'Essen & Trinken' },
-    { key: 'med', icon: '💊', label: 'Medikament' },
-    { key: 'talk', icon: '🎙', label: 'Erzählen' },
+      ? { key: 'evening', icon: 'moon', label: 'Schlafen', color: '#7F8FD6', done: slept && `✓ ${at(slept)}`, hot: !slept }
+      : { key: 'morning', icon: 'sun', label: 'Aufstehen', color: '#F0B43C', done: woke && `✓ ${at(woke)}`, hot: !woke && h >= 4 && h < 12 },
+    { key: 'meal', icon: 'plate', label: 'Essen', color: '#E8835F' },
+    { key: 'med', icon: 'pill', label: 'Medikament', color: '#4FAF92' },
+    { key: 'talk', icon: 'mic', label: 'Erzählen', color: '#A584D6' },
   ];
   const titles: Record<Exclude<Extra, null>, [string, string]> = {
     morning: ['☀️', 'Aufgestanden'],
@@ -206,10 +206,11 @@ function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
             key={a.key}
             type="button"
             className={`qa-btn ${extra === a.key ? 'active' : ''} ${a.hot ? 'hot' : ''}`}
+            style={{ '--cat': a.color } as React.CSSProperties}
             aria-expanded={a.key === 'talk' ? undefined : extra === a.key}
             onClick={() => (a.key === 'talk' ? navigate('/now/talk') : setExtra(extra === a.key ? null : a.key))}
           >
-            <Doodle className="qa-icon" name={a.icon} size={34} blob={a.hot ? '#F2CC8F' : undefined} />
+            <span className="qa-disc"><Doodle className="qa-icon" name={a.icon} size={34} /></span>
             <span className="qa-text">
               {a.label}
               {a.done && <small>{a.done}</small>}

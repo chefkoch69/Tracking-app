@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { TEMPLATES } from '../core/fields/templates';
 import { applyUpgrades, hasUpgrades, templateUpgrades } from '../core/fields/trackerEdit';
 import { useStore } from '../state/store';
@@ -29,4 +29,12 @@ export function useAutoUpgrade() {
       dispatch({ type: 'tracker/save', tracker: rename ? { ...next, name: 'Mein Befinden', icon: t.icon === '⚡' ? '💙' : t.icon, color: '#2f63f0' } : next });
     }
   }, [data.trackers, ready, dispatch]);
+
+  // Einmal pro Start: ältere Einträge ausbessern (Essen, Trinken, Medikamente).
+  const corrected = useRef(false);
+  useEffect(() => {
+    if (!ready || corrected.current || !data.entries.length) return;
+    corrected.current = true;
+    dispatch({ type: 'entries/autocorrect' });
+  }, [ready, data.entries.length, dispatch]);
 }

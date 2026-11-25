@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
 import { emptyData, localStorageAdapter, type StorageAdapter } from '../core/model/storage';
+import { correctEntry } from '../core/diary/autocorrect';
 import { mergeHealth } from '../core/diary/health';
 import { mergeTrackers } from '../core/fields/trackerEdit';
 import type { AppData, DayNote, Entry, Experiment, HealthDay, Profile, ReminderState, Tracker } from '../core/model/types';
@@ -11,6 +12,7 @@ export type Action =
   | { type: 'tracker/reorder'; ids: string[] }
   | { type: 'tracker/merge'; sourceId: string; targetId: string }
   | { type: 'entry/save'; entry: Entry }
+  | { type: 'entries/autocorrect' }
   | { type: 'entry/delete'; id: string }
   | { type: 'entries/renameOption'; trackerId: string; fieldId: string; from: string; to: string }
   | { type: 'reminder/update'; trackerId: string; patch: Partial<ReminderState> }
@@ -71,7 +73,17 @@ export function reducer(state: AppData, action: Action): AppData {
       };
     }
     case 'entry/save':
-      return { ...state, entries: upsert(state.entries, action.entry) };
+      // Essen, Trinken, Medikamente automatisch ausbessern („Mod Kartoffeln“ → „mit Kartoffeln“).
+      return { ...state, entries: upsert(state.entries, correctEntry(state.trackers.find((t) => t.id === action.entry.trackerId), action.entry)) };
+    case 'entries/autocorrect': {
+      let changed = false;
+      const entries = state.entries.map((e) => {
+        const c = correctEntry(state.trackers.find((t) => t.id === e.trackerId), e);
+        if (c !== e) changed = true;
+        return c;
+      });
+      return changed ? { ...state, entries } : state;
+    }
     case 'entries/renameOption': {
       const { trackerId, fieldId, from, to } = action;
       return {

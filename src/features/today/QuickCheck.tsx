@@ -12,16 +12,16 @@ import { FieldInput, severityColor } from '../../components/fieldInputs';
 import type { SavedNote } from './MomentCard';
 
 /** Kurze Namen für die Kacheln. */
-const TILE: Record<string, { icon: string; name: string }> = {
-  Bauchschmerz: { icon: 'belly', name: 'Bauch' },
-  Übelkeit: { icon: 'nausea', name: 'Übel' },
-  Kopfschmerz: { icon: 'head', name: 'Kopf' },
-  Tinnitus: { icon: 'ear', name: 'Tinnitus' },
-  Müdigkeit: { icon: 'tired', name: 'Müde' },
-  Erschöpfung: { icon: 'battery', name: 'Erschöpft' },
-  Kälteempfinden: { icon: 'cold', name: 'Kalt' },
+const TILE: Record<string, { icon: string; name: string; color: string }> = {
+  Bauchschmerz: { icon: 'belly', name: 'Bauch', color: '#E8835F' },
+  Übelkeit: { icon: 'nausea', name: 'Übel', color: '#8DBA5E' },
+  Kopfschmerz: { icon: 'head', name: 'Kopf', color: '#E06A78' },
+  Tinnitus: { icon: 'ear', name: 'Tinnitus', color: '#5E9FD8' },
+  Müdigkeit: { icon: 'tired', name: 'Müde', color: '#A584D6' },
+  Erschöpfung: { icon: 'battery', name: 'Erschöpft', color: '#E3A93B' },
+  Kälteempfinden: { icon: 'cold', name: 'Kalt', color: '#4FB3C4' },
 };
-export const MOOD_BLOB = ['', '#E07A5F', '#F2A65A', '#F2CC8F', '#9CC5A1', '#81B29A'];
+export const MOOD_BLOB = ['', '#E06A78', '#EE9A6B', '#E9C35A', '#8DBA5E', '#4FAF92'];
 const STEP_NAME: Record<number, string> = { 1: 'leicht', 2: 'mittel', 3: 'stark' };
 const next = (v: number | undefined) => (v === undefined ? 1 : v >= 3 ? undefined : v + 1);
 
@@ -73,8 +73,8 @@ export function QuickCheck({ tracker, onSaved }: { tracker: Tracker; onSaved: (s
       <h2 className="qc-question">Wie geht’s dir gerade?</h2>
       <div className="qc-moods" role="radiogroup" aria-label="Wie geht’s dir?">
         {MOODS.map((m) => (
-          <button key={m.value} type="button" role="radio" aria-checked={mood === m.value} className={`qc-mood ${mood === m.value ? 'on' : ''}`} onClick={() => pickMood(m.value)}>
-            <Doodle name={`face${m.value}`} size={40} blob={mood === m.value ? MOOD_BLOB[m.value] : undefined} />
+          <button key={m.value} type="button" role="radio" aria-checked={mood === m.value} className={`qc-mood ${mood === m.value ? 'on' : ''}`} style={{ '--cat': MOOD_BLOB[m.value] } as React.CSSProperties} onClick={() => pickMood(m.value)}>
+            <Doodle name={`face${m.value}`} size={44} blob={MOOD_BLOB[m.value]} />
             <small>{m.label}</small>
           </button>
         ))}
@@ -99,7 +99,7 @@ export function QuickCheck({ tracker, onSaved }: { tracker: Tracker; onSaved: (s
                   key={f.id}
                   type="button"
                   className={`qc-tile ${v ? 'on' : ''}`}
-                  style={v ? ({ '--sev': severityColor(v / 3) } as React.CSSProperties) : undefined}
+                  style={{ '--cat': t.color, ...(v ? { '--sev': severityColor(v / 3) } : {}) } as React.CSSProperties}
                   aria-label={`${f.label}${v ? `: ${STEP_NAME[v]}` : ''}`}
                   onClick={() => setLevels((s) => {
                     const n = next(s[f.id]);
@@ -109,7 +109,7 @@ export function QuickCheck({ tracker, onSaved }: { tracker: Tracker; onSaved: (s
                     return copy;
                   })}
                 >
-                  <Doodle className="qc-ticon" name={t.icon} size={36} blob={v ? severityColor(v / 3) : undefined} />
+                  <Doodle className="qc-ticon" name={t.icon} size={38} blob={t.color} />
                   <span className="qc-tname">{t.name}</span>
                   <span className="qc-level">{v ? STEP_NAME[v] : ' '}</span>
                   {v ? <span className="qc-dots" aria-hidden>{'●'.repeat(v)}{'○'.repeat(3 - v)}</span> : null}

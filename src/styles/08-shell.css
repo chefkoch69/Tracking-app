@@ -321,3 +321,41 @@ body {
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .btn.primary { color: #1d2030; }
 }
+
+/* ===== Farbe: jeder Bereich hat seine eigene ===== */
+.qc-mood { --cat: var(--primary); }
+.qc-mood .doodle { color: color-mix(in srgb, var(--cat) 75%, var(--text)); opacity: 1 !important; }
+.qc-mood:not(.on) .doodle path[fill] { opacity: 0.16; }
+.qc-mood.on .doodle path[fill] { opacity: 0.55; }
+.qc-mood.on small { color: color-mix(in srgb, var(--cat) 70%, var(--text)); font-weight: 800; }
+.qc-mood.on .doodle { transform: scale(1.15); }
+
+.qc-tile { background: color-mix(in srgb, var(--cat) 10%, var(--surface)); border-color: color-mix(in srgb, var(--cat) 28%, var(--border)); }
+.qc-tile .doodle { color: color-mix(in srgb, var(--cat) 70%, var(--text)) !important; }
+.qc-tile .doodle path[fill] { opacity: 0.25; }
+.qc-tile.on { background: color-mix(in srgb, var(--cat) 24%, var(--surface)); border-color: var(--sev); border-width: 2.5px; }
+.qc-tile.on .doodle path[fill] { opacity: 0.55; }
+
+/* Aktionen: runde Farbkreise statt Kästchen */
+.quick-actions.big .qa-btn { background: none; border: 0; box-shadow: none; min-height: 0; padding: 0.2rem 0; gap: 0.35rem; }
+.qa-disc {
+  width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--cat) 22%, var(--surface)); color: color-mix(in srgb, var(--cat) 75%, var(--text));
+  border: 2px solid transparent; transition: transform 0.12s;
+}
+.qa-btn:active .qa-disc { transform: scale(0.94); }
+.qa-btn.active .qa-disc, .qa-btn.hot .qa-disc { border-color: var(--cat); background: color-mix(in srgb, var(--cat) 34%, var(--surface)); }
+.qa-btn .doodle { color: inherit !important; }
+.quick-actions .qa-btn span.qa-text { color: var(--text); }
+
+.set-icon { width: 2.4rem; height: 2.4rem; border-radius: 50%; background: color-mix(in srgb, var(--cat) 20%, var(--surface)); color: color-mix(in srgb, var(--cat) 75%, var(--text)); }
+.er-icon { width: 1.9rem; height: 1.9rem; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--cat) 20%, var(--surface)); color: color-mix(in srgb, var(--cat) 75%, var(--text)); }
+.er-btn { grid-template-columns: 3rem 2.1rem minmax(0, 1fr) auto; }
+
+/* Weniger Einheitskästchen: Hauptkarte offen, mit farbigem Akzent oben */
+.quick-check { background: var(--surface); border: 0; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+.quick-check::before { content: ""; position: absolute; inset: 0 0 auto; height: 6px; background: linear-gradient(90deg, #E06A78, #EE9A6B, #E9C35A, #8DBA5E, #4FAF92); opacity: 0.85; }
+.fav-chip { background: var(--surface); border: 1.5px dashed var(--border); }
+.today-date { color: #E8835F; }
+.tabbar a.active { color: #E8835F; }
+.tabbar a.active .tab-icon { background: color-mix(in srgb, #E8835F 16%, transparent); }

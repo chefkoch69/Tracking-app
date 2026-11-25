@@ -235,10 +235,12 @@ function SettingsGroup({ title, children }: { title: string; children: React.Rea
   );
 }
 
+const ROW_COLOR: Record<string, string> = { '✏️': '#E8835F', '🔔': '#F0B43C', '❤️': '#E06A78', '🩺': '#4FAF92', '☁️': '#5E9FD8', '↩︎': '#A584D6' };
+
 function Row({ icon, title, text, href, link }: { icon: string; title: string; text?: string; href?: string; link?: string }) {
   const inner = (
     <>
-      <span className="set-icon" aria-hidden><Doodle name={icon} size={24} /></span>
+      <span className="set-icon" aria-hidden style={{ '--cat': ROW_COLOR[icon] ?? '#5E9FD8' } as React.CSSProperties}><Doodle name={icon} size={24} /></span>
       <span className="set-text">
         <strong>{title}</strong>
         {text && <small className="muted">{text}</small>}
