@@ -24,8 +24,9 @@ function toTime(v: unknown): string | undefined {
     const d = new Date(s);
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   }
-  // "23.11.26, 06:42" o. ä. → erste Uhrzeit herausziehen
-  const t = s.match(/(\d{1,2})[:.](\d{2})(?![.\d]*\d{4})/);
+  // "25.11.2026, 06:42" o. ä. (so fügt der iPhone-Kurzbefehl ein Datum ein) → Datum entfernen, Uhrzeit nehmen
+  const rest = s.replace(/\b\d{1,2}\.\s?(?:\d{1,2}\.|[A-Za-zäÄ]{3,}\.?)\s?\d{2,4}\b/g, ' ').replace(/\b\d{4}-\d{2}-\d{2}\b/g, ' ');
+  const t = rest.match(/(\d{1,2}):(\d{2})/) ?? rest.match(/\b(\d{1,2})\.(\d{2})\b/);
   if (t && Number(t[1]) < 24) return `${t[1].padStart(2, '0')}:${t[2]}`;
   return undefined;
 }

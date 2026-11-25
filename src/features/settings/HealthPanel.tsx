@@ -152,6 +152,60 @@ export function HealthSettings() {
         </>
       )}
 
+      {IS_WORKER && (
+        <section className="shortcut-guide">
+          <h3>Kurzbefehl einrichten (einmalig, ca. 5 Minuten)</h3>
+          <p className="muted small">Erst oben den Verbindungs-Schlüssel erstellen. Dann in der App <b>Kurzbefehle</b>:</p>
+          <ol className="sg-steps">
+            <li>
+              <b>+</b> tippen → Name <b>„Befinden Health“</b>.
+            </li>
+            <li>
+              Aktion <b>„Health-Samples suchen“</b> hinzufügen: Typ <b>Schlafanalyse</b>, „Startdatum ist in den letzten <b>1 Tagen</b>“,
+              sortieren nach <b>Enddatum</b>, <b>Neueste zuerst</b>, Limit <b>1</b>.
+            </li>
+            <li>
+              Aktion <b>„Health-Samples suchen“</b> noch einmal: Typ <b>Schritte</b>, Startdatum <b>heute</b> → darunter Aktion{' '}
+              <b>„Statistik berechnen“</b> → <b>Summe</b>.
+            </li>
+            <li>
+              Aktion <b>„Inhalte von URL abrufen“</b>:
+              <ul>
+                <li>
+                  URL: die <b>Adresse</b> von oben (Kopieren-Knopf)
+                </li>
+                <li>
+                  „Mehr anzeigen“ → Methode <b>POST</b>
+                </li>
+                <li>
+                  Header: Schlüssel <code>Authorization</code>, Wert: <code>Bearer …</code> (Knopf „„Bearer …“ kopieren“ oben)
+                </li>
+                <li>
+                  Anfragetext: <b>JSON</b> → zwei Felder hinzufügen:
+                  <br />
+                  <code>wake</code> = Variable <b>Health-Samples</b> → antippen → <b>Enddatum</b>
+                  <br />
+                  <code>steps</code> = Variable <b>Statistik</b>
+                </li>
+              </ul>
+            </li>
+            <li>
+              Einmal auf <b>▶︎</b> tippen. Erscheint <b>„Gespeichert ✓“</b>, klappt es. Beim ersten Mal fragt das iPhone, ob der
+              Kurzbefehl Health lesen darf → <b>Erlauben</b>.
+            </li>
+            <li>
+              <b>Automatisch jeden Morgen:</b> unten <b>Automation</b> → <b>+</b> → <b>Wecker</b> → „Wenn <b>gestoppt</b>“ → <b>Sofort
+              ausführen</b> → „Befinden Health“ wählen.
+            </li>
+          </ol>
+          <p className="muted small">
+            Optional zusätzlich <code>schlaf</code> (Schlafdauer in Minuten, Summe der Schlafanalyse „Schlafend“) – wenn du es
+            weglässt, kommt nur die Aufwachzeit und die Schritte. Die Namen der Aktionen können je nach iOS-Version leicht abweichen.
+          </p>
+        </section>
+      )}
+
+      {!IS_WORKER && (
       <details className="howto">
         <summary>So richtest du den Kurzbefehl ein (einmalig, ca. 10 Minuten)</summary>
         <ol>
@@ -203,6 +257,7 @@ export function HealthSettings() {
           {!IS_ARTIFACT && ' In der installierten App kann der Kurzbefehl statt „Kopieren“ auch direkt die Adresse …/#/health?data=[Text] öffnen.'}
         </p>
       </details>
+      )}
 
       {days.length > 0 && (
         <>

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { TEMPLATES, trackerFromTemplate } from '../fields/templates';
 import { entryStory } from '../diary/story';
 import { weekReview } from '../diary/week';
+import { parseHealthText } from '../diary/health';
 import type { Entry, FieldValue } from '../model/types';
 
 const t = trackerFromTemplate(TEMPLATES.find((x) => x.key === 'now')!);
@@ -53,5 +54,12 @@ describe('Wochenrückblick', () => {
     expect(r.symptoms.find((s) => s.label === 'Kopfschmerz')!.direction).toBe('worse');
     expect(r.mood).toBe(3);
     expect(r.best).toBe('2026-11-24');
+  });
+});
+
+describe('Kurzbefehl: Datumsformate vom iPhone', () => {
+  it('liest die Aufwachzeit aus deutschen Datumsangaben', () => {
+    for (const w of ['25.11.2026, 06:42', '25.11.26, 06:42', '25. Nov. 2026 um 06:42', '06:42', '6.42'])
+      expect(parseHealthText(JSON.stringify({ wake: w }))[0].wake).toBe('06:42');
   });
 });
