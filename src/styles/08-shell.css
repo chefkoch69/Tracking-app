@@ -207,3 +207,5 @@
 .sg-steps { margin: 0.4rem 0 0.6rem; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.55rem; line-height: 1.45; }
 .sg-steps ul { margin: 0.3rem 0 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.25rem; }
 .sg-steps code, .shortcut-guide code { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0 0.3rem; font-size: 0.85em; }
+.wake-guide { margin-top: 0; border: 1.5px solid color-mix(in srgb, var(--primary) 35%, var(--border)); }
+.ah-url { display: block; margin: 0.4rem 0; padding: 0.4rem 0.5rem !important; word-break: break-all; font-size: 0.78rem !important; }

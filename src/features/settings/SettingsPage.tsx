@@ -11,7 +11,7 @@ import { navigate } from '../../app/router';
 
 export const SETTINGS_TITLES: Record<string, string> = {
   tracker: 'Felder & Tracker',
-  health: 'Apple Health & Armband',
+  health: 'Aufstehzeit & Armband',
   data: 'Daten & Sicherung',
 };
 
@@ -164,7 +164,7 @@ export function SettingsPage({ sub }: { sub?: string }) {
       </SettingsGroup>
 
       <SettingsGroup title="Verbindungen">
-        <Row icon="❤️" title="Apple Health & Armband" text={healthStatus} href="/settings/health" />
+        <Row icon="❤️" title="Aufstehzeit title="Apple Health & Armband" text={healthStatus} Armband" text={healthStatus} href="/settings/health" />
       </SettingsGroup>
 
       <SettingsGroup title="Arzt">

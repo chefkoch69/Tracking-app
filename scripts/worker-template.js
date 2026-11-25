@@ -361,9 +361,18 @@ export default {
     }
 
     // Apple-Health-Kurzbefehl: eigener Schlüssel statt Anmeldung (Kurzbefehle haben kein Cookie).
+    // Wecker ausgeschaltet → Aufstehzeit. Eine iPhone-Automation ruft nur diese Adresse auf
+    // (Schlüssel in der Adresse); die Uhrzeit ist der Zeitpunkt des Aufrufs.
+    if (path === '/api/wake' && (request.method === 'GET' || request.method === 'POST')) {
+      const key = (url.searchParams.get('key') || '').trim();
+      const expected = env.DATA ? await env.DATA.get('auth:healthkey') : null;
+      if (!key || !expected || !same(await sha(key), expected)) return json({ error: 'Schlüssel fehlt oder stimmt nicht.' }, 401);
+      await env.DATA.put(`healthin:${Date.now()}`, JSON.stringify({ wake: new Date().toISOString() }), { expirationTtl: 60 * 60 * 24 * 30 });
+      return new Response('Guten Morgen ☀ – Aufstehzeit gespeichert.', { headers: { 'content-type': 'text/plain; charset=utf-8' } });
+    }
     if (path === '/api/health' && request.method === 'POST') {
       const auth = request.headers.get('authorization') || '';
-      const key = auth.replace(/^Bearer\s+/i, '').trim();
+      const key = (auth.replace(/^Bearer\s+/i, '').trim() || url.searchParams.get('key') || '').trim();
       const expected = env.DATA ? await env.DATA.get('auth:healthkey') : null;
       if (!key || !expected || !same(await sha(key), expected)) return json({ error: 'Schlüssel fehlt oder stimmt nicht.' }, 401);
       const text = await request.text();

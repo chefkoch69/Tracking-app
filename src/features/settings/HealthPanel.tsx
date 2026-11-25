@@ -86,16 +86,9 @@ export function HealthSettings() {
     <section className="card" id="health-settings">
       <h2>Schlaf & Bewegung vom Armband</h2>
       <p className="muted">
-        Aufwachzeit, Schlaf und Schritte kommen von deinem Armband automatisch ins Tagebuch. Einmal einrichten, danach läuft es von selbst.
+        Deine Aufstehzeit kommt automatisch, sobald du den Wecker ausschaltest. Schlaf und Schritte vom Armband kannst du
+        zusätzlich per Kurzbefehl holen (Amazfit: in der Zepp-App unter Profil → „Apple Health“ verbinden).
       </p>
-      <ol className="setup-steps">
-        <li>
-          <b>Zepp-App:</b> Profil → „Apple Health“ verbinden und Schlaf, Schritte und Herzfrequenz freigeben.
-        </li>
-        <li>
-          <b>Kurzbefehl:</b> holt die Werte jeden Morgen aus Apple Health und schickt sie hierher (Anleitung unten).
-        </li>
-      </ol>
 
       {IS_WORKER && <AutoHealth />}
 
@@ -154,7 +147,7 @@ export function HealthSettings() {
 
       {IS_WORKER && (
         <section className="shortcut-guide">
-          <h3>Kurzbefehl einrichten (einmalig, ca. 5 Minuten)</h3>
+          <h3>Optional: Schlaf und Schritte per Kurzbefehl (ca. 5 Minuten)</h3>
           <p className="muted small">Erst oben den Verbindungs-Schlüssel erstellen. Dann in der App <b>Kurzbefehle</b>:</p>
           <ol className="sg-steps">
             <li>
@@ -350,7 +343,7 @@ function AutoHealth() {
   const [err, setErr] = useState<string | null>(null);
   const url = `${window.location.origin}/api/health`;
   const create = async () => {
-    if (key === null && !(await askConfirm('Neuen Verbindungs-Schlüssel erstellen? Ein früherer Schlüssel funktioniert danach nicht mehr.', { okLabel: 'Erstellen', danger: false }))) return;
+    if (key === null && !(await askConfirm('Neue Adresse erstellen? Eine früher eingerichtete Automation funktioniert danach erst wieder mit der neuen Adresse.', { okLabel: 'Erstellen', danger: false }))) return;
     setBusy(true);
     setErr(null);
     try {
@@ -366,28 +359,51 @@ function AutoHealth() {
   const copy = async (t: string) => {
     if (!(await copyText(t))) await notify('Bitte selbst markieren und kopieren:', t);
   };
+  const wakeUrl = key ? `${window.location.origin}/api/wake?key=${key}` : '';
   return (
     <div className="auto-health">
-      <p>
-        <b>Automatisch:</b> Ein iPhone-Kurzbefehl liest jeden Morgen Apple Health und schickt die Werte direkt hierher. Die App
-        übernimmt sie beim nächsten Öffnen – ohne Kopieren.
-      </p>
-      <div className="ah-row">
-        <span className="muted small">Adresse</span>
-        <code>{url}</code>
-        <button className="btn small" onClick={() => copy(url)}>Kopieren</button>
-      </div>
-      {key ? (
-        <div className="ah-row">
-          <span className="muted small">Verbindungs-Schlüssel (nur jetzt sichtbar)</span>
-          <code>{key}</code>
-          <button className="btn small" onClick={() => copy(`Bearer ${key}`)}>„Bearer …“ kopieren</button>
-        </div>
-      ) : (
-        <button className="btn primary" disabled={busy} onClick={create}>Verbindungs-Schlüssel erstellen</button>
-      )}
+      <section className="shortcut-guide wake-guide">
+        <h3>☀ Aufstehzeit automatisch – 1 Minute, kostenlos</h3>
+        <p className="muted small">Wenn du morgens den Wecker ausschaltest, trägt dein iPhone die Uhrzeit hier ein. Kein Kurzbefehl zum Bauen.</p>
+        <ol className="sg-steps">
+          <li>
+            {key ? (
+              <>
+                Deine Wecker-Adresse (nur jetzt sichtbar):
+                <code className="ah-url">{wakeUrl}</code>
+                <button className="btn primary small" onClick={() => copy(wakeUrl)}>Adresse kopieren</button>
+              </>
+            ) : (
+              <button className="btn primary" disabled={busy} onClick={create}>Meine Wecker-Adresse erstellen</button>
+            )}
+          </li>
+          <li>
+            App <b>Kurzbefehle</b> öffnen → unten <b>Automation</b> → <b>+</b> (bzw. „Neue Automation“) → <b>Wecker</b> → <b>„Wird gestoppt“</b> →
+            <b> Sofort ausführen</b> → <b>Weiter</b>.
+          </li>
+          <li>
+            <b>„Neue leere Automation“</b> → Aktion suchen: <b>„Inhalte von URL abrufen“</b> → auf „URL“ tippen → <b>Adresse einfügen</b> → <b>Fertig</b>.
+          </li>
+          <li>Fertig. Ab morgen steht deine Aufstehzeit automatisch auf „Heute“.</li>
+        </ol>
+      </section>
       {err && <p className="error small">{err}</p>}
-      <p className="muted small">Wie der Kurzbefehl aufgebaut ist, steht unten Schritt für Schritt.</p>
+      <details className="howto">
+        <summary>Mehr vom Armband: Schlaf und Schritte (optional, Kurzbefehl)</summary>
+        <div className="ah-row">
+          <span className="muted small">Adresse</span>
+          <code>{url}</code>
+          <button className="btn small" onClick={() => copy(url)}>Kopieren</button>
+        </div>
+        {key && (
+          <div className="ah-row">
+            <span className="muted small">Verbindungs-Schlüssel</span>
+            <code>{key}</code>
+            <button className="btn small" onClick={() => copy(`Bearer ${key}`)}>„Bearer …“ kopieren</button>
+          </div>
+        )}
+        <p className="muted small">Erst oben die Wecker-Adresse erstellen – derselbe Schlüssel gilt auch hier. Anleitung unten.</p>
+      </details>
     </div>
   );
 }

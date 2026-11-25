@@ -40,6 +40,17 @@ function toNum(v: unknown): number | undefined {
   return undefined;
 }
 
+/** Tag eines ISO-Zeitstempels in lokaler Zeit (oder eines deutschen Datums davor). */
+function wakeDay(v: unknown): string | undefined {
+  if (typeof v !== 'string') return undefined;
+  const s = v.trim();
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s) && !Number.isNaN(Date.parse(s))) {
+    const d = new Date(s);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  return /^\d{1,2}\.\d{1,2}\.\d{2,4}/.test(s) ? toDate(s, '') : undefined;
+}
+
 function toDate(v: unknown, fallback: string): string {
   if (typeof v === 'string') {
     const s = v.trim();
@@ -74,7 +85,8 @@ function fromObject(o: Record<string, unknown>, today: string): HealthDay | null
   // Schlaf in Minuten geliefert? (Kurzbefehle rechnen gern in Minuten)
   if (sleepHours !== undefined && sleepHours > 24) sleepHours = Math.round((sleepHours / 60) * 100) / 100;
   const day: HealthDay = {
-    date: toDate(pick(o, KEYS.date), today),
+    // Ohne Datum: aus dem Zeitstempel der Aufwachzeit (z. B. Wecker ausgeschaltet), sonst heute.
+    date: toDate(pick(o, KEYS.date), wakeDay(pick(o, KEYS.wake)) ?? today),
     wake: toTime(pick(o, KEYS.wake)),
     sleepStart: toTime(pick(o, KEYS.sleepStart)),
     sleepHours,
