@@ -378,11 +378,12 @@ function AutoHealth() {
             )}
           </li>
           <li>
-            App <b>Kurzbefehle</b> öffnen → unten <b>Automation</b> → <b>+</b> (bzw. „Neue Automation“) → <b>Wecker</b> → <b>„Wird gestoppt“</b> →
-            <b> Sofort ausführen</b> → <b>Weiter</b>.
+            App <b>Kurzbefehle</b> <i>(Shortcuts)</i> öffnen → unten <b>Automation</b> → <b>+</b> <i>(New Automation)</i> → <b>Wecker</b>{' '}
+            <i>(Alarm)</i> → <b>Wird gestoppt</b> <i>(Is Stopped)</i> → <b>Sofort ausführen</b> <i>(Run Immediately)</i> → <b>Weiter</b> <i>(Next)</i>.
           </li>
           <li>
-            <b>„Neue leere Automation“</b> → Aktion suchen: <b>„Inhalte von URL abrufen“</b> → auf „URL“ tippen → <b>Adresse einfügen</b> → <b>Fertig</b>.
+            <b>Neue leere Automation</b> <i>(New Blank Automation)</i> → Aktion <b>„Inhalte von URL abrufen“</b> <i>(Get Contents of URL)</i>{' '}
+            suchen → auf „URL“ tippen → <b>Adresse einfügen</b> <i>(Paste)</i> → <b>Fertig</b> <i>(Done)</i>.
           </li>
           <li>Fertig. Ab morgen steht deine Aufstehzeit automatisch auf „Heute“.</li>
         </ol>
