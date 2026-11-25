@@ -14,6 +14,7 @@ import { DayRhythmChart } from '../../components/DayRhythm';
 import { appointmentLabel, dayRhythm, daysUntil, questionList } from '../../core/diary/feedback';
 import { experimentDay } from '../../core/diary/experiments';
 import { MomentCard, type SavedNote } from './MomentCard';
+import { QuickCheck } from './QuickCheck';
 import { FollowUpCard, SavedCard } from '../entry/EntryPage';
 import { useDueTrackers, useNow } from '../../platform/reminders';
 import { navigate } from '../../app/router';
@@ -110,6 +111,8 @@ export function TodayPage() {
 
       {mainTracker?.quick ? <TodayLog key={mainTracker.id} tracker={mainTracker} now={now} /> : mainTracker && <FollowUpCard tracker={mainTracker} />}
 
+      <Streak now={now} />
+
       <TodayTimeline trackers={active} now={now} main={mainTracker} />
 
       <RunningExperiments />
@@ -133,12 +136,12 @@ function BandLine({ now }: { now: Date }) {
   );
 }
 
-type Extra = 'meal' | 'med' | 'evening' | null;
+type Extra = 'morning' | 'meal' | 'med' | 'evening' | 'symptom' | null;
 
 /**
- * Eintragen direkt auf „Heute“: oben der Moment, der gerade dran ist (morgens Aufgestanden,
- * abends Schlafen gehen), dann „Wie geht’s dir gerade?“ und Knöpfe für Essen, Medikament usw.
- * Alles klappt an Ort und Stelle auf – keine Unterseiten.
+ * Eintragen direkt auf „Heute“ – für Tage mit wenig Energie gebaut:
+ * oben eine einzige Frage (ein Tipp reicht), darunter große Knöpfe für Essen, Medikament,
+ * Morgen/Abend. Alles Weitere klappt nur auf, wenn man es antippt.
  */
 function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
   const { data, dispatch } = useStore();
@@ -148,10 +151,7 @@ function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
   const find = (ev: string) => [...todays].reverse().find((e) => Object.values(e.values).some((v) => Array.isArray(v) && v.includes(ev)));
   const woke = find('aufgestanden');
   const slept = find('schlafen gegangen');
-  const primary: 'morning' | 'evening' | null = h >= 4 && h < 15 ? 'morning' : h >= 19 || h < 4 ? 'evening' : null;
-  const primaryDone = primary === 'morning' ? woke : primary === 'evening' ? slept : undefined;
-  const [primaryOpen, setPrimaryOpen] = useState(!!primary && !primaryDone);
-  const [feelOpen, setFeelOpen] = useState(!primary || !!primaryDone);
+  const evening = h >= 18 || h < 4;
   const [extra, setExtra] = useState<Extra>(null);
   const [saved, setSaved] = useState<SavedNote | null>(null);
   const [undone, setUndone] = useState(false);
@@ -163,12 +163,21 @@ function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const at = (e?: { timestamp: string }) => (e ? formatClock(new Date(e.timestamp)) : '');
-  const actions: { key: Exclude<Extra, null> | 'talk'; icon: string; label: string }[] = [
+  const actions: { key: Exclude<Extra, null> | 'talk'; icon: string; label: string; done?: string; hot?: boolean }[] = [
+    evening
+      ? { key: 'evening', icon: '🌙', label: 'Schlafen', done: slept && `✓ ${at(slept)}`, hot: !slept }
+      : { key: 'morning', icon: '☀️', label: 'Aufstehen', done: woke && `✓ ${at(woke)}`, hot: !woke && h >= 4 && h < 12 },
     { key: 'meal', icon: '🍽', label: 'Essen & Trinken' },
     { key: 'med', icon: '💊', label: 'Medikament' },
-    ...(primary !== 'evening' ? [{ key: 'evening' as const, icon: '🌙', label: 'Schlafen gehen' }] : []),
     { key: 'talk', icon: '🎙', label: 'Erzählen' },
   ];
+  const titles: Record<Exclude<Extra, null>, [string, string]> = {
+    morning: ['☀️', 'Aufgestanden'],
+    evening: ['🌙', 'Schlafen gehen'],
+    meal: ['🍽', 'Essen & Trinken'],
+    med: ['💊', 'Medikament & Maßnahme'],
+    symptom: ['🤕', 'Alle Beschwerden & Details'],
+  };
 
   return (
     <>
@@ -186,70 +195,24 @@ function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
         />
       )}
 
-      <FollowUpCard
-        tracker={tracker}
-        onSymptoms={() => {
-          setPrimaryOpen(false);
-          setFeelOpen(true);
-          window.setTimeout(() => document.getElementById('feel-card')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
-        }}
-      />
+      <FollowUpCard tracker={tracker} onSymptoms={() => setExtra('symptom')} />
 
-      {primary === 'morning' && (
-        <MomentCard
-          tracker={tracker}
-          momentKey="morning"
-          icon="☀️"
-          title={woke ? 'Aufgestanden' : 'Guten Morgen – wie hast du geschlafen?'}
-          subtitle="Aufwachzeit, Wecker, Schlaf und wie es dir geht"
-          done={woke ? `um ${at(woke)} eingetragen` : undefined}
-          open={primaryOpen}
-          onToggle={setPrimaryOpen}
-          onSaved={(s) => {
-            onSaved(s);
-            setFeelOpen(false);
-          }}
-        />
-      )}
-      {primary === 'evening' && (
-        <MomentCard
-          tracker={tracker}
-          momentKey="evening"
-          icon="🌙"
-          title={slept ? 'Schlafen gehen' : 'Bevor du schlafen gehst'}
-          subtitle="Wie war der Tag, Handy weg, Wecker, getrunken?"
-          done={slept ? `um ${at(slept)} eingetragen` : undefined}
-          open={primaryOpen}
-          onToggle={setPrimaryOpen}
-          onSaved={onSaved}
-        />
-      )}
+      <QuickCheck tracker={tracker} onSaved={onSaved} />
 
-      <div id="feel-card" hidden={!!primary && !primaryDone && primaryOpen}>
-        <MomentCard
-          tracker={tracker}
-          momentKey="symptom"
-          icon="🤕"
-          title="Wie geht’s dir gerade?"
-          subtitle="Bauch, Kopf, Tinnitus, Erschöpfung, Kälte …"
-          open={feelOpen}
-          onToggle={setFeelOpen}
-          closeOnSave={false}
-          onSaved={onSaved}
-        />
-      </div>
-
-      <section className="quick-actions" aria-label="Weiteres eintragen">
+      <section className="quick-actions big" aria-label="Weiteres eintragen">
         {actions.map((a) => (
           <button
             key={a.key}
             type="button"
-            className={`qa-btn ${extra === a.key ? 'active' : ''}`}
+            className={`qa-btn ${extra === a.key ? 'active' : ''} ${a.hot ? 'hot' : ''}`}
             aria-expanded={a.key === 'talk' ? undefined : extra === a.key}
             onClick={() => (a.key === 'talk' ? navigate('/now/talk') : setExtra(extra === a.key ? null : a.key))}
           >
-            <span aria-hidden>{a.icon}</span>
-            {a.label}
+            <span className="qa-icon" aria-hidden>{a.icon}</span>
+            <span className="qa-text">
+              {a.label}
+              {a.done && <small>{a.done}</small>}
+            </span>
           </button>
         ))}
       </section>
@@ -259,8 +222,8 @@ function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
           key={extra}
           tracker={tracker}
           momentKey={extra}
-          icon={extra === 'meal' ? '🍽' : extra === 'med' ? '💊' : '🌙'}
-          title={extra === 'meal' ? 'Essen & Trinken' : extra === 'med' ? 'Medikament & Maßnahme' : 'Schlafen gehen'}
+          icon={titles[extra][0]}
+          title={titles[extra][1]}
           open
           onToggle={(o) => !o && setExtra(null)}
           onSaved={(s) => {
@@ -292,10 +255,31 @@ function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
         </section>
       )}
 
-      <button className="linkish more-entry" onClick={() => navigate('/now?m=all')}>
-        Alle Felder auf einmal oder zu einer anderen Uhrzeit ›
-      </button>
+      <div className="more-links-row">
+        <button className="linkish" onClick={() => setExtra('symptom')}>Alle Beschwerden & Details</button>
+        <button className="linkish" onClick={() => navigate('/now?m=all')}>Andere Uhrzeit / alles</button>
+      </div>
     </>
+  );
+}
+
+/** Freundliche Rückmeldung zur Regelmäßigkeit – ohne schlechtes Gewissen. */
+function Streak({ now }: { now: Date }) {
+  const { data } = useStore();
+  const keys = new Set([...data.entries.map((e) => dayKey(new Date(e.timestamp))), ...Object.entries(data.days ?? {}).filter(([, d]) => d.mood).map(([k]) => k)]);
+  let week = 0;
+  for (let i = 0; i < 7; i++) if (keys.has(dayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - i)))) week++;
+  if (!week) return null;
+  const text = week >= 6 ? 'Stark – fast jeden Tag dabei.' : week >= 3 ? 'Läuft. Jeder Eintrag hilft.' : 'Schön, dass du da bist.';
+  return (
+    <p className="streak">
+      <span className="streak-dots" aria-hidden>
+        {Array.from({ length: 7 }, (_, i) => (keys.has(dayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6 + i))) ? '●' : '○')).join(' ')}
+      </span>
+      <span>
+        {week} von 7 Tagen · {text}
+      </span>
+    </p>
   );
 }
 

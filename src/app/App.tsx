@@ -14,6 +14,7 @@ import { HistoryPage } from '../features/history/HistoryPage';
 import { ExperimentsPage } from '../features/experiments/ExperimentsPage';
 import { useAutoUpgrade } from '../platform/autoUpgrade';
 import { useHealthInbox } from '../platform/healthInbox';
+import { useAppBadge } from '../platform/pushReminders';
 import { TrackerBuilder } from '../features/builder/TrackerBuilder';
 import { TrackerDetail } from '../features/builder/TrackerDetail';
 
@@ -22,6 +23,7 @@ export function App() {
   useTypingClass();
   useAutoUpgrade();
   useHealthInbox();
+  useAppBadge();
   const route = useRoute();
   const { data } = useStore();
   const tracker = 'id' in route ? data.trackers.find((t) => t.id === route.id) : undefined;

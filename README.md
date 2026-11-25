@@ -17,6 +17,14 @@ Vier Bereiche in der Tab-Leiste:
 
 Unterseiten haben oben eine Leiste mit „‹ Zurück“.
 
+**Leicht-Modus:** Oben auf „Heute“ eine einzige Frage mit fünf Gesichtern (ein Tipp speichert),
+danach große Kacheln für Beschwerden (jeder Tipp = stärker) oder „Keine Beschwerden“.
+
+**Erinnerungen:** Web Push vom Worker (Cron alle 15 Minuten, Zeiten in den Einstellungen), nur wenn seit
+90 Minuten nichts eingetragen wurde; die Mitteilung kommt ohne Inhalt, den Text wählt der Service Worker.
+Solange heute nichts eingetragen ist, zeigt das App-Symbol eine 1 (Badging API). Privater VAPID-Schlüssel als
+Cloudflare-Secret `VAPID_PRIVATE`.
+
 **Erzählen:** frei sprechen (Mikrofon oder Tastatur-Diktat). Der Text wird direkt in der App
 ausgewertet (`core/diary/speech.ts`, ohne Server und ohne KI); die Punkte haken sich live ab.
 

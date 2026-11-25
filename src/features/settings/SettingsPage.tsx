@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { SyncInfo, useSyncStatus } from '../../platform/cloudSync';
 import { HealthSettings } from './HealthPanel';
+import { RemindersPanel } from './RemindersPanel';
 import { dayKey, parseDayKey } from '../../core/model/dates';
 import { saveFile } from '../../platform/save';
 import { askConfirm } from '../../components/confirm';
@@ -13,6 +14,7 @@ export const SETTINGS_TITLES: Record<string, string> = {
   tracker: 'Felder & Tracker',
   health: 'Aufstehzeit & Armband',
   data: 'Daten & Sicherung',
+  reminders: 'Erinnerungen',
 };
 
 /**
@@ -42,6 +44,13 @@ export function SettingsPage({ sub }: { sub?: string }) {
     return (
       <div className="page">
         <HealthSettings />
+      </div>
+    );
+
+  if (sub === 'reminders')
+    return (
+      <div className="page">
+        <RemindersPanel />
       </div>
     );
 
@@ -161,6 +170,10 @@ export function SettingsPage({ sub }: { sub?: string }) {
 
       <SettingsGroup title="Tagebuch">
         {main && <Row icon="✏️" title="Felder anpassen" text={`Was „${main.name}“ abfragt`} href={`/t/${main.id}/edit`} />}
+      </SettingsGroup>
+
+      <SettingsGroup title="Nicht vergessen">
+        <Row icon="🔔" title="Erinnerungen" text="Sanfte Erinnerung, wenn du eine Weile nichts eingetragen hast" href="/settings/reminders" />
       </SettingsGroup>
 
       <SettingsGroup title="Verbindungen">

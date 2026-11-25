@@ -3,29 +3,29 @@
    Design-System
    ========================================================= */
 :root {
-  /* Helles, klares Blau wie in den Referenz-Screens; bewusst nur ein (heller) Look. */
-  --primary: #2b5ff0;
-  --primary-deep: #1f47c9;
-  --hero: linear-gradient(180deg, #3a6df5 0%, #2b5ff0 55%, #2552dc 100%);
-  --bg: #eef3fc;
-  --surface: #ffffff;
-  --surface-2: #f1f5fd;
-  --surface-3: #e2e9f7;
-  --border: #e1e8f5;
-  --outline: #b7c3dc;
-  --text: #13254b;
-  --muted: #6a7896;
-  --good: #2e9e52;
-  --good-bg: #e6f6ea;
-  --bad: #e0464e;
-  --bad-bg: #fde9ea;
-  --warn: #e3920c;
-  --warn-bg: #fff4de;
-  --cell-empty: #e4eaf6;
-  --radius: 20px;
-  --radius-sm: 14px;
-  --shadow: 0 1px 2px rgba(29, 64, 150, 0.04), 0 4px 16px rgba(29, 64, 150, 0.06);
-  --shadow-lg: 0 10px 32px rgba(29, 64, 150, 0.14);
+  /* Warm und ruhig: Sand-Hintergrund, Salbei-Grün als Akzent – nichts, was schreit. */
+  --primary: #2f7d6d;
+  --primary-deep: #22604f;
+  --hero: linear-gradient(180deg, #3a8a79 0%, #2f7d6d 100%);
+  --bg: #f6f2ec;
+  --surface: #fffdf9;
+  --surface-2: #f2ece3;
+  --surface-3: #e6ded2;
+  --border: #e9e1d5;
+  --outline: #c8bdae;
+  --text: #2b2723;
+  --muted: #7b7168;
+  --good: #3f9a5e;
+  --good-bg: #e7f3e9;
+  --bad: #cf5a4f;
+  --bad-bg: #fbe9e6;
+  --warn: #d38f2b;
+  --warn-bg: #fbf0dc;
+  --cell-empty: #ece5da;
+  --radius: 24px;
+  --radius-sm: 16px;
+  --shadow: 0 1px 2px rgba(80, 60, 30, 0.04), 0 6px 20px rgba(80, 60, 30, 0.06);
+  --shadow-lg: 0 12px 36px rgba(80, 60, 30, 0.14);
   --accent: var(--primary);
   --font: "Montserrat", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --display: "Playfair Display", Georgia, "Times New Roman", serif;
@@ -37,7 +37,7 @@ html, body { margin: 0; }
 body {
   background: var(--bg);
   color: var(--text);
-  font: 15px/1.5 var(--font);
+  font: 16px/1.5 var(--font);
   -webkit-font-smoothing: antialiased;
   overflow-x: clip;
 }
@@ -61,26 +61,26 @@ a { color: inherit; }
 /* Dunkelmodus: folgt der Einstellung des iPhones (abends im Bett blendet nichts). */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --primary: #6f93ff;
-    --primary-deep: #9ab4ff;
-    --hero: linear-gradient(180deg, #1c2f66 0%, #18285a 100%);
-    --bg: #0e1424;
-    --surface: #182036;
-    --surface-2: #1f2942;
-    --surface-3: #2a3654;
-    --border: #2a3552;
-    --outline: #4a5878;
-    --text: #e8edf8;
-    --muted: #9aa6c2;
-    --good: #4cc47a;
-    --good-bg: #173527;
-    --bad: #ff6b72;
-    --bad-bg: #3a1c22;
-    --warn: #f0a93a;
-    --warn-bg: #3a2c12;
-    --cell-empty: #232d47;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 16px rgba(0, 0, 0, 0.25);
-    --shadow-lg: 0 10px 32px rgba(0, 0, 0, 0.45);
+    --primary: #6fc3ae;
+    --primary-deep: #9ad8c8;
+    --hero: linear-gradient(180deg, #24463e 0%, #1d3a33 100%);
+    --bg: #141311;
+    --surface: #1e1c19;
+    --surface-2: #27241f;
+    --surface-3: #332f29;
+    --border: #322e28;
+    --outline: #5a5248;
+    --text: #efe9e0;
+    --muted: #a69b8d;
+    --good: #6cc48a;
+    --good-bg: #1c3324;
+    --bad: #ef7d70;
+    --bad-bg: #3a201c;
+    --warn: #e9ad55;
+    --warn-bg: #392b15;
+    --cell-empty: #2a2621;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
+    --shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.45);
     color-scheme: dark;
   }
 }

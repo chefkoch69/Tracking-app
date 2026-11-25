@@ -246,6 +246,30 @@ async function deleteDoc(env, path) {
 async function handleApi(request, env, url) {
   if (!env.DATA) return json({ error: 'Kein Speicher verbunden.' }, 500);
   if (url.pathname === '/api/docs' && request.method === 'GET') return json({ docs: await listDocs(env) });
+  if (url.pathname === '/api/push') {
+    if (request.method === 'GET') {
+      const cfg = { ...PUSH_DEFAULT, ...((await env.DATA.get('push:settings', 'json')) || {}) };
+      return json({ publicKey: env.VAPID_PUBLIC || null, devices: (await pushSubs(env)).length, ...cfg });
+    }
+    if (request.method === 'POST') {
+      const body = await request.json().catch(() => ({}));
+      if (body.subscription?.endpoint) {
+        const id = `push:sub:${(await sha(body.subscription.endpoint)).slice(0, 24)}`;
+        await env.DATA.put(id, JSON.stringify({ endpoint: body.subscription.endpoint }));
+      }
+      const old = (await env.DATA.get('push:settings', 'json')) || {};
+      const next = { ...old };
+      if (Array.isArray(body.times)) next.times = body.times.filter((t) => /^\d{2}:\d{2}$/.test(t)).slice(0, 6).sort();
+      if (typeof body.tz === 'string' && body.tz.length < 64) next.tz = body.tz;
+      if (typeof body.enabled === 'boolean') next.enabled = body.enabled;
+      await env.DATA.put('push:settings', JSON.stringify(next));
+      return json({ ok: true });
+    }
+  }
+  if (url.pathname === '/api/push/test' && request.method === 'POST') {
+    if (!env.VAPID_PRIVATE) return json({ error: 'Erinnerungen sind auf dem Server nicht eingerichtet.' }, 500);
+    return json({ sent: await sendPushToAll(env) });
+  }
   if (url.pathname === '/api/status' && request.method === 'GET') {
     // Für „Daten & Sicherung“: wo und wie viel gespeichert ist.
     if (!(await ensureDb(env))) return json({ storage: 'kv' });
@@ -293,9 +317,88 @@ async function handleApi(request, env, url) {
   return json({ error: 'Nicht gefunden.' }, 404);
 }
 
+
+// ---------- Erinnerungen (Web Push) ----------
+// Das iPhone bekommt eine Mitteilung ohne Inhalt; den Text wählt der Service Worker nach Tageszeit.
+// So ist keine Verschlüsselung nötig. Erinnert wird nur, wenn seit einer Weile nichts eingetragen wurde.
+
+const PUSH_DEFAULT = { times: ['09:00', '14:00', '20:30'], tz: 'Europe/Vienna', quietMinutes: 90 };
+
+async function vapidAuth(env, endpoint) {
+  const jwk = JSON.parse(env.VAPID_PRIVATE);
+  const key = await crypto.subtle.importKey('jwk', jwk, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+  const enc = (o) => b64url(new TextEncoder().encode(JSON.stringify(o)));
+  const head = enc({ typ: 'JWT', alg: 'ES256' });
+  const body = enc({ aud: new URL(endpoint).origin, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: env.VAPID_SUBJECT || 'https://example.com' });
+  const sig = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, new TextEncoder().encode(`${head}.${body}`));
+  return `vapid t=${head}.${body}.${b64url(sig)}, k=${env.VAPID_PUBLIC}`;
+}
+
+async function pushSubs(env) {
+  const page = await env.DATA.list({ prefix: 'push:sub:' });
+  const subs = await Promise.all(page.keys.map(async (k) => ({ id: k.name, sub: await env.DATA.get(k.name, 'json') })));
+  return subs.filter((x) => x.sub?.endpoint);
+}
+
+async function sendPushToAll(env) {
+  let sent = 0;
+  for (const { id, sub } of await pushSubs(env)) {
+    const res = await fetch(sub.endpoint, {
+      method: 'POST',
+      headers: { Authorization: await vapidAuth(env, sub.endpoint), TTL: '3600', Urgency: 'normal', 'Content-Length': '0' },
+    });
+    if (res.status === 404 || res.status === 410) await env.DATA.delete(id);
+    else if (res.ok) sent++;
+  }
+  return sent;
+}
+
+/** Uhrzeit und Datum in der Zeitzone des Nutzers. */
+function localNow(tz) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+      .formatToParts(new Date())
+      .map((p) => [p.type, p.value]),
+  );
+  return { date: `${parts.year}-${parts.month}-${parts.day}`, minutes: (Number(parts.hour) % 24) * 60 + Number(parts.minute) };
+}
+
+/** Zeitpunkt des letzten Eintrags (aus den Wochen-Dokumenten der Datenbank). */
+async function lastEntryAt(env) {
+  if (!(await ensureDb(env))) return 0;
+  const { results } = await env.DB.prepare("SELECT body FROM docs WHERE path LIKE 'entries/%' ORDER BY path DESC LIMIT 2").all();
+  let last = 0;
+  for (const r of results) {
+    const items = Object.values(JSON.parse(r.body).items || {});
+    for (const e of items) last = Math.max(last, Date.parse(e.timestamp) || 0);
+  }
+  return last;
+}
+
+async function remind(env) {
+  if (!env.VAPID_PRIVATE || !env.DATA) return;
+  const cfg = { ...PUSH_DEFAULT, ...((await env.DATA.get('push:settings', 'json')) || {}) };
+  if (cfg.enabled === false) return;
+  const now = localNow(cfg.tz);
+  const due = cfg.times.find((t) => {
+    const [h, m] = t.split(':').map(Number);
+    const d = now.minutes - (h * 60 + m);
+    return d >= 0 && d < 15;
+  });
+  if (!due) return;
+  const mark = `push:sent:${now.date}:${due}`;
+  if (await env.DATA.get(mark)) return;
+  await env.DATA.put(mark, '1', { expirationTtl: 2 * 86400 });
+  if (Date.now() - (await lastEntryAt(env)) < cfg.quietMinutes * 60000) return; // gerade erst eingetragen
+  await sendPushToAll(env);
+}
+
 // ---------- Einstieg ----------
 
 export default {
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(remind(env));
+  },
   async fetch(request, env) {
     const url = new URL(request.url);
     const path = decodeURIComponent(url.pathname);

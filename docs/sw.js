@@ -1,5 +1,5 @@
 // Minimaler Service Worker: Offline-Cache (network-first) und Klick auf Benachrichtigungen.
-const CACHE = 'byot-v3';
+const CACHE = 'byot-v4';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) =>
@@ -40,5 +40,22 @@ self.addEventListener('notificationclick', (e) => {
       }
       return self.clients.openWindow(target);
     }),
+  );
+});
+
+// Erinnerung vom Server (ohne Inhalt): freundlicher Text je nach Tageszeit, Zahl am App-Symbol.
+const NUDGES = {
+  morning: ['Guten Morgen ☀', 'Wie hast du geschlafen? Ein Tipp reicht.'],
+  day: ['Kurzer Check 🌿', 'Wie geht’s dir gerade? Dauert 5 Sekunden.'],
+  evening: ['Bevor der Tag endet 🌙', 'Wie war dein Tag? Ein Tipp reicht.'],
+};
+self.addEventListener('push', (e) => {
+  const h = new Date().getHours();
+  const [title, body] = h < 11 ? NUDGES.morning : h < 18 ? NUDGES.day : NUDGES.evening;
+  e.waitUntil(
+    Promise.all([
+      self.registration.showNotification(title, { body, tag: 'checkin', icon: './icon-192.png', badge: './icon-192.png', data: { url: '#/' } }),
+      self.navigator.setAppBadge ? self.navigator.setAppBadge(1).catch(() => undefined) : undefined,
+    ]),
   );
 });
