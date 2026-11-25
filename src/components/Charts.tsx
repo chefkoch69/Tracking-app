@@ -341,7 +341,7 @@ export function MultiLineChart({
                   cx={sx(i)}
                   cy={sy(v)}
                   r={i === s.values.length - 1 ? 5 : 3}
-                  fill={i === s.values.length - 1 ? s.color : '#fff'}
+                  fill={i === s.values.length - 1 ? s.color : 'var(--surface)'}
                   stroke={s.color}
                   strokeWidth={2}
                   onMouseEnter={() => setTip({ x: sx(i), y: sy(v), text: `${s.label} ${label(days[i])}: ${v.toLocaleString('de-DE')}` })}

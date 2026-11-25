@@ -187,3 +187,16 @@
 .wk-symptoms li.worse b { color: var(--bad); }
 .wk-days small { color: var(--muted); }
 .wk-days-line { display: flex; flex-wrap: wrap; gap: 0.3rem 1rem; margin: 0.7rem 0 0; font-size: 0.88rem; }
+
+/* Tageskarten im Verlauf */
+.day-card .dc-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dc-top { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; }
+.dc-top small { font-variant-numeric: tabular-nums; white-space: pre; }
+.dc-syms { display: flex; flex-wrap: wrap; gap: 0.3rem 0.7rem; margin-top: 0.3rem; }
+.dc-sym { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.82rem; font-weight: 600; }
+.dc-sym b { color: #fff; border-radius: 999px; min-width: 1.35rem; text-align: center; font-size: 0.75rem; line-height: 1.35rem; padding: 0 0.3rem; }
+.dc-sym.more { color: var(--muted); }
+.dc-ok { color: var(--good); font-size: 0.82rem; font-weight: 600; margin-top: 0.25rem; }
+.dc-chev { color: var(--muted); font-size: 1.4rem; align-self: center; }
+.view-switch { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+.view-switch button { min-width: 0; padding-inline: 0.4rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

@@ -221,6 +221,8 @@ export interface DaySummary {
   steps?: number;
   /** Stärkste Beschwerde des Tages. */
   worst?: { label: string; value: number; level: number; text: string };
+  /** Alle Beschwerden des Tages (Tageshöchstwert ≥ 1), stärkste zuerst. */
+  symptoms: { label: string; value: number; level: number }[];
 }
 
 /** Was einen Tag ausmacht – für Tagesliste, Monatskalender und Tagesseite. */
@@ -234,6 +236,7 @@ export function daySummary(
   const ids = new Set(trackers.map((t) => t.id));
   const es = entries.filter((e) => ids.has(e.trackerId) && dayKey(new Date(e.timestamp)) === date);
   let worst: DaySummary['worst'];
+  const max: Record<string, { value: number; level: number }> = {};
   for (const e of es) {
     const t = trackers.find((x) => x.id === e.trackerId)!;
     for (const f of t.fields) {
@@ -241,10 +244,14 @@ export function daySummary(
       const v = e.values[f.id];
       if (typeof v !== 'number') continue;
       const lv = severity(f, v) ?? 0;
+      if (v >= 1 && (!max[f.label] || v > max[f.label].value)) max[f.label] = { value: v, level: lv };
       if (lv > 0 && (!worst || lv > worst.level)) worst = { label: f.label, value: v, level: lv, text: levelText(f, v) };
     }
   }
   const h = health?.[date];
   const d = days?.[date];
-  return { date, entries: es.length, mood: d?.mood, note: d?.note, wake: h?.wake, sleepHours: h?.sleepHours, steps: h?.steps, worst };
+  const symptoms = Object.entries(max)
+    .map(([label, x]) => ({ label, ...x }))
+    .sort((a, b) => b.value - a.value);
+  return { date, entries: es.length, mood: d?.mood, note: d?.note, wake: h?.wake, sleepHours: h?.sleepHours, steps: h?.steps, worst, symptoms };
 }

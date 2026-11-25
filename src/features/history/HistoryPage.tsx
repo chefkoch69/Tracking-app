@@ -103,23 +103,31 @@ export function HistoryPage({ day }: { day?: string } = {}) {
 }
 
 function DayCard({ s }: { s: DaySummary }) {
+  const shown = s.symptoms.slice(0, 3);
   return (
     <button className="card day-card" onClick={() => navigate(`/data?d=${s.date}`)}>
       <span className="dc-mood" aria-hidden>{moodIcon(s.mood) ?? <span className="dc-mood-empty" />}</span>
       <span className="dc-body">
-        <strong>{dayTitle(s.date)}</strong>
-        <small className="muted">
-          {[s.wake && `☀ ${s.wake}`, s.sleepHours !== undefined && `☾ ${fmtLevel(s.sleepHours)} h`, `${s.entries} ${s.entries === 1 ? 'Eintrag' : 'Einträge'}`].filter(Boolean).join(' · ')}
-        </small>
+        <span className="dc-top">
+          <strong>{dayTitle(s.date)}</strong>
+          <small className="muted">{[s.wake && `☀ ${s.wake}`, s.sleepHours !== undefined && `☾ ${fmtLevel(s.sleepHours)} h`].filter(Boolean).join('  ')}</small>
+        </span>
+        {shown.length > 0 ? (
+          <span className="dc-syms">
+            {shown.map((x) => (
+              <span key={x.label} className="dc-sym">
+                <b style={{ background: severityColor(x.level) }}>{fmtLevel(x.value)}</b>
+                {x.label}
+              </span>
+            ))}
+            {s.symptoms.length > 3 && <span className="dc-sym more">+{s.symptoms.length - 3}</span>}
+          </span>
+        ) : (
+          s.entries > 0 && <span className="dc-ok">✓ ohne Beschwerden</span>
+        )}
         {s.note && <small className="dc-note">„{s.note}“</small>}
       </span>
-      {s.worst ? (
-        <span className="dc-worst" style={{ background: severityColor(s.worst.level) }} title={`${s.worst.label} ${s.worst.text}`}>
-          {s.worst.label} {fmtLevel(s.worst.value)}
-        </span>
-      ) : (
-        s.entries > 0 && <span className="dc-worst ok">ohne Beschwerden</span>
-      )}
+      <span className="dc-chev" aria-hidden>›</span>
     </button>
   );
 }
