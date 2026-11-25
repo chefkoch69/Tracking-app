@@ -164,7 +164,7 @@ export function SettingsPage({ sub }: { sub?: string }) {
       </SettingsGroup>
 
       <SettingsGroup title="Verbindungen">
-        <Row icon="❤️" title="Aufstehzeit title="Apple Health & Armband" text={healthStatus} Armband" text={healthStatus} href="/settings/health" />
+        <Row icon="❤️" title="Aufstehzeit & Armband" text={healthStatus} href="/settings/health" />
       </SettingsGroup>
 
       <SettingsGroup title="Arzt">
