@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { withHealth } from '../../core/diary/health';
 import { computeInsights } from '../../core/analysis/insights';
 import { MOODS, dayRhythm, daySummary, insightReadiness, type DaySummary } from '../../core/diary/feedback';
-import { addDays, dayKey, formatDay, parseDayKey, startOfDay } from '../../core/model/dates';
+import { addDays, dayKey, formatDay, parseDayKey, startOfDay, entryDay, diaryDay } from '../../core/model/dates';
 import { fmtLevel } from '../../core/fields/fieldTypes';
 import type { Entry, Tracker } from '../../core/model/types';
 import { useStore } from '../../state/store';
@@ -21,7 +21,7 @@ const DAYS = 14;
 const moodIcon = (m?: number) => (m ? <Doodle name={`face${m}`} size={30} blob={MOOD_BLOB[m]} /> : undefined);
 
 function dayTitle(key: string): string {
-  const today = dayKey(new Date());
+  const today = diaryDay(new Date());
   const y = dayKey(addDays(startOfDay(new Date()), -1));
   if (key === today) return 'Heute';
   if (key === y) return 'Gestern';
@@ -46,7 +46,7 @@ export function HistoryPage({ day }: { day?: string } = {}) {
 
   if (day) return <DayPage day={day} trackers={trackers} />;
 
-  const keys = [...new Set([...data.entries.map((e) => dayKey(new Date(e.timestamp))), ...Object.keys(data.days ?? {})])].sort().reverse();
+  const keys = [...new Set([...data.entries.map((e) => entryDay(e.timestamp)), ...Object.keys(data.days ?? {})])].sort().reverse();
   const summaries = keys.slice(0, days).map((k) => daySummary(trackers, data.entries, k, data.health, data.days));
 
   return (
@@ -142,7 +142,7 @@ function MonthView({ trackers }: { trackers: Tracker[] }) {
   const first = new Date(now.getFullYear(), now.getMonth() + offset, 1);
   const count = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
   const lead = (first.getDay() + 6) % 7;
-  const today = dayKey(now);
+  const today = diaryDay(now);
   const cells = Array.from({ length: count }, (_, i) => dayKey(new Date(first.getFullYear(), first.getMonth(), i + 1)));
   return (
     <section className="card month-card">
@@ -185,7 +185,7 @@ function DayPage({ day, trackers }: { day: string; trackers: Tracker[] }) {
   const s = daySummary(trackers, data.entries, day, data.health, data.days);
   const main = trackers.find((t) => t.quick && !t.demo) ?? trackers.find((t) => t.quick);
   const items: { e: Entry; t: Tracker }[] = data.entries
-    .filter((e) => dayKey(new Date(e.timestamp)) === day)
+    .filter((e) => entryDay(e.timestamp) === day)
     .flatMap((e) => {
       const t = trackers.find((x) => x.id === e.trackerId);
       return t ? [{ e, t }] : [];
@@ -194,7 +194,7 @@ function DayPage({ day, trackers }: { day: string; trackers: Tracker[] }) {
   const rhythm = main ? dayRhythm(main, data.entries, parseDayKey(day)) : null;
   const prev = dayKey(addDays(parseDayKey(day), -1));
   const next = dayKey(addDays(parseDayKey(day), 1));
-  const isToday = day === dayKey(new Date());
+  const isToday = day === diaryDay(new Date());
   const [note, setNote] = useState(s.note ?? '');
   const long = parseDayKey(day).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' });
   const t = dayTitle(day);

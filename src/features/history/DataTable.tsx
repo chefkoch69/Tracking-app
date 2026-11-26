@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { askConfirm } from '../../components/confirm';
 import { saveFile } from '../../platform/save';
-import { addDays, dayKey, startOfDay } from '../../core/model/dates';
+import { addDays, dayKey, startOfDay, entryDay } from '../../core/model/dates';
 import { fieldSpec, formatShort, formatValue, isEmptyValue, severity } from '../../core/fields/fieldTypes';
 import { exportCsv } from '../../core/model/storage';
 import type { Entry, FieldDef, Tracker } from '../../core/model/types';
@@ -41,7 +41,7 @@ export function DataTable({ fixedTracker }: { fixedTracker?: Tracker }) {
     let list = data.entries.filter((e) => {
       const t = byId.get(e.trackerId);
       if (!t || (tracker && e.trackerId !== tracker.id)) return false;
-      if (from && dayKey(new Date(e.timestamp)) < from) return false;
+      if (from && entryDay(e.timestamp) < from) return false;
       if (!q) return true;
       const hay = [t.name, ...t.fields.map((f) => `${f.label} ${formatValue(f, e.values[f.id])}`)].join(' ').toLocaleLowerCase('de-DE');
       return hay.includes(q);

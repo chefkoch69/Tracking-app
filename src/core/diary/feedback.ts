@@ -1,5 +1,5 @@
 import { entriesOf } from '../analysis/analytics';
-import { addDays, dayKey, parseDayKey, startOfDay } from '../model/dates';
+import { addDays, dayKey, parseDayKey, startOfDay, entryDay } from '../model/dates';
 import { fieldSpec, fmtLevel, isEmptyValue, listItems, itemName, polarityOf, scaleLevels, severity } from '../fields/fieldTypes';
 import type { Entry, FieldDef, Tracker } from '../model/types';
 
@@ -100,7 +100,7 @@ function eventKind(text: string, field: FieldDef): EventKind {
  */
 export function dayRhythm(tracker: Tracker, entries: Entry[], day: Date): DayRhythm {
   const key = dayKey(day);
-  const es = entriesOf(tracker, entries).filter((e) => dayKey(new Date(e.timestamp)) === key);
+  const es = entriesOf(tracker, entries).filter((e) => entryDay(e.timestamp) === key);
   const minutesOf = (e: Entry) => {
     const d = new Date(e.timestamp);
     return d.getHours() * 60 + d.getMinutes();
@@ -169,7 +169,7 @@ export function insightReadiness(trackers: Tracker[], entries: Entry[], now: Dat
   const ids = new Set(trackers.filter((t) => !t.archived && !t.demo).map((t) => t.id));
   const since = dayKey(addDays(startOfDay(now), -27));
   const days = new Set(
-    entries.filter((e) => ids.has(e.trackerId)).map((e) => dayKey(new Date(e.timestamp))).filter((k) => k >= since),
+    entries.filter((e) => ids.has(e.trackerId)).map((e) => entryDay(e.timestamp)).filter((k) => k >= since),
   ).size;
   return { days, need, ready: days >= need };
 }
@@ -234,7 +234,7 @@ export function daySummary(
   days?: Record<string, { mood?: number; note?: string }>,
 ): DaySummary {
   const ids = new Set(trackers.map((t) => t.id));
-  const es = entries.filter((e) => ids.has(e.trackerId) && dayKey(new Date(e.timestamp)) === date);
+  const es = entries.filter((e) => ids.has(e.trackerId) && entryDay(e.timestamp) === date);
   let worst: DaySummary['worst'];
   const max: Record<string, { value: number; level: number }> = {};
   for (const e of es) {

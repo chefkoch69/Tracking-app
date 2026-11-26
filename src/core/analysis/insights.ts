@@ -1,5 +1,5 @@
 import { aggregate, dailyValues, entriesOf, numericFields, pairMetrics, pearson } from './analytics';
-import { addDays, dayKey, startOfDay } from '../model/dates';
+import { addDays, dayKey, startOfDay, entryDay } from '../model/dates';
 import { fieldSpec, metricLabel, polarityOf } from '../fields/fieldTypes';
 import { HEALTH_TRACKER_ID } from '../diary/health';
 import { GROUP_CAT, foodGroupsOfList, groupByCat, isFoodField } from './foodGroups';
@@ -88,7 +88,7 @@ function dailyMax(f: FieldDef, es: Entry[]): Map<string, number> {
   for (const e of es) {
     const v = spec.toNumber(f, e.values[f.id] ?? null);
     if (v === null) continue;
-    const k = dayKey(new Date(e.timestamp));
+    const k = entryDay(e.timestamp);
     m.set(k, Math.max(m.get(k) ?? -Infinity, v));
   }
   return m;
@@ -247,7 +247,7 @@ export function factorInsights(tracker: Tracker, entries: Entry[], minGroup = 3)
   const isEvent = (f: FieldDef) =>
     !isDescriptor(f) && ((f.type === 'text' && !!f.config.splitList) || f.type === 'multiselect' || f.type === 'checkbox');
   const isAttribute = (f: FieldDef) => f.type === 'select';
-  const dayCount = new Set(es.map((e) => dayKey(new Date(e.timestamp)))).size;
+  const dayCount = new Set(es.map((e) => entryDay(e.timestamp))).size;
 
   /**
    * family: worüber höchstens eine Aussage gemacht wird; ids: die Einträge, auf denen die Aussage
@@ -348,7 +348,7 @@ export function factorInsights(tracker: Tracker, entries: Entry[], minGroup = 3)
           later = v;
           worst = worst === null ? v : Math.max(worst, v);
         }
-        const m = { cats, id: e.id, t, day: dayKey(new Date(e.timestamp)), own, now, later, worst };
+        const m = { cats, id: e.id, t, day: entryDay(e.timestamp), own, now, later, worst };
         if (cats.length) occ.push(m);
         if (own !== null) withValue.push(m);
       });

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Doodle } from '../../components/Doodle';
 import { entriesOf } from '../../core/analysis/analytics';
-import { dayKey, formatClock } from '../../core/model/dates';
+import { dayKey, formatClock, diaryDay } from '../../core/model/dates';
 import { conditionMet, FIELD_TYPES, isEmptyValue, polarityOf, validateValues } from '../../core/fields/fieldTypes';
 import { entryFeedback, type ValueChange } from '../../core/diary/feedback';
 import { detailsOf, fieldByLabel, momentByKey, symptomFields, withEvent, type MomentKey } from '../../core/diary/moments';
@@ -61,7 +61,7 @@ export function MomentCard({
   const [showOptional, setShowOptional] = useState(false);
   const [showExtra, setShowExtra] = useState(false);
   const entries = useMemo(() => entriesOf(tracker, data.entries), [tracker, data.entries]);
-  const today = dayKey(new Date());
+  const today = diaryDay(new Date());
 
   const last = (f: FieldDef): { v: FieldValue; t: Date } | null => {
     const limit = Date.now() - 24 * 3600 * 1000;

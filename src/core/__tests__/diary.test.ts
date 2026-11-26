@@ -96,3 +96,14 @@ describe('Drei feste Einträge pro Tag', () => {
     expect([checkinForHour(7), checkinForHour(13), checkinForHour(21)]).toEqual(['morning', 'midday', 'evening']);
   });
 });
+
+import { entryDay } from '../model/dates';
+describe('Tagebuch-Tag bis 4 Uhr früh', () => {
+  it('Einträge nach Mitternacht gehören zum Vortag', () => {
+    expect(entryDay(new Date('2026-11-27T00:46').toISOString())).toBe('2026-11-26');
+    expect(entryDay(new Date('2026-11-27T03:59').toISOString())).toBe('2026-11-26');
+    expect(entryDay(new Date('2026-11-27T04:00').toISOString())).toBe('2026-11-27');
+    const late = entry('2026-11-27T00:46', { 'Was ist passiert?': ['schlafen gegangen'] });
+    expect(dayCheckins(t, [late], '2026-11-26').evening?.id).toBe(late.id);
+  });
+});

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { addDays, dayKey, startOfDay } from '../core/model/dates';
+import { addDays, dayKey, startOfDay, entryDay } from '../core/model/dates';
 import { daySlotStatus } from '../core/diary/schedule';
 import type { Entry, Tracker } from '../core/model/types';
 
@@ -12,7 +12,7 @@ export function trackerDayState(tracker: Tracker, entries: Entry[], day: Date, n
   const slots = daySlotStatus(tracker, entries, d);
   if (!slots.length) {
     const k = dayKey(d);
-    return entries.some((e) => e.trackerId === tracker.id && dayKey(new Date(e.timestamp)) === k) ? 'done' : 'none';
+    return entries.some((e) => e.trackerId === tracker.id && entryDay(e.timestamp) === k) ? 'done' : 'none';
   }
   const done = slots.filter((s) => s.done).length;
   if (done === slots.length) return 'done';

@@ -1,4 +1,4 @@
-import { addDays, dayKey, startOfDay } from '../model/dates';
+import { addDays, dayKey, startOfDay, entryDay } from '../model/dates';
 import { polarityOf } from '../fields/fieldTypes';
 import type { DayNote, Entry, HealthDay, Tracker } from '../model/types';
 
@@ -61,7 +61,7 @@ export function weekReview(
   const loggedDays = new Set<string>();
   for (const e of entries) {
     if (!ids.has(e.trackerId)) continue;
-    const k = dayKey(new Date(e.timestamp));
+    const k = entryDay(e.timestamp);
     loggedDays.add(k);
     for (const f of scales) {
       const v = e.values[f.id];

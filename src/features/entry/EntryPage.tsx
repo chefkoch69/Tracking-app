@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Doodle } from '../../components/Doodle';
 import { SpeakCard } from './SpeakCard';
 import { entriesOf } from '../../core/analysis/analytics';
-import { dayKey, formatClock, toLocalInput } from '../../core/model/dates';
+import { dayKey, formatClock, toLocalInput, entryDay, diaryDay, parseDayKey } from '../../core/model/dates';
 import {
   conditionMet,
   FIELD_TYPES,
@@ -199,9 +199,9 @@ function MomentEntry({ tracker, talk, initial, at }: { tracker: Tracker; talk?: 
   const otherDay = dayKey(when) !== dayKey(now);
 
   const entries = useMemo(() => entriesOf(tracker, data.entries), [tracker, data.entries]);
-  const today = dayKey(now);
-  const todays = entries.filter((e) => dayKey(new Date(e.timestamp)) === today).reverse();
-  const rhythm = useMemo(() => dayRhythm(tracker, data.entries, now), [tracker, data.entries, today]); // eslint-disable-line react-hooks/exhaustive-deps
+  const today = diaryDay(now);
+  const todays = entries.filter((e) => entryDay(e.timestamp) === today).reverse();
+  const rhythm = useMemo(() => dayRhythm(tracker, data.entries, parseDayKey(today)), [tracker, data.entries, today]); // eslint-disable-line react-hooks/exhaustive-deps
   const favs = useMemo(() => favorites(tracker, data.entries, new Date(), 6), [tracker, data.entries]);
   const suggestion = suggestedMoment(tracker, data.entries, now);
 

@@ -1,6 +1,6 @@
 import { aggregate, entriesOf } from './analytics';
 import { regionLabel } from '../fields/bodyMaps';
-import { addDays, dayKey, formatClock, parseDayKey } from '../model/dates';
+import { addDays, dayKey, formatClock, parseDayKey, entryDay } from '../model/dates';
 import { aggregationOf, fieldSpec, fmtLevel, formatDuration, formatShort, formatValue, isEmptyValue, isTimeRange, metricLabel, polarityOf } from '../fields/fieldTypes';
 import { questionList } from '../diary/feedback';
 import type { Entry, FieldDef, HealthDay, Profile, Tracker } from '../model/types';
@@ -22,7 +22,7 @@ export interface ReportColumn {
 
 export function inRange(entries: Entry[], from: string, to: string): Entry[] {
   return entries.filter((e) => {
-    const k = dayKey(new Date(e.timestamp));
+    const k = entryDay(e.timestamp);
     return k >= from && k <= to;
   });
 }
@@ -97,7 +97,7 @@ export function dayValue(f: FieldDef, es: Entry[]): string {
 export function dayColumns(tracker: Tracker, entries: Entry[]): ReportColumn[] {
   const byDay = new Map<string, Entry[]>();
   for (const e of entries) {
-    const k = dayKey(new Date(e.timestamp));
+    const k = entryDay(e.timestamp);
     byDay.set(k, [...(byDay.get(k) ?? []), e]);
   }
   return [...byDay.entries()]
@@ -142,7 +142,7 @@ function dailyNumbers(f: FieldDef, entries: Entry[]): Map<string, number> {
   for (const e of entries) {
     const v = spec.toNumber(f, e.values[f.id] ?? null);
     if (v === null) continue;
-    const k = dayKey(new Date(e.timestamp));
+    const k = entryDay(e.timestamp);
     by.set(k, [...(by.get(k) ?? []), v]);
   }
   // Skalen: Tageshöchstwert (der schlimmste Moment), sonst die Feld-Aggregation.
@@ -226,7 +226,7 @@ export function reportText(
     lines.push('');
   }
   const keys = new Set<string>();
-  for (const e of inRange(allEntries, from, to)) keys.add(dayKey(new Date(e.timestamp)));
+  for (const e of inRange(allEntries, from, to)) keys.add(entryDay(e.timestamp));
   for (const k of Object.keys(health ?? {})) if (k >= from && k <= to) keys.add(k);
   for (const k of [...keys].sort()) {
     lines.push(parseDayKey(k).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }));
@@ -244,7 +244,7 @@ export function reportText(
       if (hp.length) lines.push(`  Gesundheit: ${hp.join(', ')}`);
     }
     for (const t of trackers) {
-      const es = entriesOf(t, allEntries).filter((e) => dayKey(new Date(e.timestamp)) === k);
+      const es = entriesOf(t, allEntries).filter((e) => entryDay(e.timestamp) === k);
       for (const e of es) {
         const parts = t.fields
           .filter((f) => !isEmptyValue(e.values[f.id]) && e.values[f.id] !== false)

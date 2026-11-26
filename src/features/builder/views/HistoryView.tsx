@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { entriesOf } from '../../../core/analysis/analytics';
-import { dayKey, formatDay, parseDayKey } from '../../../core/model/dates';
+import { dayKey, formatDay, parseDayKey, entryDay } from '../../../core/model/dates';
 import type { Entry, Tracker } from '../../../core/model/types';
 import { useStore } from '../../../state/store';
 import { EntryCard, NoData } from '../../../components/entryViews';
@@ -25,7 +25,7 @@ export function HistoryView({ tracker }: { tracker: Tracker }) {
 
   const groups = new Map<string, Entry[]>();
   for (const e of entries.slice(0, limit)) {
-    const k = dayKey(new Date(e.timestamp));
+    const k = entryDay(e.timestamp);
     groups.set(k, [...(groups.get(k) ?? []), e]);
   }
   return (

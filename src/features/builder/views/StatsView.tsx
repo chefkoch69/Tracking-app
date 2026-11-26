@@ -3,7 +3,7 @@ import { averageGapMinutes, bucketize, categoricalFields, consistencySeries, cur
 import { fieldSpec, formatDuration, metricLabel, polarityOf } from '../../../core/fields/fieldTypes';
 import { sinceWakeDistribution } from '../../../core/diary/health';
 import { BarChart, LineChart } from '../../../components/Charts';
-import { dayKey, formatDateTime, formatDay, parseDayKey } from '../../../core/model/dates';
+import { formatDateTime, formatDay, parseDayKey, entryDay } from '../../../core/model/dates';
 import { AGGREGATION_LABELS, aggregationOf } from '../../../core/fields/fieldTypes';
 import type { Entry, FieldDef, Tracker } from '../../../core/model/types';
 import { useStore } from '../../../state/store';
@@ -26,7 +26,7 @@ export function StatsView({ tracker }: { tracker: Tracker }) {
   const nums = numericFields(tracker);
   const cats = categoricalFields(tracker).filter((f) => f.type !== 'checkbox');
   const first = new Date(entries[0].timestamp);
-  const days = new Set(entries.map((e) => dayKey(new Date(e.timestamp)))).size;
+  const days = new Set(entries.map((e) => entryDay(e.timestamp))).size;
   const consistency = consistencySeries(tracker, data.entries);
   const score = consistency.length ? consistency[consistency.length - 1].v : null;
   const gap = averageGapMinutes(entries);

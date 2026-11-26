@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Doodle } from '../../components/Doodle';
 import { MOODS, entryFeedback } from '../../core/diary/feedback';
 import { detailsOf, momentByKey, questionFor, symptomFields, withEvent, type MomentKey } from '../../core/diary/moments';
-import { dayKey } from '../../core/model/dates';
+import { diaryDay } from '../../core/model/dates';
 import { uid } from '../../core/model/id';
 import type { Entry, FieldDef, FieldValue, Tracker } from '../../core/model/types';
 import { useStore } from '../../state/store';
@@ -38,7 +38,7 @@ const next = (v: number | undefined) => {
  */
 export function QuickCheck({ tracker, onSaved, momentKey }: { tracker: Tracker; onSaved: (s: SavedNote) => void; momentKey?: MomentKey }) {
   const { data, dispatch } = useStore();
-  const today = dayKey(new Date());
+  const today = diaryDay(new Date());
   const mood = data.days?.[today]?.mood;
   const tiles = symptomFields(tracker).main.filter((f) => TILE[f.label]);
   const [levels, setLevels] = useState<Record<string, number>>({});

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { aggregate, entriesOf, numericFields } from '../../../core/analysis/analytics';
-import { addDays, dayKey, formatClock, formatDay, parseDayKey } from '../../../core/model/dates';
+import { addDays, dayKey, formatClock, formatDay, parseDayKey, entryDay } from '../../../core/model/dates';
 import { daySlotStatus } from '../../../core/diary/schedule';
 import { AGGREGATION_LABELS, aggregationOf, fieldSpec } from '../../../core/fields/fieldTypes';
 import type { Tracker } from '../../../core/model/types';
@@ -11,7 +11,7 @@ export function DailyView({ tracker }: { tracker: Tracker }) {
   const { data } = useStore();
   const [day, setDay] = useState(dayKey(new Date()));
   const date = parseDayKey(day);
-  const entries = entriesOf(tracker, data.entries).filter((e) => dayKey(new Date(e.timestamp)) === day);
+  const entries = entriesOf(tracker, data.entries).filter((e) => entryDay(e.timestamp) === day);
   const slots = daySlotStatus(tracker, data.entries, date);
   const shift = (d: number) => setDay(dayKey(addDays(date, d)));
 

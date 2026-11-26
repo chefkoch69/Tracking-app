@@ -1,5 +1,5 @@
 import { entriesOf } from '../analysis/analytics';
-import { dayKey } from '../model/dates';
+import { entryDay, diaryDay } from '../model/dates';
 import { isEmptyValue, itemName, listItems, polarityOf } from '../fields/fieldTypes';
 import { isFoodField } from '../analysis/foodGroups';
 import type { Entry, FieldDef, FieldValue, Tracker } from '../model/types';
@@ -203,7 +203,7 @@ export function withEvent(t: Tracker, m: Moment, values: Record<string, FieldVal
 /** Vorschlag je nach Tageszeit: morgens „Aufgestanden“, abends „Schlafen gehen“. */
 export function suggestedMoment(t: Tracker, entries: Entry[], now: Date): MomentKey | null {
   const h = now.getHours();
-  const today = entriesOf(t, entries).filter((e) => dayKey(new Date(e.timestamp)) === dayKey(now));
+  const today = entriesOf(t, entries).filter((e) => entryDay(e.timestamp) === diaryDay(now));
   const has = (ev: string) => today.some((e) => Object.values(e.values).some((v) => Array.isArray(v) && v.includes(ev)));
   if (h >= 4 && h < 12 && !has('aufgestanden')) return 'morning';
   if ((h >= 21 || h < 3) && !has('schlafen gegangen')) return 'evening';
@@ -254,7 +254,7 @@ export type CheckinKey = (typeof CHECKINS)[number]['key'];
 
 /** Der jeweils letzte Morgen-, Mittag- und Abend-Eintrag eines Tages (falls vorhanden). */
 export function dayCheckins(t: Tracker, entries: Entry[], day: string): Partial<Record<CheckinKey, Entry>> {
-  const es = entriesOf(t, entries).filter((e) => dayKey(new Date(e.timestamp)) === day);
+  const es = entriesOf(t, entries).filter((e) => entryDay(e.timestamp) === day);
   const out: Partial<Record<CheckinKey, Entry>> = {};
   for (const c of CHECKINS)
     for (const e of es) if (Object.values(e.values).some((v) => Array.isArray(v) && v.some((x) => norm(x) === norm(c.event)))) out[c.key] = e;

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { dailyValues, entriesOf, entriesPerDay, numericFields } from '../../../core/analysis/analytics';
-import { dayKey, formatDay, parseDayKey } from '../../../core/model/dates';
+import { dayKey, formatDay, parseDayKey, entryDay } from '../../../core/model/dates';
 import { AGGREGATION_LABELS, aggregationOf } from '../../../core/fields/fieldTypes';
 import type { Tracker } from '../../../core/model/types';
 import { useStore } from '../../../state/store';
@@ -23,7 +23,7 @@ export function CalendarView({ tracker }: { tracker: Tracker }) {
   const values = field ? dailyValues(field, entries) : entriesPerDay(entries);
   const fmt = (v: number) =>
     field ? `${v.toLocaleString('de-DE', { maximumFractionDigits: 1 })}${field.config.unit ? ' ' + field.config.unit : ''}` : `${v} Einträge`;
-  const dayEntries = entries.filter((e) => dayKey(new Date(e.timestamp)) === selected);
+  const dayEntries = entries.filter((e) => entryDay(e.timestamp) === selected);
 
   return (
     <>

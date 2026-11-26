@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { dayKey } from '../core/model/dates';
+import { entryDay, diaryDay } from '../core/model/dates';
 import { useStore } from '../state/store';
 
 /**
@@ -62,8 +62,8 @@ export async function testPush(): Promise<number | null> {
 /** Zahl am App-Symbol: 1, solange heute nichts eingetragen ist. */
 export function useAppBadge() {
   const { data } = useStore();
-  const today = dayKey(new Date());
-  const loggedToday = data.entries.some((e) => dayKey(new Date(e.timestamp)) === today) || !!data.days?.[today]?.mood;
+  const today = diaryDay(new Date());
+  const loggedToday = data.entries.some((e) => entryDay(e.timestamp) === today) || !!data.days?.[today]?.mood;
   useEffect(() => {
     const nav = navigator as Navigator & { setAppBadge?: (n?: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
     if (!nav.setAppBadge) return;

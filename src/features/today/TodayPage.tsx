@@ -3,7 +3,7 @@ import { Doodle } from '../../components/Doodle';
 import { SetupCard } from './SetupCard';
 import { TEMPLATES, trackerFromTemplate } from '../../core/fields/templates';
 import { askConfirm } from '../../components/confirm';
-import { dayKey, formatClock } from '../../core/model/dates';
+import { dayKey, formatClock, entryDay, diaryDay, parseDayKey } from '../../core/model/dates';
 import { fmtLevel } from '../../core/fields/fieldTypes';
 import { FAVORITE_ICON, favoriteValues, favorites } from '../../core/diary/favorites';
 import { uid } from '../../core/model/id';
@@ -54,7 +54,8 @@ export function TodayPage() {
   return (
     <div className="page today">
       <header className="page-head today-head">
-        <h1>{now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}</h1>
+        <h1>{parseDayKey(diaryDay(now)).toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}</h1>
+        {diaryDay(now) !== dayKey(now) && <p className="muted small">Nach Mitternacht – zählt noch zum Vortag (bis 4 Uhr).</p>}
         <BandLine now={now} />
       </header>
 
@@ -121,7 +122,7 @@ export function TodayPage() {
 /** Aufwachzeit, Schlaf und Schritte vom Armband – eine Zeile. */
 function BandLine({ now }: { now: Date }) {
   const { data } = useStore();
-  const h = data.health?.[dayKey(now)];
+  const h = data.health?.[diaryDay(now)];
   if (!h || (h.wake === undefined && h.sleepHours === undefined && h.steps === undefined)) return null;
   return (
     <div className="band-line">
@@ -143,7 +144,7 @@ type Tab = CheckinKey | Extra;
 function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
   const { data, dispatch } = useStore();
   const h = now.getHours();
-  const today = dayKey(now);
+  const today = diaryDay(now);
   const checks = dayCheckins(tracker, data.entries, today);
   const [tab, setTab] = useState<Tab>(() => checkinForHour(h));
   const [editing, setEditing] = useState(false);
@@ -323,7 +324,7 @@ function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
 /** Freundliche Rückmeldung zur Regelmäßigkeit – ohne schlechtes Gewissen. */
 function Streak({ now }: { now: Date }) {
   const { data } = useStore();
-  const keys = new Set([...data.entries.map((e) => dayKey(new Date(e.timestamp))), ...Object.entries(data.days ?? {}).filter(([, d]) => d.mood).map(([k]) => k)]);
+  const keys = new Set([...data.entries.map((e) => entryDay(e.timestamp)), ...Object.entries(data.days ?? {}).filter(([, d]) => d.mood).map(([k]) => k)]);
   let week = 0;
   for (let i = 0; i < 7; i++) if (keys.has(dayKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - i)))) week++;
   if (!week) return null;
@@ -380,10 +381,10 @@ function AppointmentHint({ now }: { now: Date }) {
 function TodayTimeline({ trackers, now, main }: { trackers: Tracker[]; now: Date; main?: Tracker }) {
   const { data } = useStore();
   const [showAll, setShowAll] = useState(false);
-  const rhythm = main ? dayRhythm(main, data.entries, now) : null;
-  const today = dayKey(now);
+  const today = diaryDay(now);
+  const rhythm = main ? dayRhythm(main, data.entries, parseDayKey(today)) : null;
   const items = data.entries
-    .filter((e) => dayKey(new Date(e.timestamp)) === today)
+    .filter((e) => entryDay(e.timestamp) === today)
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
     .flatMap((e) => {
       const t = trackers.find((x) => x.id === e.trackerId);

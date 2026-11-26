@@ -68,3 +68,16 @@ export function formatDateTime(d: Date): string {
 export function formatClock(d: Date): string {
   return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
 }
+
+/**
+ * Der Tagebuch-Tag geht von 4 Uhr früh bis 4 Uhr früh: Was man nach Mitternacht noch
+ * einträgt (z. B. „Schlafen gehen“ um 0:46), gehört zum Vortag. Die echte Uhrzeit bleibt.
+ */
+export const DAY_START_HOUR = 4;
+export function diaryDay(d: Date): string {
+  const x = new Date(d);
+  if (x.getHours() < DAY_START_HOUR) x.setDate(x.getDate() - 1);
+  return dayKey(x);
+}
+/** Tagebuch-Tag eines Eintrags (ISO-Zeitstempel). */
+export const entryDay = (ts: string): string => diaryDay(new Date(ts));

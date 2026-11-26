@@ -1,4 +1,4 @@
-import { addDays, dayKey, monthKey, startOfDay, weekKey } from '../model/dates';
+import { addDays, dayKey, monthKey, startOfDay, weekKey, entryDay } from '../model/dates';
 import { aggregationOf, fieldSpec } from '../fields/fieldTypes';
 import { daySlotStatus } from '../diary/schedule';
 import type { Aggregation, Entry, FieldDef, Tracker } from '../model/types';
@@ -147,7 +147,7 @@ export function frequencies(field: FieldDef, entries: Entry[]): { label: string;
 
 /** Tage in Folge (bis heute bzw. gestern) mit mindestens einem Eintrag. */
 export function currentStreak(entries: Entry[], now = new Date()): number {
-  const days = new Set(entries.map((e) => dayKey(new Date(e.timestamp))));
+  const days = new Set(entries.map((e) => entryDay(e.timestamp)));
   let d = startOfDay(now);
   if (!days.has(dayKey(d))) d = addDays(d, -1); // heute noch offen → ab gestern zählen
   let n = 0;
@@ -159,7 +159,7 @@ export function currentStreak(entries: Entry[], now = new Date()): number {
 }
 
 export function longestStreak(entries: Entry[]): number {
-  const keys = [...new Set(entries.map((e) => dayKey(new Date(e.timestamp))))].sort();
+  const keys = [...new Set(entries.map((e) => entryDay(e.timestamp)))].sort();
   let best = 0;
   let run = 0;
   let prev: string | null = null;
@@ -255,7 +255,7 @@ export function pairMetrics(
 export function entriesPerDay(entries: Entry[]): Map<string, number> {
   const m = new Map<string, number>();
   for (const e of entries) {
-    const k = dayKey(new Date(e.timestamp));
+    const k = entryDay(e.timestamp);
     m.set(k, (m.get(k) ?? 0) + 1);
   }
   return m;
@@ -277,7 +277,7 @@ export function dayCompletion(tracker: Tracker, entries: Entry[], day: Date, now
   if (d > now) return null;
   if (tracker.schedule.mode === 'manual') {
     const k = dayKey(d);
-    return entries.some((e) => e.trackerId === tracker.id && dayKey(new Date(e.timestamp)) === k) ? 1 : 0;
+    return entries.some((e) => e.trackerId === tracker.id && entryDay(e.timestamp) === k) ? 1 : 0;
   }
   if (!tracker.schedule.weekdays.includes(d.getDay())) return null;
   const slots = daySlotStatus(tracker, entries, d);
@@ -377,7 +377,7 @@ export function symptomTrend(tracker: Tracker, entries: Entry[], days = 14, now 
     for (const e of own) {
       const v = e.values[f.id];
       if (typeof v !== 'number') continue;
-      const k = dayKey(new Date(e.timestamp));
+      const k = entryDay(e.timestamp);
       m.set(k, Math.max(m.get(k) ?? -Infinity, v));
     }
     return m;

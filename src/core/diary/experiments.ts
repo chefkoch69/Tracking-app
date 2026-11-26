@@ -1,4 +1,4 @@
-import { addDays, dayKey, parseDayKey } from '../model/dates';
+import { addDays, dayKey, parseDayKey, entryDay } from '../model/dates';
 import { fieldSpec, polarityOf } from '../fields/fieldTypes';
 import type { Entry, Experiment, FieldDef, Tracker } from '../model/types';
 
@@ -63,7 +63,7 @@ export function experimentEffect(exp: Experiment, tracker: Tracker, entries: Ent
     for (const e of es) {
       const v = spec.toNumber(f, e.values[f.id] ?? null);
       if (v === null) continue;
-      const k = dayKey(new Date(e.timestamp));
+      const k = entryDay(e.timestamp);
       daily.set(k, Math.max(daily.get(k) ?? -Infinity, v));
     }
     const pick = (a: string, b: string) => [...daily].filter(([k]) => k >= a && k <= b).map(([, v]) => v);
