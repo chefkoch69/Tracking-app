@@ -73,7 +73,7 @@ export const TEMPLATES: TrackerTemplate[] = [
       const NA = 'Nacht & Nase';
       const fields: FieldDef[] = [
         g(EV, makeField('multiselect', 'Was ist passiert?', {
-          options: ['aufgestanden', 'gegessen', 'getrunken', 'Medikament genommen', 'Toilette', 'Bewegung', 'Pause / hingelegt', 'geschlafen', 'Stress', 'schlafen gegangen'],
+          options: ['aufgestanden', 'Mittags-Check', 'gegessen', 'getrunken', 'Medikament genommen', 'Toilette', 'Bewegung', 'Pause / hingelegt', 'geschlafen', 'Stress', 'schlafen gegangen'],
         })),
         g(EV, { ...makeField('text', 'Was gegessen?', { splitList: true }), description: 'mit Mengen, durch Komma getrennt – z. B. 3 Eier, 3 Scheiben Toast, Käse, Hummus' }),
         g(EV, { ...makeField('text', 'Was getrunken?', { splitList: true }), description: 'z. B. Kaffee, 0,5 l Wasser, Pfefferminztee' }),

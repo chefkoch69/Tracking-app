@@ -10,7 +10,7 @@ import type { Entry, FieldDef, FieldValue, Tracker } from '../model/types';
  * so funktioniert es mit jeder Version von „Mein Befinden“ und mit eigenen Anpassungen.
  */
 
-export type MomentKey = 'morning' | 'meal' | 'symptom' | 'med' | 'evening' | 'all';
+export type MomentKey = 'morning' | 'midday' | 'meal' | 'symptom' | 'med' | 'evening' | 'all';
 
 export interface MomentField {
   label: string;
@@ -103,6 +103,15 @@ export const MOMENTS: Moment[] = [
     symptoms: 'main',
     event: 'aufgestanden',
     wake: true,
+  },
+  {
+    key: 'midday',
+    icon: '🙂',
+    label: 'Mittag',
+    hint: 'Wie geht’s dir untertags?',
+    fields: [],
+    symptoms: 'main',
+    event: 'Mittags-Check',
   },
   {
     key: 'meal',
@@ -232,3 +241,25 @@ export function pendingFollowUp(t: Tracker, entries: Entry[], now: Date, dismiss
   }
   return null;
 }
+
+// ---------------------------------------------------------------------------
+// Die drei festen Einträge des Tages
+
+export const CHECKINS = [
+  { key: 'morning' as const, label: 'Morgen', event: 'aufgestanden' },
+  { key: 'midday' as const, label: 'Mittag', event: 'Mittags-Check' },
+  { key: 'evening' as const, label: 'Abend', event: 'schlafen gegangen' },
+];
+export type CheckinKey = (typeof CHECKINS)[number]['key'];
+
+/** Der jeweils letzte Morgen-, Mittag- und Abend-Eintrag eines Tages (falls vorhanden). */
+export function dayCheckins(t: Tracker, entries: Entry[], day: string): Partial<Record<CheckinKey, Entry>> {
+  const es = entriesOf(t, entries).filter((e) => dayKey(new Date(e.timestamp)) === day);
+  const out: Partial<Record<CheckinKey, Entry>> = {};
+  for (const c of CHECKINS)
+    for (const e of es) if (Object.values(e.values).some((v) => Array.isArray(v) && v.some((x) => norm(x) === norm(c.event)))) out[c.key] = e;
+  return out;
+}
+
+/** Welcher feste Eintrag gerade dran ist: vor 11 Uhr Morgen, bis 18 Uhr Mittag, danach Abend. */
+export const checkinForHour = (h: number): CheckinKey => (h >= 4 && h < 11 ? 'morning' : h >= 4 && h < 18 ? 'midday' : 'evening');

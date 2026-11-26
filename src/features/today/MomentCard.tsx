@@ -33,6 +33,7 @@ export function MomentCard({
   closeOnSave = true,
   done,
   bare = false,
+  entry: editing,
 }: {
   tracker: Tracker;
   momentKey: MomentKey;
@@ -47,12 +48,14 @@ export function MomentCard({
   done?: string;
   /** Ohne eigene Karte und Kopfzeile – eingebettet in „Eintrag erstellen“. */
   bare?: boolean;
+  /** Bestehenden Eintrag bearbeiten (Formular vorausgefüllt, gleicher Zeitpunkt). */
+  entry?: Entry;
 }) {
   const { data, dispatch } = useStore();
   const m = momentByKey(momentKey)!;
   const visible = tracker.fields.filter((f) => !f.hidden);
   const empty = () => Object.fromEntries(visible.map((f) => [f.id, FIELD_TYPES[f.type].emptyValue(f)]));
-  const [values, setValues] = useState<Record<string, FieldValue>>(empty);
+  const [values, setValues] = useState<Record<string, FieldValue>>(() => (editing ? { ...empty(), ...editing.values } : empty()));
   const [timeKey, setTimeKey] = useState<string>('now');
   const [showMore, setShowMore] = useState(false);
   const [showOptional, setShowOptional] = useState(false);
@@ -90,11 +93,14 @@ export function MomentCard({
     if (!filled.length || Object.keys(errors).length) return;
     const minutes = TIME_CHOICES.find((c) => c.key === timeKey)?.minutes ?? 0;
     const ts = new Date(Date.now() - minutes * 60000);
-    const vals = withEvent(tracker, m, Object.fromEntries(filled.map((f) => [f.id, values[f.id]])));
-    const entry: Entry = { id: uid(), trackerId: tracker.id, timestamp: ts.toISOString(), values: vals };
+    const shown = new Set(visible.map((f) => f.id));
+    // Beim Bearbeiten: alle Angaben stehen im Formular-Zustand; ausgeblendete Felder bleiben unverändert.
+    const kept = editing ? Object.fromEntries(Object.entries(editing.values).filter(([id]) => !shown.has(id))) : {};
+    const vals = withEvent(tracker, m, { ...kept, ...Object.fromEntries(filled.map((f) => [f.id, values[f.id]])) });
+    const entry: Entry = editing ? { ...editing, values: vals } : { id: uid(), trackerId: tracker.id, timestamp: ts.toISOString(), values: vals };
     dispatch({ type: 'entry/save', entry });
     const key = dayKey(ts);
-    if (m.wake && !data.health?.[key]?.wake) dispatch({ type: 'health/upsert', days: [{ date: key, wake: formatClock(ts), source: 'manual' }] });
+    if (m.wake && !editing && !data.health?.[key]?.wake) dispatch({ type: 'health/upsert', days: [{ date: key, wake: formatClock(ts), source: 'manual' }] });
     onSaved({ entry, changes: entryFeedback(tracker, [...data.entries, entry], entry), hint: nextHint(tracker, vals) });
     setValues(empty());
     setTimeKey('now');
@@ -203,6 +209,7 @@ export function MomentCard({
           </EntryDayContext.Provider>
 
           <div className="mc-save">
+            {!editing && (
             <label className="mc-when">
               <span className="sr-only">Zeitpunkt</span>
               <select value={timeKey} onChange={(e) => setTimeKey(e.target.value)}>
@@ -213,13 +220,14 @@ export function MomentCard({
                 ))}
               </select>
             </label>
-            {filled.length > 0 && (
+            )}
+            {filled.length > 0 && !editing && (
               <button type="button" className="btn ghost small" onClick={() => setValues(empty())}>
                 Leeren
               </button>
             )}
             <button type="submit" className="btn primary" disabled={!filled.length}>
-              {filled.length ? `Speichern (${filled.length})` : 'Speichern'}
+              {editing ? 'Änderungen speichern' : filled.length ? `Speichern (${filled.length})` : 'Speichern'}
             </button>
           </div>
         </form>

@@ -80,3 +80,19 @@ describe('Einträge ausbessern', () => {
     expect(correctText('Linsensuppe, Tee')).toBe('Linsensuppe, Tee');
   });
 });
+
+import { checkinForHour, dayCheckins } from '../diary/moments';
+describe('Drei feste Einträge pro Tag', () => {
+  it('findet Morgen, Mittag und Abend am Ereignis', () => {
+    const es = [
+      entry('2026-11-26T06:40', { 'Was ist passiert?': ['aufgestanden'], 'Nase zu': 2 }),
+      entry('2026-11-26T09:00', { 'Was gegessen?': 'Brot' }),
+      entry('2026-11-26T13:00', { 'Was ist passiert?': ['Mittags-Check'], Bauchschmerz: 1 }),
+    ];
+    const c = dayCheckins(t, es, '2026-11-26');
+    expect(c.morning?.id).toBe(es[0].id);
+    expect(c.midday?.id).toBe(es[2].id);
+    expect(c.evening).toBeUndefined();
+    expect([checkinForHour(7), checkinForHour(13), checkinForHour(21)]).toEqual(['morning', 'midday', 'evening']);
+  });
+});

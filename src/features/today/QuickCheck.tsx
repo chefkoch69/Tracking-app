@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Doodle } from '../../components/Doodle';
 import { MOODS, entryFeedback } from '../../core/diary/feedback';
-import { detailsOf, questionFor, symptomFields } from '../../core/diary/moments';
+import { detailsOf, momentByKey, questionFor, symptomFields, withEvent, type MomentKey } from '../../core/diary/moments';
 import { dayKey } from '../../core/model/dates';
 import { uid } from '../../core/model/id';
 import type { Entry, FieldDef, FieldValue, Tracker } from '../../core/model/types';
@@ -36,7 +36,7 @@ const next = (v: number | undefined) => {
  * Jeder Tipp auf eine Kachel = eine Stufe stärker. Details (z. B. die Bauch-Karte)
  * erscheinen sofort unter den Kacheln, sobald eine Beschwerde gewählt ist.
  */
-export function QuickCheck({ tracker, onSaved }: { tracker: Tracker; onSaved: (s: SavedNote) => void }) {
+export function QuickCheck({ tracker, onSaved, momentKey }: { tracker: Tracker; onSaved: (s: SavedNote) => void; momentKey?: MomentKey }) {
   const { data, dispatch } = useStore();
   const today = dayKey(new Date());
   const mood = data.days?.[today]?.mood;
@@ -45,7 +45,9 @@ export function QuickCheck({ tracker, onSaved }: { tracker: Tracker; onSaved: (s
   const [details, setDetails] = useState<Record<string, FieldValue>>({});
   const chosen = tiles.filter((f) => levels[f.id] !== undefined);
 
-  const save = (vals: Record<string, FieldValue>) => {
+  const save = (raw: Record<string, FieldValue>) => {
+    const m = momentKey ? momentByKey(momentKey) : undefined;
+    const vals = m ? withEvent(tracker, m, raw) : raw;
     const entry: Entry = { id: uid(), trackerId: tracker.id, timestamp: new Date().toISOString(), values: vals };
     dispatch({ type: 'entry/save', entry });
     onSaved({ entry, changes: entryFeedback(tracker, [...data.entries, entry], entry), hint: null });

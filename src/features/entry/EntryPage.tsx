@@ -550,14 +550,19 @@ export function WakeControl({ day }: { day: string }) {
 /** Abends: wann zuletzt gegessen wurde – aus den Einträgen, nicht nochmal fragen. */
 export function LastMealLine({ tracker, entries, now }: { tracker: Tracker; entries: Entry[]; now: Date }) {
   const food = tracker.fields.filter((f) => isFoodField(f) && /gegessen|essen/i.test(f.label));
-  const today = dayKey(now);
-  const meals = entries.filter((e) => dayKey(new Date(e.timestamp)) === today && food.some((f) => typeof e.values[f.id] === 'string' && e.values[f.id]));
+  // Letzte Mahlzeit – auch wenn sie gestern oder früher war.
+  const meals = entries
+    .filter((e) => new Date(e.timestamp) <= now && food.some((f) => typeof e.values[f.id] === 'string' && e.values[f.id]))
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
   const lastMeal = meals[meals.length - 1];
-  if (!lastMeal) return <p className="muted small moment-info">Heute noch nichts gegessen eingetragen.</p>;
+  if (!lastMeal) return <p className="muted small moment-info">Noch kein Essen eingetragen.</p>;
+  const t = new Date(lastMeal.timestamp);
+  const diff = Math.round((new Date(dayKey(now)).getTime() - new Date(dayKey(t)).getTime()) / 86400000);
+  const when = diff <= 0 ? 'heute' : diff === 1 ? 'gestern' : t.toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'numeric' });
   const what = food.flatMap((f) => (typeof lastMeal.values[f.id] === 'string' ? listItems(lastMeal.values[f.id] as string).map(itemName) : [])).join(', ');
   return (
     <p className="muted small moment-info">
-      Zuletzt gegessen: <b>{formatClock(new Date(lastMeal.timestamp))}</b> – {what}
+      Zuletzt gegessen: <b>{when} {formatClock(t)}</b> – {what}
     </p>
   );
 }
