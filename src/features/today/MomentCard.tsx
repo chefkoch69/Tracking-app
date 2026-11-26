@@ -32,6 +32,7 @@ export function MomentCard({
   onSaved,
   closeOnSave = true,
   done,
+  bare = false,
 }: {
   tracker: Tracker;
   momentKey: MomentKey;
@@ -44,6 +45,8 @@ export function MomentCard({
   closeOnSave?: boolean;
   /** Schon erledigt (z. B. „Aufgestanden 10:03“) – zeigt ein Häkchen. */
   done?: string;
+  /** Ohne eigene Karte und Kopfzeile – eingebettet in „Eintrag erstellen“. */
+  bare?: boolean;
 }) {
   const { data, dispatch } = useStore();
   const m = momentByKey(momentKey)!;
@@ -127,16 +130,7 @@ export function MomentCard({
     </span>
   );
 
-  return (
-    <section className={`card moment-card-inline ${open ? 'open' : ''} ${done ? 'done' : ''}`}>
-      {onToggle ? (
-        <button type="button" className="mc-head" aria-expanded={open} onClick={() => onToggle(!open)}>
-          {head}
-        </button>
-      ) : (
-        <div className="mc-head static">{head}</div>
-      )}
-      {open && (
+  const body = (
         <form
           className="mc-body"
           onSubmit={(e) => {
@@ -228,7 +222,19 @@ export function MomentCard({
             </button>
           </div>
         </form>
+  );
+  if (bare) return body;
+
+  return (
+    <section className={`card moment-card-inline ${open ? 'open' : ''} ${done ? 'done' : ''}`}>
+      {onToggle ? (
+        <button type="button" className="mc-head" aria-expanded={open} onClick={() => onToggle(!open)}>
+          {head}
+        </button>
+      ) : (
+        <div className="mc-head static">{head}</div>
       )}
+      {open && body}
     </section>
   );
 }

@@ -21,10 +21,6 @@ import { useDueTrackers, useNow } from '../../platform/reminders';
 import { navigate } from '../../app/router';
 import { EntryRow } from '../../components/EntryRow';
 
-function greeting(d: Date) {
-  const h = d.getHours();
-  return h < 4 ? 'Gute Nacht' : h < 11 ? 'Guten Morgen' : h < 18 ? 'Hallo' : 'Guten Abend';
-}
 
 export function TodayPage() {
   const { data, dispatch } = useStore();
@@ -58,8 +54,7 @@ export function TodayPage() {
   return (
     <div className="page today">
       <header className="page-head today-head">
-        <p className="today-date">{now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-        <h1>{greeting(now)}</h1>
+        <h1>{now.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}</h1>
         <BandLine now={now} />
       </header>
 
@@ -137,7 +132,7 @@ function BandLine({ now }: { now: Date }) {
   );
 }
 
-type Extra = 'morning' | 'meal' | 'med' | 'evening' | 'symptom' | null;
+type Mode = 'morning' | 'now' | 'meal' | 'med' | 'evening';
 
 /**
  * Eintragen direkt auf „Heute“ – für Tage mit wenig Energie gebaut:
@@ -152,11 +147,12 @@ function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
   const find = (ev: string) => [...todays].reverse().find((e) => Object.values(e.values).some((v) => Array.isArray(v) && v.includes(ev)));
   const woke = find('aufgestanden');
   const slept = find('schlafen gegangen');
-  const evening = h >= 18 || h < 4;
-  const [extra, setExtra] = useState<Extra>(null);
+  // Was gerade dran ist: vor 11 Uhr Aufstehen (wenn noch nicht eingetragen), ab 20 Uhr Schlafen, sonst Jetzt.
+  const auto: Mode = h >= 4 && h < 11 && !woke ? 'morning' : (h >= 20 || h < 4) && !slept ? 'evening' : 'now';
+  const [mode, setMode] = useState<Mode>(auto);
   const [saved, setSaved] = useState<SavedNote | null>(null);
   const [undone, setUndone] = useState(false);
-  const favs = useMemo(() => favorites(tracker, data.entries, new Date(), 5), [tracker, data.entries]);
+  const favs = useMemo(() => favorites(tracker, data.entries, new Date(), 6), [tracker, data.entries]);
 
   const onSaved = (s: SavedNote) => {
     setSaved(s);
@@ -164,21 +160,14 @@ function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
   const at = (e?: { timestamp: string }) => (e ? formatClock(new Date(e.timestamp)) : '');
-  const actions: { key: Exclude<Extra, null> | 'talk'; icon: string; label: string; color: string; done?: string; hot?: boolean }[] = [
-    evening
-      ? { key: 'evening', icon: 'moon', label: 'Schlafen', color: '#7F8FD6', done: slept && `✓ ${at(slept)}`, hot: !slept }
-      : { key: 'morning', icon: 'sun', label: 'Aufstehen', color: '#F0B43C', done: woke && `✓ ${at(woke)}`, hot: !woke && h >= 4 && h < 12 },
+  const MODES: { key: Mode; icon: string; label: string; color: string; done?: string }[] = [
+    { key: 'morning', icon: 'sun', label: 'Aufstehen', color: '#F0B43C', done: woke && at(woke) },
+    { key: 'now', icon: 'face4', label: 'Jetzt', color: '#4FAF92' },
     { key: 'meal', icon: 'plate', label: 'Essen', color: '#E8835F' },
-    { key: 'med', icon: 'pill', label: 'Medikament', color: '#4FAF92' },
-    { key: 'talk', icon: 'mic', label: 'Erzählen', color: '#A584D6' },
+    { key: 'med', icon: 'pill', label: 'Medizin', color: '#5E9FD8' },
+    { key: 'evening', icon: 'moon', label: 'Schlafen', color: '#7F8FD6', done: slept && at(slept) },
   ];
-  const titles: Record<Exclude<Extra, null>, [string, string]> = {
-    morning: ['☀️', 'Aufgestanden'],
-    evening: ['🌙', 'Schlafen gehen'],
-    meal: ['🍽', 'Essen & Trinken'],
-    med: ['💊', 'Medikament & Maßnahme'],
-    symptom: ['🤕', 'Alle Beschwerden & Details'],
-  };
+  const favFor = mode === 'meal' || mode === 'med' ? favs.filter((f) => (mode === 'med') === (f.kind === 'med')) : [];
 
   return (
     <>
@@ -196,70 +185,65 @@ function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
         />
       )}
 
-      <FollowUpCard tracker={tracker} onSymptoms={() => setExtra('symptom')} />
+      <FollowUpCard tracker={tracker} onSymptoms={() => setMode('now')} />
 
-      <QuickCheck tracker={tracker} onSaved={onSaved} />
-
-      <section className="quick-actions big" aria-label="Weiteres eintragen">
-        {actions.map((a) => (
-          <button
-            key={a.key}
-            type="button"
-            className={`qa-btn ${extra === a.key ? 'active' : ''} ${a.hot ? 'hot' : ''}`}
-            style={{ '--cat': a.color } as React.CSSProperties}
-            aria-expanded={a.key === 'talk' ? undefined : extra === a.key}
-            onClick={() => (a.key === 'talk' ? navigate('/now/talk') : setExtra(extra === a.key ? null : a.key))}
-          >
-            <span className="qa-disc"><Doodle className="qa-icon" name={a.icon} size={34} /></span>
-            <span className="qa-text">
-              {a.label}
-              {a.done && <small>{a.done}</small>}
-            </span>
-          </button>
-        ))}
-      </section>
-
-      {extra && (
-        <MomentCard
-          key={extra}
-          tracker={tracker}
-          momentKey={extra}
-          icon={titles[extra][0]}
-          title={titles[extra][1]}
-          open
-          onToggle={(o) => !o && setExtra(null)}
-          onSaved={(s) => {
-            onSaved(s);
-            setExtra(null);
-          }}
-        />
-      )}
-
-
-      {(extra === 'meal' || extra === 'med') && favs.some((f) => (extra === 'med') === (f.kind === 'med')) && (
-        <section className="fav-inline" aria-label="Schnell eintragen">
-          <small className="muted">{extra === 'med' ? 'Schon öfter genommen' : 'Schon öfter gegessen/getrunken'} – antippen trägt es sofort ein:</small>
-          <div className="fav-chips">
-            {favs.filter((f) => (extra === 'med') === (f.kind === 'med')).map((f) => (
+      <section className="card composer">
+        <div className="cp-head">
+          <h2 className="cp-title">Eintrag erstellen</h2>
+          <div className="cp-modes" role="tablist" aria-label="Was möchtest du eintragen?">
+            {MODES.map((m) => (
               <button
-                key={`${f.fieldId}|${f.text}`}
+                key={m.key}
                 type="button"
-                className="fav-chip"
-                onClick={() => {
-                  const entry = { id: uid(), trackerId: tracker.id, timestamp: new Date().toISOString(), values: favoriteValues(tracker, f) };
-                  dispatch({ type: 'entry/save', entry });
-                  onSaved({ entry, changes: [], hint: null });
-                }}
+                role="tab"
+                aria-selected={mode === m.key}
+                className={`cp-mode ${mode === m.key ? 'on' : ''}`}
+                style={{ '--cat': m.color } as React.CSSProperties}
+                onClick={() => setMode(m.key)}
               >
-                <Doodle name={FAVORITE_ICON[f.kind]} size={20} /> {f.text}
+                <Doodle name={m.icon} size={26} />
+                <span>{m.label}</span>
+                {m.done && <small>✓ {m.done}</small>}
               </button>
             ))}
           </div>
-        </section>
-      )}
+        </div>
+        <div className="cp-body">
+          {mode === 'now' ? (
+            <QuickCheck key="now" tracker={tracker} onSaved={onSaved} />
+          ) : (
+            <>
+              {favFor.length > 0 && (
+                <div className="fav-inline">
+                  <small className="muted">{mode === 'med' ? 'Schon öfter genommen' : 'Schon öfter gegessen'} – antippen trägt es sofort ein:</small>
+                  <div className="fav-chips">
+                    {favFor.map((f) => (
+                      <button
+                        key={`${f.fieldId}|${f.text}`}
+                        type="button"
+                        className="fav-chip"
+                        onClick={() => {
+                          const entry = { id: uid(), trackerId: tracker.id, timestamp: new Date().toISOString(), values: favoriteValues(tracker, f) };
+                          dispatch({ type: 'entry/save', entry });
+                          onSaved({ entry, changes: [], hint: null });
+                        }}
+                      >
+                        <Doodle name={FAVORITE_ICON[f.kind]} size={20} /> {f.text}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <MomentCard key={mode} bare tracker={tracker} momentKey={mode} icon="" title="" open closeOnSave={false} onSaved={onSaved} />
+            </>
+          )}
+        </div>
+      </section>
 
       <div className="more-links-row">
-        <button className="linkish" onClick={() => setExtra('symptom')}>Alle Beschwerden & Details</button>
+        <button className="linkish" onClick={() => navigate('/now/talk')}>
+          <Doodle name="mic" size={18} /> Erzählen
+        </button>
         <button className="linkish" onClick={() => navigate('/now?m=all')}>Andere Uhrzeit / alles</button>
       </div>
     </>

@@ -132,3 +132,43 @@ h1, h2, h3, .btn, .qc-tname, .qa-text, .set-text strong, .er-title, .tabbar a, .
 .seg .active, .view-switch .active { font-weight: 800; }
 .saved-card { border: 2px solid var(--ink); box-shadow: var(--pop-sm); border-radius: 14px; }
 .week-card .wk-stats > div { border-radius: 12px; }
+
+/* ===== „Eintrag erstellen“ ===== */
+.composer { padding: 0; border: 2px solid var(--ink); box-shadow: var(--pop); border-radius: 18px; overflow: clip; }
+.cp-head { background: var(--forest); color: #f6f1e7; padding: 0.95rem 0.7rem 0.8rem; display: flex; flex-direction: column; gap: 0.7rem; }
+.cp-title { margin: 0 0 0 0.2rem; font-family: var(--hand); font-size: 1.45rem; font-weight: 800; color: #f6f1e7; }
+.cp-modes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.3rem; }
+.cp-mode {
+  display: flex; flex-direction: column; align-items: center; gap: 0.15rem; padding: 0.45rem 0.1rem 0.4rem; min-width: 0;
+  border-radius: 12px; border: 2px solid transparent; background: rgba(255, 255, 255, 0.1); color: #f6f1e7;
+  font: 700 0.7rem/1.1 var(--hand); cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.cp-mode span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.cp-mode small { font-size: 0.62rem; opacity: 0.85; }
+.cp-mode .doodle { color: #f6f1e7; }
+.cp-mode.on { background: var(--cat); border-color: var(--ink); color: var(--ink); box-shadow: var(--pop-sm); }
+.cp-mode.on .doodle { color: var(--ink); }
+.cp-body { padding: 0.9rem; display: flex; flex-direction: column; gap: 0.8rem; }
+.cp-body .mc-body { padding: 0; border-top: 0; }
+.cp-body .mc-save { margin: 0 -0.9rem -0.9rem; padding: 0.6rem 0.9rem; }
+
+/* Jetzt: Stimmung + Beschwerden */
+.qc { display: flex; flex-direction: column; gap: 0.6rem; }
+.qc-row-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.qc-label { font-family: var(--hand); font-weight: 800; font-size: 1.02rem; }
+.qc-row-head small { font-size: 0.75rem; }
+.qc .qc-moods { gap: 0.3rem; }
+.qc .qc-mood { background: var(--surface-2); border: 2px solid transparent; border-radius: 12px; }
+.qc .qc-mood .doodle { color: color-mix(in srgb, var(--cat) 70%, var(--ink)) !important; }
+.qc .qc-mood small { color: var(--muted); }
+.qc .qc-mood.on { background: var(--cat); border-color: var(--ink); box-shadow: var(--pop-sm); }
+.qc .qc-mood.on .doodle, .qc .qc-mood.on small { color: var(--ink) !important; }
+.qc-steps { display: flex; gap: 3px; margin-top: 2px; }
+.qc-steps i { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--ink) 55%, transparent); }
+.qc-steps i.on { background: var(--ink); border-color: var(--ink); }
+.qc-level { font-family: var(--hand); font-size: 0.72rem; font-weight: 700; color: var(--ink); min-height: 1.1em; }
+.qc-details { border: 2px solid var(--cat); border-radius: 14px; padding: 0.75rem; background: color-mix(in srgb, var(--cat) 10%, var(--surface)); display: flex; flex-direction: column; gap: 0.6rem; }
+.qc-details-title { font-family: var(--hand); font-weight: 800; font-size: 1rem; }
+.more-links-row .linkish { display: inline-flex; align-items: center; gap: 0.3rem; color: var(--text); font-family: var(--hand); font-weight: 700; }
+.page-head h1 { font-size: 1.75rem; }
+.cp-mode { font-size: 0.64rem; letter-spacing: -0.01em; }
