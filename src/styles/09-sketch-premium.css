@@ -1,0 +1,134 @@
+/* =========================================================
+   „Skizzen-Aufkleber“: satte Farbflächen + handgezeichnete Linien,
+   Tinten-Umrisse mit versetztem Schatten, Handschrift Shantell Sans.
+   Wenige, bewusst gesetzte Akzente – der Rest bleibt ruhig.
+   ========================================================= */
+:root {
+  --ink: #201d19;
+  --ink-soft: color-mix(in srgb, var(--ink) 14%, transparent);
+  --paper: #f2efe7;
+  --forest: #234e46;
+  --forest-2: #2d6157;
+  --sun: #f1b632;
+  --primary: var(--forest);
+  --primary-deep: #183a34;
+  --bg: var(--paper);
+  --surface: #fffdf8;
+  --surface-2: #f1ece1;
+  --surface-3: #e5ddcd;
+  --border: var(--ink-soft);
+  --text: var(--ink);
+  --muted: #69645c;
+  --display: "Shantell Sans", "Nunito", system-ui, sans-serif;
+  --hand: "Shantell Sans", "Nunito", system-ui, sans-serif;
+  --pop: 3px 3px 0 var(--ink);
+  --pop-sm: 2px 2px 0 var(--ink);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ink: #0c0d0c;
+    --ink-soft: rgba(255, 255, 255, 0.1);
+    --paper: #171a18;
+    --forest: #2b5c52;
+    --forest-2: #346b60;
+    --bg: var(--paper);
+    --surface: #212523;
+    --surface-2: #2a2f2c;
+    --surface-3: #343a36;
+    --text: #f1ede4;
+    --muted: #aaa59b;
+    --primary: #7cc8b2;
+  }
+}
+
+body { background-image: none; }
+
+/* Schrift: Handschrift für alles, was man anschaut; Nunito für längere Texte */
+h1, h2, h3, .btn, .qc-tname, .qa-text, .set-text strong, .er-title, .tabbar a, .chip, .seg button, .backbar-title, .back-btn, .dc-top strong {
+  font-family: var(--hand);
+}
+.page-head h1 { font-family: var(--hand); font-size: 2.05rem; font-weight: 800; letter-spacing: -0.01em; line-height: 1.05; }
+/* handgezogener Strich unter dem Seitentitel */
+.page-head h1::after {
+  content: ""; display: block; width: 4.6rem; height: 9px; margin-top: 0.25rem;
+  background: no-repeat center / 100% 100% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 10'%3E%3Cpath d='M2 6c14-4 26 3 40-1s30-3 56-1' fill='none' stroke='%23f1b632' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+.section-head h2, .card > h2:first-child, .exp-section > h2 { font-family: var(--hand); font-size: 1.25rem; font-weight: 800; line-height: 1.2; }
+.hero-band.compact h1 { font-family: var(--hand); font-size: 1.8rem; }
+.today-date { color: var(--muted); font-weight: 700; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.08em; }
+
+/* Karten: ruhig, feiner Tinten-Rand statt Schatten-Wolke */
+.card { border-radius: 16px; border: 1.5px solid var(--ink-soft); box-shadow: none; }
+
+/* ===== Check-in: dunkelgrünes Band oben, darunter Papier ===== */
+.quick-check { padding: 0; gap: 0; border: 2px solid var(--ink); box-shadow: var(--pop); border-radius: 18px; overflow: hidden; }
+.quick-check::before { content: none; }
+.qc-head { background: var(--forest); color: #f6f1e7; padding: 1.1rem 0.9rem 1rem; display: flex; flex-direction: column; gap: 0.7rem; }
+.qc-question { font-family: var(--hand); font-size: 1.55rem; font-weight: 800; text-align: left; color: #f6f1e7; }
+.qc-body { padding: 0.9rem; display: flex; flex-direction: column; gap: 0.75rem; }
+.qc-body:empty { display: none; }
+.qc-moods { gap: 0.35rem; }
+.qc-mood { background: rgba(255, 255, 255, 0.1); border: 2px solid transparent; border-radius: 12px; padding: 0.45rem 0 0.35rem; }
+.qc-mood .doodle { color: #f6f1e7 !important; }
+.qc-mood .doodle path[fill] { opacity: 0 !important; }
+.qc-mood small { color: rgba(246, 241, 231, 0.75); font-family: var(--hand); font-weight: 700; }
+.qc-mood.on { background: var(--sun); border-color: var(--ink); box-shadow: var(--pop-sm); }
+.qc-mood.on .doodle { color: var(--ink) !important; transform: none; }
+.qc-mood.on small { color: var(--ink); }
+.qc-sub { font-family: var(--hand); font-weight: 800; margin: 0; }
+.qc-thanks { padding: 0.8rem; margin: 0; }
+
+/* Beschwerde-Kacheln: satte Farbe, Tinten-Skizze */
+.qc-tile { background: color-mix(in srgb, var(--cat) 52%, var(--surface)); border: 2px solid transparent; border-radius: 12px; min-height: 84px; }
+.qc-tile .doodle { color: var(--ink) !important; }
+.qc-tile .doodle path[fill] { opacity: 0 !important; }
+.qc-tname { font-weight: 700; color: var(--ink); }
+.qc-tile.on { background: color-mix(in srgb, var(--cat) 80%, var(--surface)); border-color: var(--ink); box-shadow: var(--pop-sm); transform: translate(-1px, -1px); }
+.qc-tile.on .qc-level, .qc-tile.on .qc-dots { color: var(--ink); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .qc-tile { background: color-mix(in srgb, var(--cat) 45%, var(--surface)); }
+  :root:not([data-theme="light"]) .qc-tile .doodle, :root:not([data-theme="light"]) .qc-tname { color: #14110e !important; }
+  :root:not([data-theme="light"]) .qc-tile:not(.on) .qc-tname { color: #14110e; }
+}
+
+/* Knöpfe: Aufkleber mit versetztem Schatten */
+.btn.primary { background: var(--forest); color: #fff; border: 2px solid var(--ink); box-shadow: var(--pop-sm); border-radius: 12px; }
+.btn.primary:active { transform: translate(2px, 2px); box-shadow: none; }
+.qc-good { background: var(--surface); color: var(--ink); border: 2px solid var(--ink); box-shadow: var(--pop-sm); border-radius: 12px; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .btn.primary { color: #fff; background: var(--forest-2); border-color: #000; }
+  :root:not([data-theme="light"]) .qc-good { color: var(--text); border-color: #000; }
+}
+
+/* Aktionen: farbige Blöcke (wie B), Skizze + Wort */
+.quick-actions.big { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.quick-actions.big .qa-btn {
+  flex-direction: row; justify-content: flex-start; text-align: left; gap: 0.55rem; min-height: 58px; padding: 0.55rem 0.8rem;
+  background: var(--cat); color: #fff; border: 2px solid var(--ink); border-radius: 14px; box-shadow: var(--pop-sm);
+}
+.quick-actions.big .qa-btn:active { transform: translate(2px, 2px); box-shadow: none; }
+.qa-disc { width: auto; height: auto; background: none !important; border: 0 !important; color: #fff; }
+.quick-actions .qa-btn span.qa-text { color: #fff; font-size: 0.98rem; font-weight: 800; }
+.qa-text small { color: rgba(255, 255, 255, 0.85); }
+.qa-btn.hot { outline: 3px solid var(--sun); outline-offset: 2px; }
+.qa-btn.active { transform: translate(2px, 2px); box-shadow: none; }
+
+/* Unten: klare Leiste mit Tinten-Linie */
+@media (max-width: 760px) {
+  .tabbar { background: var(--surface); border-top: 2px solid var(--ink); backdrop-filter: none; }
+}
+.tabbar a.active { color: var(--forest); }
+.tabbar a.active .tab-icon { background: color-mix(in srgb, var(--sun) 55%, transparent); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tabbar a.active { color: #f6f1e7; }
+}
+
+/* Kleinteile */
+.set-icon, .er-icon { background: color-mix(in srgb, var(--cat) 45%, var(--surface)); color: var(--ink); }
+.set-list { border: 1.5px solid var(--ink-soft); box-shadow: none; border-radius: 16px; }
+.band-line span { border: 1.5px solid var(--ink-soft); background: var(--surface); font-family: var(--hand); }
+.fav-chip { border: 1.5px dashed color-mix(in srgb, var(--ink) 35%, transparent); font-family: var(--hand); }
+.streak-dots { color: var(--forest); }
+.seg .active, .view-switch .active { font-weight: 800; }
+.saved-card { border: 2px solid var(--ink); box-shadow: var(--pop-sm); border-radius: 14px; }
+.week-card .wk-stats > div { border-radius: 12px; }

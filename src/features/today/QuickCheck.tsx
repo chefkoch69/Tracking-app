@@ -71,6 +71,7 @@ export function QuickCheck({ tracker, onSaved }: { tracker: Tracker; onSaved: (s
 
   return (
     <section className="card quick-check">
+      <div className="qc-head">
       <h2 className="qc-question">Wie geht’s dir gerade?</h2>
       <div className="qc-moods" role="radiogroup" aria-label="Wie geht’s dir?">
         {MOODS.map((m) => (
@@ -80,6 +81,8 @@ export function QuickCheck({ tracker, onSaved }: { tracker: Tracker; onSaved: (s
           </button>
         ))}
       </div>
+      </div>
+      <div className="qc-body">
 
       {done && !open && <p className="qc-thanks"><Doodle name="sprout" size={22} /> Danke. Wenn sich etwas ändert, tipp einfach nochmal.</p>}
       {!done && !open && mood !== undefined && (
@@ -149,6 +152,7 @@ export function QuickCheck({ tracker, onSaved }: { tracker: Tracker; onSaved: (s
           </div>
         </>
       )}
+      </div>
     </section>
   );
 }
