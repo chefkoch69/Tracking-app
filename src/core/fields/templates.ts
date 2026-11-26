@@ -127,6 +127,7 @@ export const TEMPLATES: TrackerTemplate[] = [
         g(AL, makeField('multiselect', 'Art der Erschöpfung', { options: ['körperlich', 'Kopf / Konzentration', 'Schweregefühl', 'Schwäche'] })),
         g(KA, symptom('Kälteempfinden')),
         g(KA, makeField('multiselect', 'Wo kalt?', { options: ['Hände', 'Füße', 'ganzer Körper'] })),
+        g(KA, makeField('select', 'Kälte – welche Seite?', { options: ['rechts kälter', 'links kälter', 'beide gleich'] })),
         g(KA, makeField('measurement', 'Raumtemperatur', { unit: '°C', step: 0.5, aggregation: 'avg' })),
         g('Notiz', makeField('text', 'Notiz', { multiline: true })),
       ];
@@ -144,6 +145,7 @@ export const TEMPLATES: TrackerTemplate[] = [
         'Tinnitus – Verlauf': 'Tinnitus',
         'Art der Erschöpfung': 'Erschöpfung',
         'Wo kalt?': 'Kälteempfinden',
+        'Kälte – welche Seite?': 'Kälteempfinden',
         'Nase – welche Seite?': 'Nase zu',
         Raumtemperatur: 'Kälteempfinden',
       };

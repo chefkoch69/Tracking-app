@@ -132,6 +132,7 @@ export function MomentCard({
 
   const body = (
         <form
+          data-dirty={filled.length > 0 ? 'true' : undefined}
           className="mc-body"
           onSubmit={(e) => {
             e.preventDefault();

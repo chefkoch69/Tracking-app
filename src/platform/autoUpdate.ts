@@ -16,9 +16,11 @@ function current(): string | null {
   return s ? scriptName(s.src) : null;
 }
 
+/** Nie neu laden, während getippt wird oder ein Formular halb ausgefüllt ist. */
 function busy(): boolean {
   const el = document.activeElement;
-  return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || (el as HTMLElement).isContentEditable);
+  if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || (el as HTMLElement).isContentEditable)) return true;
+  return !!document.querySelector('[data-dirty="true"]');
 }
 
 let last = 0;

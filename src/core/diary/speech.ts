@@ -220,6 +220,14 @@ const DETAILS: Record<string, Detail[]> = {
         [/ganze[nr]? körper|überall/, 'ganzer Körper'],
       ],
     },
+    {
+      label: 'Kälte – welche Seite?',
+      options: [
+        [/beide|gleich/, 'beide gleich'],
+        [/rechts|rechte/, 'rechts kälter'],
+        [/links|linke/, 'links kälter'],
+      ],
+    },
   ],
 };
 

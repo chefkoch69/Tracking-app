@@ -157,7 +157,7 @@ function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
   const onSaved = (s: SavedNote) => {
     setSaved(s);
     setUndone(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.setTimeout(() => document.querySelector('.composer')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30);
   };
   const at = (e?: { timestamp: string }) => (e ? formatClock(new Date(e.timestamp)) : '');
   const MODES: { key: Mode; icon: string; label: string; color: string; done?: string }[] = [
@@ -171,19 +171,6 @@ function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
 
   return (
     <>
-      {saved && (
-        <SavedCard
-          saved={{ ...saved, rest: [] }}
-          undone={undone}
-          today={today}
-          onClose={() => setSaved(null)}
-          onUndo={() => {
-            dispatch({ type: 'entry/delete', id: saved.entry.id });
-            setUndone(true);
-          }}
-          onEdit={() => navigate(`/t/${tracker.id}/entry/${saved.entry.id}`)}
-        />
-      )}
 
       <FollowUpCard tracker={tracker} onSymptoms={() => setMode('now')} />
 
@@ -209,7 +196,25 @@ function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
           </div>
         </div>
         <div className="cp-body">
-          {mode === 'now' ? (
+          {saved ? (
+            <div className="cp-done">
+              <SavedCard
+                saved={{ ...saved, rest: [] }}
+                undone={undone}
+                today={today}
+                onClose={() => setSaved(null)}
+                onUndo={() => {
+                  dispatch({ type: 'entry/delete', id: saved.entry.id });
+                  setUndone(true);
+                }}
+                onEdit={() => navigate(`/t/${tracker.id}/entry/${saved.entry.id}`)}
+              />
+              <p className="muted small">{undone ? 'Nichts gespeichert.' : 'Steht jetzt unten unter „Bisher heute“ und im Verlauf.'}</p>
+              <button type="button" className="btn primary big" onClick={() => setSaved(null)}>
+                Noch etwas eintragen
+              </button>
+            </div>
+          ) : mode === 'now' ? (
             <QuickCheck key="now" tracker={tracker} onSaved={onSaved} />
           ) : (
             <>

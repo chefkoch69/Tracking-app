@@ -68,7 +68,7 @@ export function QuickCheck({ tracker, onSaved }: { tracker: Tracker; onSaved: (s
     });
 
   return (
-    <div className="qc">
+    <div className="qc" data-dirty={chosen.length > 0 ? 'true' : undefined}>
       <div className="qc-row-head">
         <span className="qc-label">Stimmung</span>
       </div>

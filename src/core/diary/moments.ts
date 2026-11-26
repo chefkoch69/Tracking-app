@@ -70,6 +70,7 @@ export const QUESTIONS: Record<string, { ask: string; hint?: string }> = {
   'Tinnitus – Verlauf': { ask: 'Wie verläuft es?' },
   'Art der Erschöpfung': { ask: 'Wie zeigt sich die Erschöpfung?' },
   'Wo kalt?': { ask: 'Wo ist dir kalt?' },
+  'Kälte – welche Seite?': { ask: 'Welche Seite ist kälter?' },
   Raumtemperatur: { ask: 'Wie warm ist es im Raum?' },
   Notiz: { ask: 'Sonst noch etwas?', hint: 'Alles, was dir wichtig ist' },
 };
