@@ -69,6 +69,7 @@ describe('Einträge ausbessern', () => {
   it('korrigiert Diktier- und Tippfehler', () => {
     expect(correctText('Brathuhn, Mod Kartoffeln')).toBe('Brathuhn mit Kartoffeln');
     expect(correctText('brathuhn mod kartofeln')).toBe('Brathuhn mit Kartoffeln');
+    expect(correctText('Brathuhn MOT Kartoffeln')).toBe('Brathuhn mit Kartoffeln');
     expect(correctText('2 scheiben brot mit kaese unt marmelade')).toBe('2 Scheiben Brot mit Käse und Marmelade');
     expect(correctText('kafee, 0,5 l wasser')).toBe('Kaffee, 0,5 l Wasser');
     expect(correctText('ibuprofen 400 mg')).toBe('Ibuprofen 400 mg');

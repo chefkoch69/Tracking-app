@@ -235,11 +235,12 @@ function TodayLog({ tracker, now }: { tracker: Tracker; now: Date }) {
         />
       )}
 
-      {favs.length > 0 && (
+
+      {(extra === 'meal' || extra === 'med') && favs.some((f) => (extra === 'med') === (f.kind === 'med')) && (
         <section className="fav-inline" aria-label="Schnell eintragen">
-          <small className="muted">Mit einem Tipp gespeichert:</small>
+          <small className="muted">{extra === 'med' ? 'Schon öfter genommen' : 'Schon öfter gegessen/getrunken'} – antippen trägt es sofort ein:</small>
           <div className="fav-chips">
-            {favs.map((f) => (
+            {favs.filter((f) => (extra === 'med') === (f.kind === 'med')).map((f) => (
               <button
                 key={`${f.fieldId}|${f.text}`}
                 type="button"

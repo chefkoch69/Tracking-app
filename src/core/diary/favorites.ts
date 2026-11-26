@@ -61,7 +61,7 @@ export function favorites(tracker: Tracker, entries: Entry[], now: Date, limit =
   const all = [...map.values()];
   // Ganze Mahlzeiten nur, wenn sie sich wiederholen – sonst reichen die einzelnen Teile.
   return all
-    .filter((x) => listItems(x.text).length === 1 || x.count >= 2)
+    .filter((x) => x.count >= 2)
     .sort((a, b) => b.count - a.count || b.last.localeCompare(a.last))
     .slice(0, limit);
 }

@@ -791,6 +791,7 @@ describe('Ein-Tipp-Favoriten', () => {
       entry(t, at(9, 0, new Date(2026, 10, 23)), { [food]: 'Milchkaffee' }),
       entry(t, at(12, 0, new Date(2026, 10, 22)), { [food]: 'Linsensuppe, Brot' }),
       entry(t, at(13, 0, new Date(2026, 10, 22)), { [med]: 'Buscopan 10 mg' }),
+      entry(t, at(13, 0, new Date(2026, 10, 23)), { [med]: 'Buscopan 10 mg' }),
       entry(t, at(9, 0, new Date(2026, 8, 1)), { [food]: 'Uralt-Essen' }), // älter als 30 Tage
     ];
     const fav = favorites(t, es, at(21));
@@ -798,14 +799,14 @@ describe('Ein-Tipp-Favoriten', () => {
     expect(texts[0]).toBe('Milchkaffee');
     expect(texts).toContain('3 Eier, Toast');
     expect(texts).not.toContain('Linsensuppe, Brot'); // nur einmal gegessen
-    expect(texts).toContain('Linsensuppe');
+    expect(texts).not.toContain('Linsensuppe'); // erst ab dem zweiten Mal
     expect(texts).not.toContain('Uralt-Essen');
     expect(fav.find((f) => f.text === 'Milchkaffee')?.kind).toBe('drink');
     expect(fav.find((f) => f.text === 'Buscopan 10 mg')?.kind).toBe('med');
   });
   it('setzt beim Speichern das passende Ereignis', () => {
     const t = tpl();
-    const fav = favorites(t, [entry(t, at(9), { [id(t, 'Medikamente')]: 'Buscopan 10 mg' }), entry(t, at(10), { [id(t, 'Was gegessen?')]: 'Kaffee' })], at(21));
+    const fav = favorites(t, [entry(t, at(9), { [id(t, 'Medikamente')]: 'Buscopan 10 mg' }), entry(t, at(9, 30), { [id(t, 'Medikamente')]: 'Buscopan 10 mg' }), entry(t, at(10), { [id(t, 'Was gegessen?')]: 'Kaffee' }), entry(t, at(10, 30), { [id(t, 'Was gegessen?')]: 'Kaffee' })], at(21));
     const med = favoriteValues(t, fav.find((f) => f.kind === 'med')!);
     expect(med[id(t, 'Was ist passiert?')]).toEqual(['Medikament genommen']);
     const drink = favoriteValues(t, fav.find((f) => f.kind === 'drink')!);

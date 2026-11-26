@@ -24,7 +24,7 @@ const SMALL = `mit ohne und oder mit dazu etwas wenig viel bisschen ein eine ein
 
 /** Häufige Diktier-/Tippfehler bei kleinen Wörtern. */
 const FIX: Record<string, string> = {
-  mod: 'mit', mitt: 'mit', mid: 'mit', mt: 'mit', nit: 'mit', mir: 'mit',
+  mod: 'mit', mot: 'mit', mmit: 'mit', mitt: 'mit', mid: 'mit', mt: 'mit', nit: 'mit', mir: 'mit',
   unt: 'und', un: 'und', udn: 'und', ud: 'und',
   oda: 'oder', ohen: 'ohne',
 };
