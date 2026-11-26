@@ -15,6 +15,7 @@ import type { SavedNote } from './MomentCard';
 const TILE: Record<string, { icon: string; name: string; color: string }> = {
   Bauchschmerz: { icon: 'belly', name: 'Bauch', color: '#E8835F' },
   Übelkeit: { icon: 'nausea', name: 'Übel', color: '#8DBA5E' },
+  'Nase zu': { icon: 'nose', name: 'Nase zu', color: '#7C93C9' },
   Kopfschmerz: { icon: 'head', name: 'Kopf', color: '#E06A78' },
   Tinnitus: { icon: 'ear', name: 'Tinnitus', color: '#5E9FD8' },
   Müdigkeit: { icon: 'tired', name: 'Müde', color: '#A584D6' },

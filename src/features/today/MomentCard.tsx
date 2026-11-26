@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Doodle } from '../../components/Doodle';
 import { entriesOf } from '../../core/analysis/analytics';
 import { dayKey, formatClock } from '../../core/model/dates';
-import { conditionMet, FIELD_TYPES, isEmptyValue, validateValues } from '../../core/fields/fieldTypes';
+import { conditionMet, FIELD_TYPES, isEmptyValue, polarityOf, validateValues } from '../../core/fields/fieldTypes';
 import { entryFeedback, type ValueChange } from '../../core/diary/feedback';
 import { detailsOf, fieldByLabel, momentByKey, symptomFields, withEvent, type MomentKey } from '../../core/diary/moments';
 import { uid } from '../../core/model/id';
@@ -72,7 +72,14 @@ export function MomentCard({
   const filled = visible.filter((f) => !isEmptyValue(values[f.id]) && values[f.id] !== false && conditionMet(f, visible, values));
   const errors = validateValues(filled, values);
   const set = (f: FieldDef, v: FieldValue) => setValues((s) => ({ ...s, [f.id]: v }));
-  const { main, more } = symptomFields(tracker);
+  const momentFields = m.fields.flatMap((mf) => {
+    const f = fieldByLabel(tracker, mf.label);
+    return f ? [{ f, ask: mf.ask }] : [];
+  });
+  const inMoment = new Set(momentFields.map((x) => x.f.id));
+  const sf = symptomFields(tracker);
+  const main = sf.main.filter((f) => !inMoment.has(f.id));
+  const more = sf.more.filter((f) => !inMoment.has(f.id));
   const note = visible.find((f) => f.type === 'text' && f.config.multiline);
   const stool = fieldByLabel(tracker, 'Stuhlgang');
 
@@ -141,9 +148,23 @@ export function MomentCard({
             {m.wake && <WakeControl day={today} />}
             {m.key === 'evening' && <DayMoodControl day={today} />}
             {m.key === 'evening' && <LastMealLine tracker={tracker} entries={entries} now={new Date()} />}
-            {m.fields.map((mf) => {
-              const f = fieldByLabel(tracker, mf.label);
-              return f ? field(f, mf.ask) : null;
+            {momentFields.map(({ f, ask }, i) => {
+              const head = f.group && f.group !== momentFields[i - 1]?.f.group && i > 0 ? <h3 className="mc-sub mc-group">{f.group}</h3> : null;
+              // Beschwerden als Stärke-Zeile (mit ihren Details), Details selbst nicht doppelt
+              if (f.type === 'scale' && polarityOf(f) === 'higher-worse')
+                return (
+                  <div key={f.id} className="mc-field-wrap">
+                    {head}
+                    {symptomRows([f])}
+                  </div>
+                );
+              if (f.showIf && momentFields.some((x) => x.f.id === f.showIf!.fieldId)) return null;
+              return (
+                <div key={f.id} className="mc-field-wrap">
+                  {head}
+                  {field(f, ask)}
+                </div>
+              );
             })}
 
             {m.symptoms !== 'none' && (

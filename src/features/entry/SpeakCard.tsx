@@ -13,6 +13,7 @@ import { useDictation } from '../../platform/useDictation';
 /** Die Punkte, die man beim Erzählen durchgeht – mit einem Beispiel, was man sagen kann. */
 const POINTS: { key: string; icon: string; title: string; say: string; fields: string[]; wake?: boolean }[] = [
   { key: 'morning', icon: '☀️', title: 'Aufstehen & Schlaf', say: '„Um halb acht aufgewacht, gleich aufgestanden, Wecker war auf 7, gut geschlafen.“', fields: ['Gleich aufgestanden?', 'Wecker gestellt auf', 'Schlafqualität'], wake: true },
+  { key: 'night', icon: 'nose', title: 'Nacht & Nase', say: '„Mit Pflaster geschlafen, Nase war links zu, Mund ziemlich trocken, einmal aufs Klo.“', fields: ['Nasenpflaster', 'Nase zu', 'Nase – welche Seite?', 'Mund trocken', 'Halskratzen', 'Blut im Rachen / Nasenbluten', 'Nachts aufgewacht', 'Nachts aufs Klo'] },
   { key: 'belly', icon: '🫃', title: 'Bauch', say: '„Leichtes Bauchweh, krampfartig, Unterbauch links, nach dem Essen.“ – oder „Bauch ist gut.“', fields: ['Bauchschmerz', 'Art der Bauchschmerzen', 'Lokalisation', 'Bezug zu Mahlzeiten', 'Übelkeit', 'Würgen / Brechreiz', 'Sodbrennen', 'Erbrechen'] },
   { key: 'head', icon: '🤕', title: 'Kopf', say: '„Kopfweh mittel, drückend an der Stirn.“ – oder „kein Kopfweh.“', fields: ['Kopfschmerz', 'Kopf – wo?', 'Art der Kopfschmerzen'] },
   { key: 'ear', icon: '👂', title: 'Tinnitus', say: '„Tinnitus leicht, links, Pfeifen, kommt und geht.“', fields: ['Tinnitus', 'Tinnitus – Ohr', 'Tinnitus – Klang', 'Tinnitus – Verlauf'] },

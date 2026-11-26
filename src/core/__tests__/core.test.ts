@@ -491,7 +491,7 @@ describe('Ein Tracker für alles: Zusammenführen und Abschnitte', () => {
     expect(t.name).toBe('Mein Befinden');
     expect(t.quick).toBe(true);
     const groups = [...new Set(t.fields.map((f) => f.group))];
-    expect(groups).toEqual(['Ereignisse & Essen', 'Schlaf & Aufstehen', 'Bauch & Verdauung', 'Kopf', 'Tinnitus', 'Allgemein', 'Kälte', 'Notiz']);
+    expect(groups).toEqual(['Ereignisse & Essen', 'Schlaf & Aufstehen', 'Nacht & Nase', 'Bauch & Verdauung', 'Kopf', 'Tinnitus', 'Allgemein', 'Kälte', 'Notiz']);
     for (const l of ['Bauchschmerz', 'Lokalisation', 'Kälteempfinden', 'Raumtemperatur', 'Was gegessen?', 'Würgen / Brechreiz']) {
       expect(t.fields.some((f) => f.label === l)).toBe(true);
     }
@@ -897,8 +897,8 @@ describe('Eintragen nach Moment', () => {
     const t = tpl();
     for (const m of MOMENTS) for (const f of m.fields) expect(fieldByLabel(t, f.label), `${m.key}: ${f.label}`).toBeTruthy();
     const { main, more } = symptomFields(t);
-    expect(main.map((f) => f.label)).toEqual(['Bauchschmerz', 'Übelkeit', 'Kopfschmerz', 'Tinnitus', 'Müdigkeit', 'Erschöpfung', 'Kälteempfinden']);
-    expect(more.map((f) => f.label)).toEqual(['Würgen / Brechreiz', 'Sodbrennen', 'Erbrechen']);
+    expect(main.map((f) => f.label)).toEqual(['Bauchschmerz', 'Übelkeit', 'Nase zu', 'Kopfschmerz', 'Tinnitus', 'Müdigkeit', 'Erschöpfung', 'Kälteempfinden']);
+    expect(more.map((f) => f.label)).toEqual(['Mund trocken', 'Halskratzen', 'Würgen / Brechreiz', 'Sodbrennen', 'Erbrechen']);
     expect(detailsOf(t, fieldByLabel(t, 'Kopfschmerz')!).map((f) => f.label)).toEqual(['Kopf – wo?', 'Art der Kopfschmerzen', 'Kopfschmerz von–bis']);
   });
   it('vermerkt das passende Ereignis', () => {

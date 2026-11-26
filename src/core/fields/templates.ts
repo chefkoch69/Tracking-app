@@ -60,7 +60,7 @@ export const TEMPLATES: TrackerTemplate[] = [
     category: 'Tagebuch',
     icon: '💙',
     color: '#2f63f0',
-    description: 'Dein Körper-Tagebuch: Aufstehen und Schlafen, Essen und Trinken, Bauch, Kopf, Tinnitus, Erschöpfung – Details klappen auf, wenn du eine Beschwerde angibst.',
+    description: 'Dein Körper-Tagebuch: Aufstehen, Nacht & Nase, Schlafen, Essen und Trinken, Bauch, Kopf, Tinnitus, Erschöpfung – Details klappen auf, wenn du eine Beschwerde angibst.',
     build: () => {
       const g = (group: string, f: FieldDef): FieldDef => ({ ...f, group });
       const EV = 'Ereignisse & Essen';
@@ -70,6 +70,7 @@ export const TEMPLATES: TrackerTemplate[] = [
       const TI = 'Tinnitus';
       const AL = 'Allgemein';
       const KA = 'Kälte';
+      const NA = 'Nacht & Nase';
       const fields: FieldDef[] = [
         g(EV, makeField('multiselect', 'Was ist passiert?', {
           options: ['aufgestanden', 'gegessen', 'getrunken', 'Medikament genommen', 'Toilette', 'Bewegung', 'Pause / hingelegt', 'geschlafen', 'Stress', 'schlafen gegangen'],
@@ -92,6 +93,15 @@ export const TEMPLATES: TrackerTemplate[] = [
           polarity: 'higher-better',
         })),
         g(SL, makeField('time', 'Handy weggelegt um', { overnight: true })),
+        // Nacht & Nase: morgens beim Aufstehen – Nasenpflaster, Nase zu, trockener Mund, Blut im Rachen, Klo
+        g(NA, makeField('select', 'Nasenpflaster', { options: ['ja, noch drauf', 'ja, aber abgefallen', 'nein'] })),
+        g(NA, symptom('Nase zu')),
+        g(NA, makeField('select', 'Nase – welche Seite?', { options: ['links', 'rechts', 'beide', 'wechselnd'] })),
+        g(NA, symptom('Mund trocken')),
+        g(NA, symptom('Halskratzen')),
+        g(NA, makeField('select', 'Blut im Rachen / Nasenbluten', { options: ['nein', 'etwas Blut im Rachen / Speichel', 'Nasenbluten'] })),
+        g(NA, makeField('select', 'Nachts aufgewacht', { options: ['durchgeschlafen', '1×', '2×', '3× oder öfter'] })),
+        g(NA, makeField('select', 'Nachts aufs Klo', { options: ['nein', '1×', '2×', '3× oder öfter'] })),
         g(BA, symptom('Bauchschmerz')),
         g(BA, makeField('multiselect', 'Art der Bauchschmerzen', { options: ['krampfartig', 'stechend', 'drückend', 'brennend', 'dumpf', 'Blähungen / Völlegefühl'] })),
         g(BA, makeField('bodymap', 'Lokalisation', { bodyMap: 'abdomen' })),
@@ -134,6 +144,7 @@ export const TEMPLATES: TrackerTemplate[] = [
         'Tinnitus – Verlauf': 'Tinnitus',
         'Art der Erschöpfung': 'Erschöpfung',
         'Wo kalt?': 'Kälteempfinden',
+        'Nase – welche Seite?': 'Nase zu',
         Raumtemperatur: 'Kälteempfinden',
       };
       for (const f of fields) {

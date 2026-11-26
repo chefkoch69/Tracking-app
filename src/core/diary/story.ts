@@ -52,6 +52,10 @@ const SHORT: Record<string, string> = {
   'Bezug zu Mahlzeiten': 'Bezug',
   'Was getrunken?': 'Getrunken',
   'Was gegessen?': 'Gegessen',
+  'Nachts aufs Klo': 'Klo nachts',
+  'Nachts aufgewacht': 'Nachts wach',
+  'Blut im Rachen / Nasenbluten': 'Blut',
+  'Nase – welche Seite?': 'Nase',
 };
 
 export function entryStory(tracker: Tracker, entry: Entry): EntryStory {

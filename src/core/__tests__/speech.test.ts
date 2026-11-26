@@ -48,3 +48,15 @@ describe('Erzählen auswerten', () => {
     expect(r.values['Erschöpfung']).toBe(2);
   });
 });
+
+describe('Nacht & Nase', () => {
+  it('versteht Nase, Mund, Pflaster, Klo und Blut', () => {
+    const r = parseSpeech('Mit Nasenpflaster geschlafen, aber es ist abgefallen. Die Nase war links ziemlich zu. Mund total trocken. In der Nacht zweimal aufs Klo. Etwas Blut im Rachen.');
+    expect(r.values['Nasenpflaster']).toBe('ja, aber abgefallen');
+    expect(r.values['Nase zu']).toBe(2);
+    expect(r.values['Nase – welche Seite?']).toBe('links');
+    expect(r.values['Mund trocken']).toBe(3);
+    expect(r.values['Nachts aufs Klo']).toBe('2×');
+    expect(r.values['Blut im Rachen / Nasenbluten']).toBe('etwas Blut im Rachen / Speichel');
+  });
+});

@@ -33,7 +33,7 @@ export interface Moment {
 }
 
 /** Die Beschwerden, die im Kurz-Check immer oben stehen. */
-export const MAIN_SYMPTOMS = ['Bauchschmerz', 'Übelkeit', 'Kopfschmerz', 'Tinnitus', 'Müdigkeit', 'Erschöpfung', 'Kälteempfinden'];
+export const MAIN_SYMPTOMS = ['Bauchschmerz', 'Übelkeit', 'Nase zu', 'Kopfschmerz', 'Tinnitus', 'Müdigkeit', 'Erschöpfung', 'Kälteempfinden'];
 
 /**
  * Wie ein Feld beim Eintragen gefragt wird: eine kurze, natürliche Frage statt der
@@ -49,6 +49,14 @@ export const QUESTIONS: Record<string, { ask: string; hint?: string }> = {
   'Wecker gestellt auf': { ask: 'Worauf war der Wecker gestellt?' },
   Schlafqualität: { ask: 'Wie hast du geschlafen?' },
   'Handy weggelegt um': { ask: 'Wann hast du das Handy weggelegt?' },
+  Nasenpflaster: { ask: 'Mit Nasenpflaster geschlafen?' },
+  'Nase zu': { ask: 'Wie zu war die Nase beim Aufwachen?' },
+  'Nase – welche Seite?': { ask: 'Welche Seite war zu?' },
+  'Mund trocken': { ask: 'Wie trocken war der Mund?' },
+  Halskratzen: { ask: 'Hals kratzig oder wund?' },
+  'Blut im Rachen / Nasenbluten': { ask: 'Blut im Rachen oder Nasenbluten?' },
+  'Nachts aufgewacht': { ask: 'Bist du nachts aufgewacht?' },
+  'Nachts aufs Klo': { ask: 'Musstest du nachts aufs Klo?' },
   'Art der Bauchschmerzen': { ask: 'Wie fühlt sich der Bauch an?' },
   Lokalisation: { ask: 'Wo genau?' },
   'Uhrzeit von–bis': { ask: 'Seit wann – bis wann?' },
@@ -78,7 +86,19 @@ export const MOMENTS: Moment[] = [
     icon: '☀️',
     label: 'Aufgestanden',
     hint: 'Wie hast du geschlafen, wie geht’s dir?',
-    fields: [{ label: 'Gleich aufgestanden?' }, { label: 'Wecker gestellt auf' }, { label: 'Schlafqualität' }],
+    fields: [
+      { label: 'Gleich aufgestanden?' },
+      { label: 'Wecker gestellt auf' },
+      { label: 'Schlafqualität' },
+      { label: 'Nasenpflaster' },
+      { label: 'Nase zu' },
+      { label: 'Nase – welche Seite?' },
+      { label: 'Mund trocken' },
+      { label: 'Halskratzen' },
+      { label: 'Blut im Rachen / Nasenbluten' },
+      { label: 'Nachts aufgewacht' },
+      { label: 'Nachts aufs Klo' },
+    ],
     symptoms: 'main',
     event: 'aufgestanden',
     wake: true,

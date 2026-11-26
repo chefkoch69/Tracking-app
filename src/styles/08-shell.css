@@ -359,3 +359,4 @@ body {
 .today-date { color: #E8835F; }
 .tabbar a.active { color: #E8835F; }
 .tabbar a.active .tab-icon { background: color-mix(in srgb, #E8835F 16%, transparent); }
+.mc-group { margin: 0.9rem 0 0.2rem; padding-top: 0.8rem; border-top: 1.5px dashed var(--border); font-family: var(--display); font-size: 1.6rem; font-weight: 700; color: #7C93C9; }

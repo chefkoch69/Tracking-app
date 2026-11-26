@@ -69,6 +69,9 @@ const SYMPTOMS: Symptom[] = [
   { label: 'Tinnitus', re: /tinnitus|ohr|pfeif|piep|rauscht/ },
   { label: 'Müdigkeit', re: /müde|müdigkeit|schläfrig/ },
   { label: 'Erschöpfung', re: /erschöpf|kaputt|schlapp|ausgelaugt|k\.?\s?o\.?\b|energielos|keine energie|keine kraft/ },
+  { label: 'Nase zu', re: /nase\b[^.,;]{0,30}\b(?:zu|verstopft|dicht|frei)\b|verstopfte nase|keine luft durch die nase/ },
+  { label: 'Mund trocken', re: /mund\b[^.,;]{0,30}(?:trocken|ausgetrocknet)|trocken(?:er|en) mund/ },
+  { label: 'Halskratzen', re: /hals (?:kratzt|kratzig|wund|tut weh)|halskratzen|halsschmerz/ },
   { label: 'Kälteempfinden', re: /\bkalt|kälte|frier|fröstel/, not: /getrunken|gegessen|wasser|getränk/ },
 ];
 
@@ -76,7 +79,7 @@ const SYMPTOMS: Symptom[] = [
 function intensity(s: string): number | null {
   if (/nicht (?:mehr |ganz )?(?:so |sehr )?(?:stark|schlimm|arg)/.test(s)) return 1;
   if (/\b(kein|keine|keinen|keiner|nicht|ohne|nichts)\b/.test(s) && !/keine energie|keine kraft/.test(s)) return 0;
-  if (/\b(gut|passt|okay|ok|in ordnung|ruhig|weg|normal|fein|super)\b/.test(s) && !/nicht gut/.test(s)) return 0;
+  if (/\b(gut|passt|okay|ok|in ordnung|ruhig|weg|normal|fein|super|frei)\b/.test(s) && !/nicht gut/.test(s)) return 0;
   if (/\b(sehr stark|extrem\w*|heftig\w*|schlimm\w*|stark\w*|arg\w*|massiv\w*|unerträglich\w*|richtig|wahnsinnig|total)\b/.test(s)) return 3;
   if (/\b(kaum|minimal\w*|ganz leicht\w*|sehr leicht\w*|ein bisschen|ein bissl|ein wenig|bisschen|bissl)\b/.test(s)) return 0.5;
   if (/\b(mittel\w*|mittler\w*|mäßig\w*|ziemlich|deutlich\w*|einige|spürbar\w*|ganz schön|schon)\b/.test(s)) return 2;
@@ -196,6 +199,17 @@ const DETAILS: Record<string, Detail[]> = {
       ],
     },
   ],
+  'Nase zu': [
+    {
+      label: 'Nase – welche Seite?',
+      options: [
+        [/beide|beidseitig/, 'beide'],
+        [/wechsel/, 'wechselnd'],
+        [/links|linke/, 'links'],
+        [/rechts|rechte/, 'rechts'],
+      ],
+    },
+  ],
   Kälteempfinden: [
     {
       label: 'Wo kalt?',
@@ -275,6 +289,14 @@ export function parseSpeech(input: string): SpeechResult {
         if (m) measures.push(m[0] === 'spazieren' ? 'Spaziergang' : cap(m[0]));
       }
 
+      if (/abgefallen|runtergefallen/.test(c) && values['Nasenpflaster'] && !/pflaster/.test(c)) {
+        values['Nasenpflaster'] = 'ja, aber abgefallen';
+        continue;
+      }
+      if (/pflaster/.test(c)) {
+        values['Nasenpflaster'] = /ohne|kein/.test(c) ? 'nein' : /abgefallen|runter|weg|verloren/.test(c) ? 'ja, aber abgefallen' : 'ja, noch drauf';
+        continue;
+      }
       // --- Aufstehen, Schlaf, Wecker, Handy
       if (/aufgestanden|aufgewacht|wach geworden|aufstehen|raus aus dem bett/.test(c)) {
         const t = findClock(c);
@@ -316,6 +338,20 @@ export function parseSpeech(input: string): SpeechResult {
         continue;
       }
       if (/schlafen gehe|ins bett|gehe schlafen|schlafen gegangen/.test(c)) events.add('schlafen gegangen');
+
+      // --- Nacht & Nase
+      const times = (x: string) => (/drei ?mal|dreimal|öfter|oft|mehrmals|vier|fünf/.test(x) ? '3× oder öfter' : /zwei ?mal|zweimal|2 ?mal|2x/.test(x) ? '2×' : /ein ?mal|einmal|1 ?mal|1x/.test(x) ? '1×' : null);
+      if (/klo|toilette|pinkeln|pipi|wc/.test(c) && /nacht|nachts/.test(sentence.toLocaleLowerCase("de-DE"))) {
+        values['Nachts aufs Klo'] = /nicht|kein|nie/.test(c) ? 'nein' : (times(c) ?? '1×');
+        continue;
+      }
+      if (/nachts|in der nacht/.test(c) && /aufgewacht|wach geworden|wach gelegen/.test(c)) {
+        values['Nachts aufgewacht'] = /nicht|durchgeschlafen/.test(c) ? 'durchgeschlafen' : (times(c) ?? '1×');
+        continue;
+      }
+      if (/durchgeschlafen/.test(c)) values['Nachts aufgewacht'] = 'durchgeschlafen';
+      if (/nasenbluten/.test(c)) values['Blut im Rachen / Nasenbluten'] = /kein|nicht/.test(c) ? 'nein' : 'Nasenbluten';
+      else if (/blut/.test(c) && /rachen|hals|speichel|spucke|mund|geschluckt/.test(c)) values['Blut im Rachen / Nasenbluten'] = /kein|nicht/.test(c) ? 'nein' : 'etwas Blut im Rachen / Speichel';
 
       // --- Beschwerden
       let found = false;
