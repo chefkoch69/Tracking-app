@@ -103,7 +103,7 @@ export const TEMPLATES: TrackerTemplate[] = [
         g(NA, makeField('select', 'Nachts aufgewacht', { options: ['durchgeschlafen', '1×', '2×', '3× oder öfter'] })),
         g(NA, makeField('select', 'Nachts aufs Klo', { options: ['nein', '1×', '2×', '3× oder öfter'] })),
         g(BA, symptom('Bauchschmerz')),
-        g(BA, makeField('multiselect', 'Art der Bauchschmerzen', { options: ['krampfartig', 'stechend', 'drückend', 'brennend', 'dumpf', 'Blähungen / Völlegefühl'] })),
+        g(BA, makeField('multiselect', 'Art der Bauchschmerzen', { options: ['krampfartig', 'stechend', 'drückend', 'brennend', 'dumpf', 'pulsierend', 'Blähungen / Völlegefühl'] })),
         g(BA, makeField('bodymap', 'Lokalisation', { bodyMap: 'abdomen' })),
         g(BA, makeField('timerange', 'Uhrzeit von–bis', { aggregation: 'sum', polarity: 'higher-worse', metricName: 'Schmerzdauer' })),
         g(BA, symptom('Übelkeit')),

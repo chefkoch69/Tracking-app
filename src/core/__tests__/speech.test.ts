@@ -60,3 +60,9 @@ describe('Nacht & Nase', () => {
     expect(r.values['Blut im Rachen / Nasenbluten']).toBe('etwas Blut im Rachen / Speichel');
   });
 });
+
+describe('Bauch pulsierend', () => {
+  it('erkennt pulsierende Bauchschmerzen', () => {
+    expect(parseSpeech('Bauchweh mittel, pulsierend').values['Art der Bauchschmerzen']).toEqual(['pulsierend']);
+  });
+});

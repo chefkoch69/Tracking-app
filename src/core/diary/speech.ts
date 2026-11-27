@@ -100,6 +100,7 @@ const DETAILS: Record<string, Detail[]> = {
         [/drück|drückt/, 'drückend'],
         [/brenn/, 'brennend'],
         [/dumpf/, 'dumpf'],
+        [/puls|poch|klopf/, 'pulsierend'],
         [/bläh|völle|aufgebläht|voll\b/, 'Blähungen / Völlegefühl'],
       ],
     },
