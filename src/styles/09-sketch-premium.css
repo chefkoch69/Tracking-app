@@ -191,3 +191,72 @@ h1, h2, h3, .btn, .qc-tname, .qa-text, .set-text strong, .er-title, .tabbar a, .
 .cp-summary-head b { color: var(--text); }
 .cp-cancel { align-self: center; color: var(--muted); }
 .cp-done .btn.big { align-self: stretch; }
+
+/* =========================================================
+   Ruhig („chillig“): keine harten Tinten-Umrisse und Schatten,
+   helles Kopfband, sanfte Pastellflächen. Funktioniert auch in
+   Graustufen, weil Kontraste weich bleiben.
+   ========================================================= */
+:root {
+  --pop: 0 1px 2px rgba(40, 35, 25, 0.06), 0 6px 18px rgba(40, 35, 25, 0.06);
+  --pop-sm: 0 1px 2px rgba(40, 35, 25, 0.06);
+  --calm-band: #e6efe9;
+  --calm-band-text: #24433c;
+  --calm-line: rgba(32, 29, 25, 0.1);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --pop: 0 1px 2px rgba(0, 0, 0, 0.25);
+    --pop-sm: none;
+    --calm-band: #22302b;
+    --calm-band-text: #e7efe9;
+    --calm-line: rgba(255, 255, 255, 0.09);
+  }
+}
+
+.composer, .quick-check { border: 1px solid var(--calm-line); box-shadow: var(--pop); border-radius: 20px; }
+.cp-head, .qc-head { background: var(--calm-band); color: var(--calm-band-text); }
+.cp-title, .qc-question { color: var(--calm-band-text); font-weight: 700; }
+.cp-mode { background: rgba(255, 255, 255, 0.55); color: var(--calm-band-text); border: 1px solid transparent; font-weight: 600; }
+.cp-mode .doodle { color: var(--calm-band-text); }
+.cp-mode.on { background: var(--surface); color: var(--calm-band-text); border-color: color-mix(in srgb, var(--cat) 70%, transparent); box-shadow: inset 0 -3px 0 var(--cat); }
+.cp-mode.on .doodle { color: color-mix(in srgb, var(--cat) 65%, var(--calm-band-text)); }
+.cp-mode.done:not(.on) { background: rgba(255, 255, 255, 0.4); }
+.cp-extra > span { color: var(--calm-band-text); }
+.cp-chip { color: var(--calm-band-text); border-color: color-mix(in srgb, var(--calm-band-text) 22%, transparent); }
+.cp-chip.on { background: var(--surface); color: var(--calm-band-text); border-color: var(--cat); box-shadow: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .cp-mode { background: rgba(255, 255, 255, 0.06); }
+  :root:not([data-theme="light"]) .cp-mode.on { background: rgba(255, 255, 255, 0.12); }
+}
+
+/* Kacheln: zarte Farbe, dünner Rand; gewählt = etwas kräftiger, ohne Schatten */
+.qc-tile { background: color-mix(in srgb, var(--cat) 20%, var(--surface)); border: 1px solid color-mix(in srgb, var(--cat) 35%, transparent); box-shadow: none; }
+.qc-tile .doodle { color: color-mix(in srgb, var(--cat) 55%, var(--text)) !important; }
+.qc-tile.on { background: color-mix(in srgb, var(--cat) 38%, var(--surface)); border: 1.5px solid color-mix(in srgb, var(--cat) 75%, var(--text)); box-shadow: none; transform: none; }
+.qc-steps i { border-color: color-mix(in srgb, var(--text) 30%, transparent); }
+.qc-steps i.on { background: color-mix(in srgb, var(--cat) 70%, var(--text)); border-color: transparent; }
+.qc .qc-mood { background: var(--surface-2); }
+.qc .qc-mood.on { background: color-mix(in srgb, var(--cat) 30%, var(--surface)); border: 1.5px solid color-mix(in srgb, var(--cat) 70%, var(--text)); box-shadow: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .qc-tile { background: color-mix(in srgb, var(--cat) 18%, var(--surface)); }
+  :root:not([data-theme="light"]) .qc-tile .doodle, :root:not([data-theme="light"]) .qc-tname { color: color-mix(in srgb, var(--cat) 60%, #fff) !important; }
+  :root:not([data-theme="light"]) .qc-tile.on .qc-tname, :root:not([data-theme="light"]) .qc-level { color: var(--text) !important; }
+}
+
+/* Knöpfe weich */
+.btn.primary { border: 0; box-shadow: none; background: #3e7a6b; }
+.btn.primary:active { transform: scale(0.98); }
+.qc-good { border: 1px solid var(--calm-line); box-shadow: none; background: var(--surface-2); color: var(--text); }
+.saved-card { border: 1px solid color-mix(in srgb, var(--good) 40%, transparent); box-shadow: none; }
+.quick-actions.big .qa-btn { border: 0; box-shadow: none; }
+
+/* Leiste unten und Überschriften leiser */
+@media (max-width: 760px) {
+  .tabbar { border-top: 1px solid var(--calm-line); }
+}
+.tabbar a.active .tab-icon { background: color-mix(in srgb, #3e7a6b 14%, transparent); }
+.tabbar a.active { color: #3e7a6b; }
+.page-head h1 { font-weight: 700; }
+.page-head h1::after { opacity: 0.6; }
+.card { border-color: var(--calm-line); }
